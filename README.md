@@ -39,7 +39,7 @@ install.sh
     What does this script do?
     
     1.  Updates the system
-    2.  Copies ssh keys - you can see here for instructions - https://www.ssh.com/academy/ssh/copy-id
+    2.  Copies ssh keys - you can see here for instructions on createing ssh keys on your system - https://www.ssh.com/academy/ssh/copy-id
     3.  Change the ssh port (if you want to)
     4.  Harden ssh config by requiring ssh key, prohibiting root login, prohibiting password login
     5.  Sets up TOTP login for ssh using google-authenticator
