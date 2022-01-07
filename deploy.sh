@@ -88,7 +88,7 @@ Change the root password and then lock the root account...
 # Lock the root account
   sudo passwd -l root
 
-rm install.sh
+rm deploy.sh
 
 
 echo "
