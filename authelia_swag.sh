@@ -61,6 +61,16 @@ Enter your desired Authelia userid - would look like 'mynewuser' or 'Fkr5HZH4Rv'
   break
 done
 
+while true; do
+  read -rp "
+Enter your desired Authelia password- would look like 'ycmLvUM3Qx9sRJR4uT5niWEYraYjaDN7gcuyoHEU': " authpwd
+  if [[ -z "${authpwd}" ]]; then
+    echo "Enter your JWT secret or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 echo "
 "
 rm docker-compose.yml
@@ -206,7 +216,7 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
-pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password yourpassword | awk '{print $3}')
+pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password "$authpwd" | awk '{print $3}')
 
 
 # Make sure the stack started properly
@@ -215,9 +225,12 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
       sleep 5
     done
     
-sed -i 's/\    displayname: "Test User"/    displayname: "Test User"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+#sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+sed -i 's/\    displayname: \"Test User\"/    displayname: \"T'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+sed -i 's/\    password: \"$argon2id$v=19$m=32768,t=1,p=8$eUhVT1dQa082YVk2VUhDMQ$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk\"  # Password is 'authelia'/    password: \"$'"$pwdhash"'\"  # Password is 'authelia'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
-    displayname: "Test User"
+
+    #password: "$argon2id$v=19$m=32768,t=1,p=8$eUhVT1dQa082YVk2VUhDMQ$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk"  # Password is 'authelia'
 
 
 # Redeploy the stack
