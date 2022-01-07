@@ -1,5 +1,17 @@
 #!/bin/bash
 
+#  Do your initial server setup which will get you to a root ssh login
+#  After that is done, perform the following:
+#    nano deploy.sh
+#  Copy and paste this text into the new document (deploy.sh) followed by
+#    ctrl+X
+#    y
+#    enter
+#  Then, run the script
+#    bash deploy.sh
+#
+#  Follow the prompts / instructions
+
 echo "
  - Run this script as superuser.
 "
