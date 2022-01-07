@@ -124,6 +124,10 @@ Now exit this shell by typing exit and then re-log on using:
 
     'ssh $USR_NAME"@""$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
 
-After you get logged back in using the above, create the 
+After you get logged back in using the above, create the setup.sh script using the following command:
+
+    'sudo nano setup.sh'
+    
+with the password that you set for the new user.
 "
 exit 5
