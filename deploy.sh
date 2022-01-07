@@ -128,6 +128,10 @@ After you get logged back in using the above, create the setup.sh script using t
 
     'sudo nano setup.sh'
     
-with the password that you set for the new user.
+with the password that you set for the new user.  Copy and paste the text from setup.sh
+into the window followed by ctrl+x, y, enter.  Once that is comnplete, run the setup script
+using:
+
+    'sudo bash setup.sh'
 "
 exit 5
