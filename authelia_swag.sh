@@ -1,5 +1,7 @@
 #!/bin/bash
 
+stackname=authelia_swag
+
 echo "
  - Run this script as superuser.
 "
@@ -55,7 +57,7 @@ rm docker-compose.yml
 
 rm -r docker
 
-docker stack rm authelia_swag
+docker stack rm $stackname
 
 docker swarm leave --force
 
@@ -194,8 +196,11 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
+pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password yourpassword | awk '{print $3}')
 
-
-
+# Redeploy the stack
+docker stack rm $stackname
+docker system prune
+docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 
