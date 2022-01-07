@@ -199,8 +199,8 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password yourpassword | awk '{print $3}')
 
 # Redeploy the stack
-docker stack rm $stackname
-docker system prune
-docker stack deploy --compose-file docker-compose.yml "$stackname"
+#docker stack rm $stackname
+#docker system prune
+#docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 
