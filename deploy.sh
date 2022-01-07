@@ -62,9 +62,13 @@ Let's install a cron job to clean up the system automatically
 using bleachbit.  Copy this text (without the '):
 
   '0 0 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs  bleachbit --clean'
+
+You will paste the above line at the end of the file after the commented (#) lines followed
+by ctrl-X, y, Enter to commit the changes.
+
 "
 while true; do
-  read -rp "and then hit Enter to continue or ctrl+C to exit..." yn
+  read -rp "Hit Enter to continue or ctrl+C to exit..." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
@@ -73,7 +77,9 @@ done
 
 crontab -e
 
-#  Add firewall rules
+echo "
+
+"
 
 #  Create a new user
   while true; do
@@ -90,8 +96,7 @@ crontab -e
 
 #  Lock the root account
 echo "
-
-Change the root password and then lock the root account...
+Succesfully created new user $USR_NAME.  We will now change the root password and then lock the root account...
 "
 
 # Chenge the root password to something secure
@@ -100,12 +105,8 @@ Change the root password and then lock the root account...
 # Lock the root account
   sudo passwd -l root
 
+# Delete this script so that the root files system is returned to it's original state
 rm deploy.sh
-
-
-echo "
-
-"
 
 while true; do
   read -rp "Let's do an initial clean up using bleachbit before we exit (hit Enter to continue or ctrl+C t exit)..." yn
@@ -117,11 +118,12 @@ done
 
 bleachbit --list | grep -E "[a-z0-9_\-]+\.[a-z0-9_\-]+" | xargs  bleachbit --clean
 
-
 echo "
 
-Now re-log on using:
+Now exit this shell by typing exit and then re-log on using:
 
     'ssh $USR_NAME"@""$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
+
+After you get logged back in using the above, create the 
 "
 exit 5
