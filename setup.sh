@@ -252,8 +252,7 @@ while true; do
 done
 
 while true; do
-  read -rp "
-  We're now going to perform a final cleanup using bleachbit.  Hit Enter to continue." yn
+  read -rp "We're now going to perform a final cleanup using bleachbit.  Hit Enter to continue." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter or ctrl+C to exit." ;;
