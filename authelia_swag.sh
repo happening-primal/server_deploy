@@ -13,7 +13,7 @@ fi
 
 while true; do
   read -rp "
-Enter your fully qualified domain name (FQDN) from your DNS provider: " fqdn
+Enter your fully qualified domain name (FQDN) from your DNS provider - would look like 'example.com': " fqdn
   if [[ -z "${fqdn}" ]]; then
     echo "Enter your fully qualified domain name (FQDN) from your DNS provider or hit ctrl+C to exit."
     continue
@@ -23,7 +23,7 @@ done
 
 while true; do
   read -rp "
-Enter your JWT secret - would look like (AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR): " jwts
+Enter your JWT secret - would look like 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
   if [[ -z "${jwts}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -33,7 +33,7 @@ done
 
 while true; do
   read -rp "
-Enter your Authelia secret - would look like (KnCfXrWCRU7of96XqvTxQ9Zm8BFHKUFfnTXSUoiDM9kV8A94Cp): " auths
+Enter your Authelia secret - would look like 'KnCfXrWCRU7of96XqvTxQ9Zm8BFHKUFfnTXSUoiDM9kV8A94Cp': " auths
   if [[ -z "${auths}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -43,8 +43,18 @@ done
 
 while true; do
   read -rp "
-Enter your Authelia encryption key - would look like (NER38ZZAswXqnrkDzRAyVnXcxBJa2v9ffZC55r7W): " authec
+Enter your Authelia encryption key - would look like 'NER38ZZAswXqnrkDzRAyVnXcxBJa2v9ffZC55r7W': " authec
   if [[ -z "${authec}" ]]; then
+    echo "Enter your JWT secret or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired Authelia userid - would look like 'mynewuser' or 'Fkr5HZH4Rv': " authusr
+  if [[ -z "${authusr}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
   fi
@@ -155,7 +165,7 @@ sed -i 's/\#  period: 30/  period: 30''/g' /home/$(who | awk '{print $1}' | awk 
 sed -i 's/\#  skew: 1/  skew: 1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#authentication_backend:/authentication_backend:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  disable_reset_password: false/  disable_reset_password: false''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  # file:/   file:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  # file:/  file:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  #   path: \/config\/users_database.yml/     path: \/config\/users_database.yml''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  #   password:/     password:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  #     algorithm: argon2id/       algorithm: argon2id''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
@@ -189,7 +199,7 @@ sed -i 's/\     password: mypassword/#     password: mypassword''/g' /home/$(who
 sed -i 's/\#  # encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/   encryption_key: '"$authec"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#notifier:/notifier:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i ':a;N;$!ba;s/\#  disable_startup_check: false/  disable_startup_check: false''/2' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  # filesystem:/   filesystem:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  # filesystem:/  filesystem:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/notification.txt''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
 
@@ -197,6 +207,18 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password yourpassword | awk '{print $3}')
+
+
+# Make sure the stack started properly
+while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml ]
+    do
+      sleep 5
+    done
+    
+sed -i 's/\    displayname: "Test User"/    displayname: "Test User"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+
+    displayname: "Test User"
+
 
 # Redeploy the stack
 #docker stack rm $stackname
