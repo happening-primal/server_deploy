@@ -57,22 +57,19 @@ Open a new terminal window and type:
 
     'ssh-copy-id" $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
 
-Return to this window when the proccess is complete and then hit Enter or ctrl+C to exit.
 "
 
 while true; do
-  read -rp "Hit Enter when the above step is complete." yn
+  read -rp "Return to this window when the proccess is complete and then hit Enter or ctrl+C to exit." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter or ctrl+C to exit." ;;
   esac
 done
 
-echo "
-"
-
 while true; do
-  read -rp "Enter your desired ssh port number (default is 22) or hit Enter to exit this script. " newport
+  read -rp "
+  Enter your desired ssh port number (default is 22) or hit Enter to exit this script. " newport
   case $newport in
     "") newport=22 break ;;
     *) break ;;
@@ -119,14 +116,20 @@ done
 # Make a backup of the 'emergancy scratch codes' and then scan the QR
 # code or enter the secret key into your authenticator app.
 
+echo "
+Next we're going to set up TOTP.  Be sure to scan the QR code or enter the TOTP code
+(new secret key) into your authenticator and also store the emergency scratch codes 
+in your password manager.  Answer yes to everything except the disalowing multiple 
+uses and 30 second token (i.e. y, y, n, n, y).
+"
+
 while true; do
-  read -rp "Nexe we're going to set up TOTP.  Answer yes to everything except the disalowing multiple uses and 30 second token (i.e. y, y, n, n, y)." yn
+  read -rp "Hit Enter or ctrl+C to exit." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter or ctrl+C to exit." ;;
   esac
 done
-
 
 apt-get install libpam-google-authenticator -y
 
@@ -154,8 +157,8 @@ sudo sed -i 's/UsePAM yes/UsePAM yes\nAuthenticationMethods publickey,password p
 systemctl restart sshd
 
 echo "
-
 Now try to log on using in a new terminal using the below:
+
     'ssh -i ~/.ssh/id_rsa" $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) "-p "$newport"'
 "
 
@@ -169,7 +172,6 @@ done
 
 echo "
 Creating firewall rules...
-
 "
 
 # Set the default policy of the INPUT chain to DROP
@@ -195,7 +197,7 @@ Creating firewall rules...
 
  if ! dockerd --help > /dev/null 2>&1; then
    while true; do
-     read -rp "Docker is not installed. Do you wish to install this program? [Y/n]" yn
+     read -rp "Docker is not installed. Would you like to install it? [Y/n]" yn
      case $yn in
        [Yy]*) break ;;
        [Nn]*) exit 0 ;;
@@ -234,12 +236,32 @@ Creating firewall rules...
     -v portainer_data:/data \
     cr.portainer.io/portainer/portainer-ce:2.9.3
 
- echo "Docker with portainer is installed.  Please immediatly log on to your portainer instance set up the
- user.  If you don't, someone else will.  You have been warned!"
+ echo "
+ Docker with portainer is installed.  Please immediatly log on to your portainer instance set up the
+ user.  If you don't, someone else will.  You have been warned!
 
+    https://$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1):9443
+    "
+    
+while true; do
+  read -rp "Hit Enter when the above step is complete." yn
+  case $yn in
+    "") break ;;
+    *) echo "Please hit Enter or ctrl+C to exit." ;;
+  esac
+done
 
-echo "
-Performin first cleanup using bleachbit now...
-"
+while true; do
+  read -rp "
+  We're now going to perform a final cleanup using bleachbit.  Hit Enter to continue." yn
+  case $yn in
+    "") break ;;
+    *) echo "Please hit Enter or ctrl+C to exit." ;;
+  esac
+done
+
 bleachbit --list | grep -E '[a-z0-9_\-]+\.[a-z0-9_\-]+' | xargs bleachbit --clean
 
+echo "
+We're all set, your new server is configured.
+"
