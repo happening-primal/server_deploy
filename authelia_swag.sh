@@ -97,7 +97,7 @@ echo "version: \"3.1\"
 services:
   swag:
     image: linuxserver/swag
-    #container_name: swag
+    #container_name: swag # Depricated
     cap_add:
       - NET_ADMIN
     environment:
@@ -105,7 +105,7 @@ services:
       - PGID=1000
       - TZ=America/New_York
       - URL=$fqdn
-      - SUBDOMAINS=www
+      - SUBDOMAINS=wildcard
       #- VALIDATION=dns
       #- DNSPLUGIN=cloudflare #optional
       #- PROPAGATION= #optional
@@ -125,7 +125,7 @@ services:
 
   authelia:
     image: authelia/authelia:latest #4.32.0
-    #container_name: authelia
+    #container_name: authelia # Depricated
     environment:
       - TZ=America/New_York
     volumes:
@@ -236,6 +236,6 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 # Redeploy the stack
 #docker stack rm $stackname
 #docker system prune
-docker stack deploy --compose-file docker-compose.yml "$stackname"
+#docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 
