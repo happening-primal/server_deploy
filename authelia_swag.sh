@@ -73,8 +73,8 @@ done
 
 while true; do
   read -rp "
-Enter your desired Authelia password- examople 'ycmLvUM3Qx9sRJR4uT5niWEYraYjaDN7gcuyoHEU': " authpwd
-  if [[ -z "${authpwd}" ]]; then
+Enter your desired zerossl account email address: " zspwd
+  if [[ -z "${zspwd}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
   fi
@@ -126,7 +126,7 @@ services:
       #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
       #- DUCKDNSTOKEN=$ducktkn #optional if using a different dns
-      - EMAIL= $fqdn@$fqdn
+      - EMAIL= $zspwd
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
       - STAGING=false #optional
