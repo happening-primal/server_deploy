@@ -359,6 +359,10 @@ Cleaning up and restarting the stack for the final time...
 #  Need to restart the stack again
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
+echo "
+Now restart the box and then navigate to your fqdn, https://$fqdn"
+
+
 # Redeploy the stack
 #docker stack rm $stackname
 #docker system prune
