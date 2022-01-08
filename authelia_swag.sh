@@ -99,6 +99,16 @@ Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4
   break
 done
 
+while true; do
+  read -rp "
+Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " authpwd
+  if [[ -z "${authpwd}" ]]; then
+    echo "Enter your desired Authelia password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 # If using zerossl
 #while true; do
 #  read -rp "
@@ -111,10 +121,10 @@ done
 #done
 
 while true; do
-    read -p "Do you want to perform a completely fresh install?" yn
+    read -p "
+Do you want to perform a completely fresh install?" yn
     case $yn in
-        [Yy]* ) make install;
-                rm -r docker;
+        [Yy]* ) rm -r docker;
                 docker stack rm $stackname;
                 docker swarm leave --force;
                 docker swarm init;
@@ -269,6 +279,39 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
+
+##############################
+#  You can remove this later #
+##############################
+
+#!/bin/bash
+
+stackname=authelia_swag
+
+while true; do
+  read -rp "
+Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
+  if [[ -z "${authusr}" ]]; then
+    echo "Enter your desired Authelia userid or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " authpwd
+  if [[ -z "${authpwd}" ]]; then
+    echo "Enter your desired Authelia password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+##############################
+##############################
+##############################
+
 echo "
 Cleaning up and restarting the stack...
 "
@@ -292,8 +335,8 @@ sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password "$authpwd" | awk '{print $3}')
     
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-sed -i 's/\    displayname: \"Test User\"/    displayname: \"'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk/nnnnn''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+#sed -i 's/\    displayname: \"Test User\"/    displayname: \"'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+#sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk/nnnnn''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
 echo "
 users:
@@ -305,6 +348,8 @@ users:
       - admins
       - dev
 ..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+
+sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
 # Mind the $ signs and forward slashes :(
 
