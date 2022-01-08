@@ -229,7 +229,6 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
-pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password "$authpwd" | awk '{print $3}')
 
 #  Need to restart the stack
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
@@ -239,10 +238,30 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
     do
       sleep 5
     done
+
+# Make a backup of the clean authelia configuration file 
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak
+
+#  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
+sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+
+pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password "$authpwd" | awk '{print $3}')
     
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 sed -i 's/\    displayname: \"Test User\"/    displayname: \"'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk/nnnnn''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+
+echo "
+users:
+  authelia:
+    displayname: "Test User"
+    password: \"$pwdhash\"  # Password is '$authpwd'
+    email: authelia@authelia.com
+    groups:
+      - admins
+      - dev
+..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
 #  Need to restart the stack again
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
