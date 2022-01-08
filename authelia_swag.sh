@@ -106,10 +106,10 @@ services:
       - TZ=America/New_York
       - URL=$fqdn
       - SUBDOMAINS=wildcard
-      #- VALIDATION=dns
-      #- DNSPLUGIN=cloudflare #optional
+      - VALIDATION=duckdns
+      #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
-      #- DUCKDNSTOKEN= #optional
+      - DUCKDNSTOKEN=1fc6e99b-2557-40b7-acad-88bf6d9122eb #optional
       #- EMAIL= #optional
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
@@ -136,7 +136,7 @@ services:
 
 docker system prune
 
-docker stack deploy --compose-file docker-compose.yml "authelia_swag"
+docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 # Wait a bit for the stack to deploy
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml ]
