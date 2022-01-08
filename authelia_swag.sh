@@ -23,7 +23,7 @@ done
 
 while true; do
   read -rp "
-Enter your JWT secret - would look like 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
+Enter your desired JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
   if [[ -z "${jwts}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -33,7 +33,7 @@ done
 
 while true; do
   read -rp "
-Enter your Authelia secret - would look like 'KnCfXrWCRU7of96XqvTxQ9Zm8BFHKUFfnTXSUoiDM9kV8A94Cp': " auths
+Enter your desired Authelia secret - example - 'KnCfXrWCRU7of96XqvTxQ9Zm8BFHKUFfnTXSUoiDM9kV8A94Cp': " auths
   if [[ -z "${auths}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -43,7 +43,7 @@ done
 
 while true; do
   read -rp "
-Enter your Authelia encryption key - would look like 'NER38ZZAswXqnrkDzRAyVnXcxBJa2v9ffZC55r7W': " authec
+Enter your desired Authelia encryption key - example - 'NER38ZZAswXqnrkDzRAyVnXcxBJa2v9ffZC55r7W': " authec
   if [[ -z "${authec}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -53,7 +53,7 @@ done
 
 while true; do
   read -rp "
-Enter your desired Authelia userid - would look like 'mynewuser' or 'Fkr5HZH4Rv': " authusr
+Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
   if [[ -z "${authusr}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -63,7 +63,7 @@ done
 
 while true; do
   read -rp "
-Enter your desired Authelia password- would look like 'ycmLvUM3Qx9sRJR4uT5niWEYraYjaDN7gcuyoHEU': " authpwd
+Enter your desired Authelia password- examople 'ycmLvUM3Qx9sRJR4uT5niWEYraYjaDN7gcuyoHEU': " authpwd
   if [[ -z "${authpwd}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
     continue
@@ -217,7 +217,8 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password "$authpwd" | awk '{print $3}')
 
-#  Need to restart the stack!!!
+#  Need to restart the stack
+docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 # Make sure the stack started properly
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml ]
@@ -229,11 +230,12 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 sed -i 's/\    displayname: \"Test User\"/    displayname: \"'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk/nnnnn''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
-#  Need to restart the stack!!!
+#  Need to restart the stack again
+docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 # Redeploy the stack
 #docker stack rm $stackname
 #docker system prune
-#docker stack deploy --compose-file docker-compose.yml "$stackname"
+docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 
