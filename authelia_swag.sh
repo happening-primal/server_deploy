@@ -23,6 +23,16 @@ done
 
 while true; do
   read -rp "
+Enter your duckdns token - would look like '1af7e11a-2342-49c9-abcd-88bf6d91de22': " ducktkn
+  if [[ -z "${ducktkn}" ]]; then
+    echo "Enter your fully qualified domain name (FQDN) from your DNS provider or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
 Enter your desired JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
   if [[ -z "${jwts}" ]]; then
     echo "Enter your JWT secret or hit ctrl+C to exit."
@@ -105,11 +115,15 @@ services:
       - PGID=1000
       - TZ=America/New_York
       - URL=$fqdn
-      - SUBDOMAINS=wildcard
+      - SUBDOMAINS=wildcard # Seems not to work with http validation.  Gives this error 8-Jan-2021
+                            # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
+                            # 'Client with the currently selected authenticator does not support 
+                            # any combination of challenges that will satisfy the CA. 
+                            # You may need to use an authenticator plugin that can do challenges over DNS.'
       - VALIDATION=duckdns
       #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
-      - DUCKDNSTOKEN=1fc6e99b-2557-40b7-acad-88bf6d9122eb #optional
+      - DUCKDNSTOKEN=$ducktkn #optional if using a different dns
       #- EMAIL= #optional
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
