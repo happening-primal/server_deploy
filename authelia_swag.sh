@@ -115,15 +115,16 @@ services:
       - PGID=1000
       - TZ=America/New_York
       - URL=$fqdn
-      - SUBDOMAINS=wildcard # Seems not to work with http validation.  Gives this error 8-Jan-2021
-                            # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
-                            # 'Client with the currently selected authenticator does not support 
-                            # any combination of challenges that will satisfy the CA. 
-                            # You may need to use an authenticator plugin that can do challenges over DNS.'
-      - VALIDATION=duckdns
+      - SUBDOMAINS=wildcard 
+      # Seems not to work with http validation.  Gives this error 8-Jan-2021
+      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
+      # 'Client with the currently selected authenticator does not support 
+      # any combination of challenges that will satisfy the CA. 
+      # You may need to use an authenticator plugin that can do challenges over DNS.'
+      #- VALIDATION=duckdns
       #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
-      - DUCKDNSTOKEN=$ducktkn #optional if using a different dns
+      #- DUCKDNSTOKEN=$ducktkn #optional if using a different dns
       #- EMAIL= #optional
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
@@ -255,13 +256,15 @@ sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3
 echo "
 users:
   authelia:
-    displayname: "Test User"
+    displayname: \"$authusr\"
     password: \"$pwdhash\"  # Password is '$authpwd'
     email: authelia@authelia.com
     groups:
       - admins
       - dev
 ..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+
+# Mind the $ signs and forward slashes :(
 
 #  Need to restart the stack again
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
