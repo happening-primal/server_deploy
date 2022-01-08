@@ -21,21 +21,49 @@ Enter your fully qualified domain name (FQDN) from your DNS provider - would loo
   break
 done
 
+
+# Because of the limitation on setting wildcard domains using http we have to specify each domain,
+# one by one.  The following will automate the process for you by generating the specified
+# number of 8 digit random subdomain names.  Adds www by default.  See swag docker-compose.yml
+# output file for further infrormation.
+
 while true; do
   read -rp "
-Enter your duckdns token - would look like '1af7e11a-2342-49c9-abcd-88bf6d91de22': " ducktkn
-  if [[ -z "${ducktkn}" ]]; then
-    echo "Enter your fully qualified domain name (FQDN) from your DNS provider or hit ctrl+C to exit."
+How many random subdomains would you like to generate?: " rnddomain
+  if [[ -z "${rnddomain}" ]]; then
+    echo "Enter the number of random subdomains would you like to generate or hit ctrl+C to exit."
     continue
   fi
   break
 done
 
+# Create domain string
+subdomains="www"
+i=0
+while [ $i -ne $rnddomain ]
+do
+        i=$(($i+1))
+        subdomains+=", "
+        subdomains+=$(echo $RANDOM | md5sum | head -c 8)
+done
+
+echo $subdomain
+
+# If using duckdns
+#while true; do
+#  read -rp "
+#Enter your duckdns token - would look like '1af7e11a-2342-49c9-abcd-88bf6d91de22': " ducktkn
+#  if [[ -z "${ducktkn}" ]]; then
+#    echo "Enter your duckdns token or hit ctrl+C to exit."
+#    continue
+#  fi
+#  break
+#done
+
 while true; do
-  read -rp "
-Enter your desired JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
+  read -rp "Enter your desired JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
   if [[ -z "${jwts}" ]]; then
-    echo "Enter your JWT secret or hit ctrl+C to exit."
+    echo "Enter your desired JWT secret or hit ctrl+C to exit."
     continue
   fi
   break
@@ -45,7 +73,7 @@ while true; do
   read -rp "
 Enter your desired Authelia secret - example - 'KnCfXrWCRU7of96XqvTxQ9Zm8BFHKUFfnTXSUoiDM9kV8A94Cp': " auths
   if [[ -z "${auths}" ]]; then
-    echo "Enter your JWT secret or hit ctrl+C to exit."
+    echo "Enter your desired Authelia secret or hit ctrl+C to exit."
     continue
   fi
   break
@@ -55,7 +83,7 @@ while true; do
   read -rp "
 Enter your desired Authelia encryption key - example - 'NER38ZZAswXqnrkDzRAyVnXcxBJa2v9ffZC55r7W': " authec
   if [[ -z "${authec}" ]]; then
-    echo "Enter your JWT secret or hit ctrl+C to exit."
+    echo "Enter your desired Authelia encryption key or hit ctrl+C to exit."
     continue
   fi
   break
@@ -65,41 +93,45 @@ while true; do
   read -rp "
 Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
   if [[ -z "${authusr}" ]]; then
-    echo "Enter your JWT secret or hit ctrl+C to exit."
+    echo "Enter your desired Authelia userid or hit ctrl+C to exit."
     continue
   fi
   break
 done
 
+# If using zerossl
+#while true; do
+#  read -rp "
+#Enter your zerossl account email address: " zspwd
+#  if [[ -z "${zspwd}" ]]; then
+#    echo "Enter your zerossl account email address or hit ctrl+C to exit."
+#    continue
+#  fi
+#  break
+#done
+
 while true; do
-  read -rp "
-Enter your desired zerossl account email address: " zspwd
-  if [[ -z "${zspwd}" ]]; then
-    echo "Enter your JWT secret or hit ctrl+C to exit."
-    continue
-  fi
-  break
+    read -p "Do you want to perform a completely fresh install?" yn
+    case $yn in
+        [Yy]* ) make install;
+                rm -r docker;
+                docker stack rm $stackname;
+                docker swarm leave --force;
+                docker swarm init;
+                mkdir docker;
+                mkdir docker/authelia;
+                mkdir docker/swag;
+                chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') docker;
+                break;;
+        [Nn]* ) break;;
+        * ) echo "Please answer yes or no.";;
+    esac
 done
 
 echo "
 "
+
 rm docker-compose.yml
-
-rm -r docker
-
-docker stack rm $stackname
-
-docker swarm leave --force
-
-docker swarm init
-
-mkdir docker
-
-mkdir docker/authelia
-mkdir docker/swag
-
-chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') docker
-
 touch docker-compose.yml
 
 echo "version: \"3.1\"
@@ -115,18 +147,23 @@ services:
       - PGID=1000
       - TZ=America/New_York
       - URL=$fqdn
-      - SUBDOMAINS=wildcard 
-      - CERTPROVIDER=zerossl
-      # Seems not to work with http validation.  Gives this error 8-Jan-2021
+      #
+      # Use of wildcard domains is no longer possible using http authentication for letsencrypt or zerossl
       # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
       # 'Client with the currently selected authenticator does not support 
       # any combination of challenges that will satisfy the CA. 
       # You may need to use an authenticator plugin that can do challenges over DNS.'
+      #- SUBDOMAINS=wildcard
+      - SUBDOMAINS=$subdomains
+      #
+      # If CERTPROVIDER is left blank, letsencrypt will be used
+      #- CERTPROVIDER=zerossl
+      #
       #- VALIDATION=duckdns
       #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
-      #- DUCKDNSTOKEN=$ducktkn #optional if using a different dns
-      - EMAIL= $zspwd
+      #- DUCKDNSTOKEN=$ducktkn
+      #- EMAIL=$zspwd
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
       - STAGING=false #optional
@@ -135,7 +172,7 @@ services:
     ports:
       - 443:443
       - 80:80 
-      # You must leave this open or you won't be able to get your ssl certificate
+      # You must leave this open or you won't be able to get your ssl certificate via http
     deploy:
       restart_policy:
        condition: on-failure
@@ -232,6 +269,9 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
+echo "
+Cleaning up and restarting the stack...
+"
 
 #  Need to restart the stack
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
@@ -268,6 +308,9 @@ users:
 
 # Mind the $ signs and forward slashes :(
 
+echo "
+Cleaning up and restarting the stack for the final time...
+"
 #  Need to restart the stack again
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
