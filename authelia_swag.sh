@@ -116,6 +116,7 @@ services:
       - TZ=America/New_York
       - URL=$fqdn
       - SUBDOMAINS=wildcard 
+      - CERTPROVIDER=zerossl
       # Seems not to work with http validation.  Gives this error 8-Jan-2021
       # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
       # 'Client with the currently selected authenticator does not support 
@@ -125,7 +126,7 @@ services:
       #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
       #- DUCKDNSTOKEN=$ducktkn #optional if using a different dns
-      #- EMAIL= #optional
+      - EMAIL= $fqdn@$fqdn
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
       - STAGING=false #optional
@@ -133,7 +134,8 @@ services:
       - /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/swag:/config
     ports:
       - 443:443
-      - 80:80 # You must leave this open or you won't be able to get your ssl certificate
+      - 80:80 
+      # You must leave this open or you won't be able to get your ssl certificate
     deploy:
       restart_policy:
        condition: on-failure
