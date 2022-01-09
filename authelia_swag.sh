@@ -130,7 +130,7 @@ done
 
 while true; do
     read -p "
-Do you want to perform a completely fresh install?" yn
+Do you want to perform a completely fresh install (y/n)? " yn
     case $yn in
         [Yy]* ) rm -r docker;
                 docker stack rm $stackname;
