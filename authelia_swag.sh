@@ -354,10 +354,11 @@ Now restart the box and then navigate to your fqdn,
 
      'https://$fqdn'
 
-After your first login attempt, use your ssh terminal to get the 
+Tell it the secondary authentication you want, like TOTP and then
+fter your first login attempt, use your ssh terminal to get the 
 authentication url using this command:
 
-      'ssh -i ~/.ssh/id_rsa" $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$newport"''
+      'ssh "$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$(cat /etc/ssh/sshd_config | grep Port | head -1 | awk '{print $2}')"'
 
       'cat /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' " "| grep -v 'root')/docker/authelia/notification.txt| grep http'
  "
