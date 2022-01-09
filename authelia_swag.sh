@@ -288,7 +288,7 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
-
+docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 #  Need to restart the stack - or maybe try these commands
 #  docker-compose pull
@@ -302,8 +302,6 @@ do
 echo "
 Cleaning up and restarting the stack...
 "
- 
-docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 # Make sure the stack started properly
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml ]
@@ -360,7 +358,7 @@ authentication url using this command:
 
       'ssh "$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$(cat /etc/ssh/sshd_config | grep Port | head -1 | awk '{print $2}')"'
 
-      'cat /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' " "| grep -v 'root')/docker/authelia/notification.txt| grep http'
+      'cat /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt" | grep -v http'
  "
 
 # Redeploy the stack
