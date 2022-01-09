@@ -288,13 +288,21 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
-echo "
-Cleaning up and restarting the stack...
-"
+
 
 #  Need to restart the stack - or maybe try these commands
 #  docker-compose pull
 #  docker-compose up --detach
+#  First wait until the stack if first initialized...
+while [ -f "$(sudo docker ps | grep authelia_swag)" ];
+do
+ sleep 5
+ done
+ 
+echo "
+Cleaning up and restarting the stack...
+"
+ 
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 # Make sure the stack started properly
