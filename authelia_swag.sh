@@ -305,10 +305,8 @@ sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authpwd | awk '{print $3}')
     
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-#sed -i 's/\    displayname: \"Test User\"/    displayname: \"'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-#sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk/nnnnn''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
-# Update the users database
+# Update the users database file
 echo "
 users:
   $authusr:
@@ -337,7 +335,6 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 echo "
 Now restart the box and then navigate to your fqdn, https://$fqdn"
-
 
 # Redeploy the stack
 #docker stack rm $stackname
