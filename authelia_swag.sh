@@ -357,7 +357,7 @@ Now restart the box and then navigate to your fqdn,
 After your first login attempt, use your ssh terminal to get the 
 authentication url using this command:
 
-      'cat /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/notification.txt| grep http'
+      'cat /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' " "| grep -v 'root')/docker/authelia/notification.txt| grep http'
  "
 
 # Redeploy the stack
