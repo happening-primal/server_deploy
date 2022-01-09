@@ -305,20 +305,23 @@ pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authp
 #sed -i 's/\    displayname: \"Test User\"/    displayname: \"'"$authusr"'"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 #sed -i 's/\argon2id\$v=19\$m=32768,t=1,p=8\$eUhVT1dQa082YVk2VUhDMQ\$E8QI4jHbUBt3EdsU1NFDu4Bq5jObKNx7nBKSn1EYQxk/nnnnn''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
+# Update the users database
 echo "
 users:
   $authusr:
     displayname: \"$authusr\"
     password: \"$pwdhash\"  # Password is '$authpwd'
     email: authelia@authelia.com
-    groups:
-      - admins
-      - dev
+    groups: []
 ..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
 sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-
 # Mind the $ signs and forward slashes :(
+
+# Update the swag nginx default landing page to redirect to Authelia authentication
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/swag/nginx/site-confs/default
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/swag/nginx/site-confs/default
+
 
 echo "
 Cleaning up and restarting the stack for the final time...
