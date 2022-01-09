@@ -198,6 +198,7 @@ services:
       restart_policy:
        condition: on-failure" >> docker-compose.yml
 
+# Take the opportunity to clean up any old junk before running the stack
 docker system prune
 
 docker stack deploy --compose-file docker-compose.yml "$stackname"
@@ -283,7 +284,9 @@ echo "
 Cleaning up and restarting the stack...
 "
 
-#  Need to restart the stack
+#  Need to restart the stack - or maybe try these commands
+#  docker-compose pull
+#  docker-compose up --detach
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 # Make sure the stack started properly
@@ -326,7 +329,10 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 echo "
 Cleaning up and restarting the stack for the final time...
 "
-#  Need to restart the stack again
+
+#  Need to restart the stack - or maybe try these commands
+#  docker-compose pull
+#  docker-compose up --detach
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 echo "
