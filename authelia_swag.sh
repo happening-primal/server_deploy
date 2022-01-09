@@ -342,7 +342,15 @@ Cleaning up and restarting the stack for the final time...
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 echo "
-Now restart the box and then navigate to your fqdn, https://$fqdn"
+Now restart the box and then navigate to your fqdn, 
+
+     'https://$fqdn'
+
+After your first login attempt, use your ssh terminal to get the 
+authentication url using this command:
+
+      'cat /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/notification.txt| grep http'
+ "
 
 # Redeploy the stack
 #docker stack rm $stackname
