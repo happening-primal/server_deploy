@@ -279,39 +279,6 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
-
-##############################
-#  You can remove this later #
-##############################
-
-#!/bin/bash
-
-stackname=authelia_swag
-
-while true; do
-  read -rp "
-Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
-  if [[ -z "${authusr}" ]]; then
-    echo "Enter your desired Authelia userid or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " authpwd
-  if [[ -z "${authpwd}" ]]; then
-    echo "Enter your desired Authelia password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-##############################
-##############################
-##############################
-
 echo "
 Cleaning up and restarting the stack...
 "
@@ -340,7 +307,7 @@ pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authp
 
 echo "
 users:
-  authelia:
+  $authusr:
     displayname: \"$authusr\"
     password: \"$pwdhash\"  # Password is '$authpwd'
     email: authelia@authelia.com
