@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# ToDo:
+#  1.  Commit some of these variables to .bashrc for future use
+#  2.  Change swag directory to config
+#  3.  Add a way to cycle through the swag installers and add enough 
+#      subdomains to accomodate all of them and then sed the files with the
+#      created subdoimains so that they work 'out of the box'.
+
+
 stackname=authelia_swag
 
 echo "
