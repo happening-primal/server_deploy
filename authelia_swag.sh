@@ -400,6 +400,12 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
 
+#  Prepare the firefox container - copy the calibre-web as a surrogate...
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/calibre-web.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
+
+sed -i 's/\calibre-web/firefox''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
+
 echo "
 Cleaning up and restarting the stack for the final time...
 "
@@ -415,8 +421,8 @@ echo "
 echo "export stackname=$stackname" >> ~/.bashrc
 echo "export authusr=$authusr" >> ~/.bashrc
 echo "export authpwd=$authpwd" >> ~/.bashrc
-echo "export swagloc=$swagloc" >> ~/.bashrc
 
+echo "export swagloc=$swagloc" >> ~/.bashrc
 echo "
 Now restart the box and then navigate to your fqdn, 
 
@@ -428,7 +434,7 @@ authentication url using these commands:
 
       'ssh "$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$(cat /etc/ssh/sshd_config | grep Port | head -1 | awk '{print $2}')"'
 
-      'cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
+      'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
  "
 
 # Redeploy the stack
