@@ -137,8 +137,10 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 docker stack rm $stackname;
                 docker swarm leave --force;
                 docker swarm init;
+                #  You must create these directories manually or else the container won't run
                 mkdir docker;
                 mkdir docker/authelia;
+                mkdir docker/heimdall;
                 mkdir docker/swag;
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') docker;
                 break;;
@@ -203,6 +205,19 @@ services:
       - TZ=America/New_York
     volumes:
       - /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia:/config
+    deploy:
+      restart_policy:
+       condition: on-failure
+       
+  heimdall:
+    image: ghcr.io/linuxserver/heimdall
+    #container_name: heimdall
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - /home/xgDBo8HXfBfoq8u/docker/heimdall:/config
     deploy:
       restart_policy:
        condition: on-failure" >> docker-compose.yml
@@ -336,7 +351,13 @@ sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n
 
 # Update the swag nginx default landing page to redirect to Authelia authentication
 sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
+sed -i 's/\    location \/ {/#    location \/ {''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
+sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;/#        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
+sed -i ':a;N;$!ba;s/\    }/#    }''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
+
+
+
+
 
 
 echo "
