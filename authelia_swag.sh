@@ -10,6 +10,7 @@
 
 stackname=authelia_swag
 swagloc=swag
+rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
 
 echo "
  - Run this script as superuser.
@@ -142,7 +143,8 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/authelia;
                 mkdir docker/heimdall;
                 mkdir docker/swag;
-                chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') docker;
+                mkdir docker/firefox;
+                chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
@@ -189,7 +191,7 @@ services:
       #- EXTRA_DOMAINS= #optional
       - STAGING=false #optional
     volumes:
-      - /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/swag:/config
+      - $rootdir/docker/swag:/config
     ports:
       - 443:443
       - 80:80 
@@ -204,20 +206,58 @@ services:
     environment:
       - TZ=America/New_York
     volumes:
-      - /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia:/config
+      - $rootdir/docker/authelia:/config
     deploy:
       restart_policy:
        condition: on-failure
        
   heimdall:
     image: ghcr.io/linuxserver/heimdall
-    #container_name: heimdall
+    #container_name: heimdall # Depricated
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/heimdall:/config
+      - $rootdir/docker/heimdall:/config
+    deploy:
+      restart_policy:
+       condition: on-failure
+       services:
+  
+  syncthing:
+    image: lscr.io/linuxserver/syncthing
+    #container_name: syncthing # Depricated
+    hostname: syncthing # Optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/swag:/config
+      - $rootdir/docker/syncthing/data1:/data1
+      - $rootdir/docker/syncthing/data2:/data2
+    ports:
+      - 8384:8384
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  firefox:
+    image: lscr.io/linuxserver/firefox
+    #container_name: firefox # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/firefox:/config
+    ports:
+      - 3000:3000
+    shm_size: "1gb"
     deploy:
       restart_policy:
        condition: on-failure" >> docker-compose.yml
