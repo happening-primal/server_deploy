@@ -223,7 +223,6 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-       services:
   
   syncthing:
     image: lscr.io/linuxserver/syncthing
