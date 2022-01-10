@@ -217,7 +217,7 @@ services:
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - /home/xgDBo8HXfBfoq8u/docker/heimdall:/config
+      - /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/heimdall:/config
     deploy:
       restart_policy:
        condition: on-failure" >> docker-compose.yml
@@ -394,7 +394,7 @@ authentication url using these commands:
 
 # Redeploy the stack
 #docker stack rm $stackname
-#docker system prune
+#docker system prune 
 #docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 
