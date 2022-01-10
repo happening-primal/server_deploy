@@ -436,6 +436,11 @@ authentication url using these commands:
 
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
  "
+ 
+    # enable for Authelia, also enable authelia-server.conf in the default site config
+    # To use Authelia to log in to Calibre-Web, make sure "Reverse Proxy Login" is 
+    # enabled, "Reverse Proxy Header Name" is set to Remote-User, and each Authelia
+    # user also has a corresponding user manually created in Calibre-Web.
 
 # Redeploy the stack
 #docker stack rm $stackname
