@@ -9,6 +9,7 @@
 
 
 stackname=authelia_swag
+swagloc=swag
 
 echo "
  - Run this script as superuser.
@@ -334,8 +335,8 @@ sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n
 # Mind the $ signs and forward slashes :(
 
 # Update the swag nginx default landing page to redirect to Authelia authentication
-sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/swag/nginx/site-confs/default
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/swag/nginx/site-confs/default
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
 
 
 echo "
@@ -347,14 +348,22 @@ Cleaning up and restarting the stack for the final time...
 #  docker-compose up --detach
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
+#  Store non-persistent variables in .bashrc for later use across reboots
+echo "
+" >> ~/.bashrc
+echo "export stackname=$stackname" >> ~/.bashrc
+echo "export authusr=$authusr" >> ~/.bashrc
+echo "export authpwd=$authpwd" >> ~/.bashrc
+echo "export swagloc=$swagloc" >> ~/.bashrc
+
 echo "
 Now restart the box and then navigate to your fqdn, 
 
      'https://$fqdn'
 
 Tell it the secondary authentication you want, like TOTP and then
-fter your first login attempt, use your ssh terminal to get the 
-authentication url using this command:
+after your first login attempt, use your ssh terminal to get the 
+authentication url using these commands:
 
       'ssh "$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$(cat /etc/ssh/sshd_config | grep Port | head -1 | awk '{print $2}')"'
 
