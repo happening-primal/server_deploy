@@ -119,6 +119,16 @@ Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDY
   break
 done
 
+while true; do
+  read -rp "
+Enter your desired pihole password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
+  if [[ -z "${pipass}" ]]; then
+    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 # If using zerossl
 #while true; do
 #  read -rp "
@@ -144,6 +154,13 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/heimdall;
                 mkdir docker/swag;
                 mkdir docker/firefox;
+                mkdir docker/pihole
+                mkdir docker/pihole/etc-pihol
+                mkdir docker/pihole/etc-dnsmasq.d
+                mkdir docker/neko
+                mkdir docker/syncthing
+                mkdir docker/syncthing/data1
+                mkdir docker/syncthing/data2
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
@@ -244,7 +261,33 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-
+       
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 67:67/udp
+      - 8080:80/tcp
+      - 8443:443/tcp
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - WEBPASSWORD=$pipass
+    volumes:
+       - $rootdir/docker/pihole/etc-pihole:/etc/pihole
+       - $rootdir/docker/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    deploy:
+      restart_policy:
+       condition: on-failure
+       
   firefox:
     image: lscr.io/linuxserver/firefox
     #container_name: firefox # Depricated
@@ -252,7 +295,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
-      - SUBFOLDER=/firefox/ # Required is using authelia to authenticate
+      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
     volumes:
       - $rootdir/docker/firefox:/config
     ports:
@@ -262,8 +305,12 @@ services:
       restart_policy:
        condition: on-failure" >> docker-compose.yml
 
+nano docker-compose.yml
+
 # Take the opportunity to clean up any old junk before running the stack
 docker system prune
+
+#docker-compose up -d --compose-file docker-compose.yml
 
 docker stack deploy --compose-file docker-compose.yml "$stackname"
 
