@@ -270,7 +270,7 @@ services:
       - 53:53/tcp
       - 53:53/udp
       - 67:67/udp
-      - 8080:80/tcp
+      - 8080:80/tcp # Must point to port 80 on the downstream side
       #- 8443:443/tcp
     environment:
       - PUID=1000
@@ -465,7 +465,6 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
-sed -i 's/    set $upstream_port 80;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
 
 #  Prepare the syncthing container
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
@@ -480,6 +479,14 @@ Cleaning up and restarting the stack for the final time...
 #  Need to restart the stack - or maybe try these commands
 #  docker-compose pull
 #  docker-compose up --detach
+docker system prune
+
+#docker-compose up -d --compose-file docker-compose.yml
+
+#docker stack deploy --compose-file docker-compose.yml "$stackname"
+docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+docker system prune
+docker stack deploy --compose-file docker-compose.yml "$stackname"
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 #  Store non-persistent variables in .bashrc for later use across reboots
