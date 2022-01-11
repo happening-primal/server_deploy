@@ -251,7 +251,7 @@ services:
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - $rootdir/docker/swag:/config
+      - $rootdir/docker/syncthing:/config
       - $rootdir/docker/syncthing/data1:/data1
       - $rootdir/docker/syncthing/data2:/data2
     ports:
