@@ -252,6 +252,7 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
+      - SUBFOLDER=/firefox/ # Required is using authelia to authenticate
     volumes:
       - $rootdir/docker/firefox:/config
     ports:
@@ -400,8 +401,11 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
 
-#  Prepare the firefox container - copy the calibre-web as a surrogate...
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/calibre-web.subfolder.conf.sample \
+#  Prepare the firefox container - copy the calibre.subfolder.conf as a as a template.
+#  Be mindful of the line that says to add 'SUBFOLDER=/firefox/' to your docker compose
+#  file or you will get a an error that says 'Cannot GET /firefox/' displayed when you 
+#  navigate to the specified url (e.g. https://your-fqdn/firefox
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 
 sed -i 's/\calibre-web/firefox''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
@@ -436,12 +440,6 @@ authentication url using these commands:
 
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
  "
- 
-    # enable for Authelia, also enable authelia-server.conf in the default site config
-    # To use Authelia to log in to Calibre-Web, make sure "Reverse Proxy Login" is 
-    # enabled, "Reverse Proxy Header Name" is set to Remote-User, and each Authelia
-    # user also has a corresponding user manually created in Calibre-Web.
-
 # Redeploy the stack
 #docker stack rm $stackname
 #docker system prune 
