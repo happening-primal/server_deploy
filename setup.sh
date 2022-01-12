@@ -214,6 +214,12 @@ Creating firewall rules...
  iptables -A OUTPUT -p udp --dport 67 -j ACCEPT
  iptables -A OUTPUT -p tcp --dport 67 -j ACCEPT
 
+ # Allow portainer
+ iptables -A INPUT -p udp --dport 9443 -j ACCEPT
+ iptables -A INPUT -p tcp --dport 9443 -j ACCEPT
+ iptables -A OUTPUT -p udp --dport 9443 -j ACCEPT
+ iptables -A OUTPUT -p tcp --dport 9443 -j ACCEPT
+ 
 # Allow syncthing
  iptables -A INPUT -p udp --dport 21027 -j ACCEPT
  iptables -A INPUT -p tcp --dport 21027 -j ACCEPT
