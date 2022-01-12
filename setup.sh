@@ -192,7 +192,7 @@ Creating firewall rules...
  iptables -A INPUT -p tcp --dport 53 -m string --from 52 --algo bm --hex-string '|0000FF0001|' -m recent --set --name dnsanyquery
  iptables -A INPUT -p tcp --dport 53 -m string --from 52 --algo bm --hex-string '|0000FF0001|' -m recent --name dnsanyquery --rcheck --seconds 60 --hitcount 3 -j DROP
 
-#  Block most ports except the ones we will be using
+# Open ports we need for web servers
  iptables -t filter -A OUTPUT -p tcp --dport 80 -j ACCEPT
  iptables -t filter -A INPUT -p tcp --dport 80 -j ACCEPT
  iptables -t filter -A OUTPUT -p tcp --dport 443 -j ACCEPT
