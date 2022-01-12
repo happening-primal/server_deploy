@@ -493,10 +493,10 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 #  Store non-persistent variables in .bashrc for later use across reboots
 echo "
 " >> ~/.bashrc
-echo "export stackname="$stackname >> ~/.bashrc
-echo "export authusr="$authusr >> ~/.bashrc
-echo "export authpwd="$authpwd >> ~/.bashrc
-echo "export swagloc="$swagloc >> ~/.bashrc
+export stackname=$stackname >> ~/.bashrc
+export authusr=$authusr >> ~/.bashrc
+export authpwd=$authpwd >> ~/.bashrc
+export swagloc=$swagloc >> ~/.bashrc
 
 echo "
 Now restart the box and then navigate to your fqdn, 
