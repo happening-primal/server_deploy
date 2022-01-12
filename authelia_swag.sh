@@ -277,7 +277,7 @@ services:
       - PGID=1000
       - TZ=Europe/London
       - WEBPASSWORD=$pipass
-      - SERVERIP=172.105.170.111 
+      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
     volumes:
        - $rootdir/docker/pihole/etc-pihole:/etc/pihole
        - $rootdir/docker/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d
