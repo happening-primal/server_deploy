@@ -202,7 +202,7 @@ Creating firewall rules...
  iptables -t filter -A OUTPUT -p tcp --dport $newport -j ACCEPT
  iptables -t filter -A INPUT -p tcp --dport $newport -j ACCEPT
  iptables -t filter -A OUTPUT -p udp --dport $newport -j ACCEPT
- iptables -t filter -A INPUT -p udo --dport $newport -j ACCEPT
+ iptables -t filter -A INPUT -p udp --dport $newport -j ACCEPT
 
 # Allow dns requests 
  iptables -A INPUT -p udp --dport 53 -j ACCEPT
