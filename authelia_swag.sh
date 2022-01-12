@@ -277,6 +277,7 @@ services:
       - PGID=1000
       - TZ=Europe/London
       - WEBPASSWORD=$pipass
+      - SERVERIP=172.105.170.111 
     volumes:
        - $rootdir/docker/pihole/etc-pihole:/etc/pihole
        - $rootdir/docker/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d
@@ -452,7 +453,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Prepare the firefox container - copy the calibre.subfolder.conf as a as a template.
 #  Be mindful of the line that says to add 'SUBFOLDER=/firefox/' to your docker compose
 #  file or you will get a an error that says 'Cannot GET /firefox/' displayed when you 
-#  navigate to the specified url (e.g. https://your-fqdn/firefox
+#  navigate to the specified url (e.g. https://your-fqdn/firefox)
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 
