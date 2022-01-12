@@ -192,6 +192,39 @@ Creating firewall rules...
  iptables -A INPUT -p tcp --dport 53 -m string --from 52 --algo bm --hex-string '|0000FF0001|' -m recent --set --name dnsanyquery
  iptables -A INPUT -p tcp --dport 53 -m string --from 52 --algo bm --hex-string '|0000FF0001|' -m recent --name dnsanyquery --rcheck --seconds 60 --hitcount 3 -j DROP
 
+#  Block most ports except the ones we will be using
+ iptables -t filter -A OUTPUT -p tcp --dport 80 -j ACCEPT
+ iptables -t filter -A INPUT -p tcp --dport 80 -j ACCEPT
+ iptables -t filter -A OUTPUT -p tcp --dport 443 -j ACCEPT
+ iptables -t filter -A INPUT -p tcp --dport 443 -j ACCEPT
+ iptables -t filter -A OUTPUT -p tcp --dport $newport -j ACCEPT
+ iptables -t filter -A INPUT -p tcp --dport $newport -j ACCEPT
+
+# Allow dns requests 
+ iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+ iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+
+# Block all other udp
+ iptables -A OUTPUT -p udp -j DROP
+ ip6tables -A OUTPUT -p udp -j DROP
+
+# Maintain establish connetions
+ iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
+ iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
+
+# Allow loopback connections - required in some cases
+ iptables -t filter -A INPUT -i lo -j ACCEPT 
+ iptables -t filter -A OUTPUT -o lo -j ACCEPT
+
+# Disable incoming pings
+ iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+
+# Block everything else
+iptables -t filter -P INPUT DROP 
+iptables -t filter -P FORWARD DROP 
+iptables -t filter -P OUTPUT DROP 
+
+
  # Install docker
  #
 
