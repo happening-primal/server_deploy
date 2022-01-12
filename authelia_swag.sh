@@ -264,7 +264,7 @@ services:
        condition: on-failure
        
   pihole:
-    container_name: pihole
+    #container_name: pihole # Depricated
     image: pihole/pihole:latest
     ports:
       - 53:53/tcp
