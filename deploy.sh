@@ -122,9 +122,7 @@ echo "
 
 bleachbit --list | grep -E "[a-z0-9_\-]+\.[a-z0-9_\-]+" | xargs  bleachbit --clean
 
-echo "
-
-Now exit this shell by typing exit and then re-log on using:
+echo "Now exit this shell by typing 'exit' and then re-log on using:
 
     'ssh $USR_NAME"@""$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
 
@@ -136,6 +134,6 @@ with the password that you set for the new user.  Copy and paste the text from s
 into the window followed by ctrl+x, y, enter.  Once that is comnplete, run the setup script
 using:
 
-    'sudo bash setup.sh'
+    'nano setup.sh && sudo bash setup.sh'
 "
 exit 5
