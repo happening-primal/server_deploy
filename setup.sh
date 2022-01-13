@@ -244,6 +244,11 @@ Creating firewall rules...
  #iptables -A OUTPUT -p udp -j DROP
  ip6tables -A INPUT -p udp -j DROP
  ip6tables -A OUTPUT -p udp -j DROP
+ 
+#  Specific requests to block
+ iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
+ iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
+ iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
 
 # Disable incoming pings
  iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
