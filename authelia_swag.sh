@@ -21,6 +21,7 @@ rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
 sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
+#sudo lsof -i -P -n | grep LISTEN
 
 
 
