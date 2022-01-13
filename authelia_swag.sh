@@ -433,7 +433,13 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
+# You have to go through the startup twice because authelia starts, prints the *.yml file, then exits.
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+docker system prune
+docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+docker system prune
+docker-compose -f docker-compose.yml -p $stackname up -d 
+
 
 #  Need to restart the stack - or maybe try these commands
 #  docker-compose pull
@@ -518,18 +524,10 @@ Cleaning up and restarting the stack for the final time...
 "
 
 #  Need to restart the stack - or maybe try these commands
-#  docker-compose pull
-#  docker-compose up --detach
 docker system prune
-
-#docker-compose up -d --compose-file docker-compose.yml
-
-#docker stack deploy --compose-file docker-compose.yml "$stackname"
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
-
-#docker stack deploy --compose-file docker-compose.yml "$stackname"
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 #  Store non-persistent variables in .bashrc for later use across reboots
