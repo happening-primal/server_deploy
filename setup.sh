@@ -25,9 +25,6 @@ while true; do
   esac
 done
 
-echo "
-"
-
 #Update and install some essential apps
 apt-get update && apt-get upgrade -y  && apt-get dist-upgrade -y
 # Install essential apps
@@ -56,7 +53,6 @@ echo "
 Open a new terminal window and type:
 
     'ssh-copy-id" $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
-
 "
 
 while true; do
@@ -94,7 +90,6 @@ sed -i 's/PermitEmptyPasswords yes/PermitEmptyPasswords no/g' /etc/ssh/sshd_conf
 systemctl restart sshd
 
 echo "
-
 Now try to log on using in a new terminal using the below:
 
     'ssh -i ~/.ssh/id_rsa" $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$newport"'
@@ -245,8 +240,8 @@ Creating firewall rules...
 
  
 # Block all other udp
- iptables -A INPUT -p udp -j DROP
- iptables -A OUTPUT -p udp -j DROP
+ #iptables -A INPUT -p udp -j DROP
+ #iptables -A OUTPUT -p udp -j DROP
  ip6tables -A INPUT -p udp -j DROP
  ip6tables -A OUTPUT -p udp -j DROP
 
@@ -254,9 +249,9 @@ Creating firewall rules...
  iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
 
 # Block everything else
- iptables -t filter -P INPUT DROP 
- iptables -t filter -P FORWARD DROP 
- iptables -t filter -P OUTPUT DROP 
+ #iptables -t filter -P INPUT DROP 
+ #iptables -t filter -P FORWARD DROP 
+ #iptables -t filter -P OUTPUT DROP 
 
 # Save your changes
 iptables-save
@@ -264,7 +259,8 @@ iptables-save
  # Install docker
  if ! dockerd --help > /dev/null 2>&1; then
    while true; do
-     read -rp "Docker is not installed. Would you like to install it? [Y/n]" yn
+     read -rp "
+     Docker is not installed. Would you like to install it? [Y/n]" yn
      case $yn in
        [Yy]*) break ;;
        [Nn]*) exit 0 ;;
@@ -307,7 +303,7 @@ iptables-save
  Docker with portainer is installed.  Please immediatly log on to your portainer instance set up the
  user.  If you don't, someone else will.  You have been warned!
 
-    https://$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1):9443
+    'https://$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1):9443'
     "
     
 while true; do
@@ -319,15 +315,18 @@ while true; do
 done
 
 while true; do
-  read -rp "We're now going to perform a final cleanup using bleachbit.  Hit Enter to continue." yn
+  read -rp "
+  We're now going to perform a final cleanup using bleachbit.  Hit Enter to continue." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter or ctrl+C to exit." ;;
   esac
 done
 
+echo "
+"
+
 bleachbit --list | grep -E '[a-z0-9_\-]+\.[a-z0-9_\-]+' | xargs bleachbit --clean
 
-echo "
-We're all set, your new server is configured.
+echo "We're all set, your new server is configured. :)
 "
