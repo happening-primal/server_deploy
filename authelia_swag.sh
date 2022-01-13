@@ -213,7 +213,10 @@ services:
     ports:
       - 443:443
       - 80:80 
-      # You must leave this open or you won't be able to get your ssl certificate via http
+      # You must leave port 80 open or you won't be able to get your ssl certificate via http
+    networks:
+      - no-internet
+      - internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -225,6 +228,8 @@ services:
       - TZ=America/New_York
     volumes:
       - $rootdir/docker/authelia:/config
+    networks:
+      - no-internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -238,6 +243,8 @@ services:
       - TZ=Europe/London
     volumes:
       - $rootdir/docker/heimdall:/config
+    networks:
+      - no-internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -259,6 +266,9 @@ services:
       - 22000:22000/tcp
       - 22000:22000/udp
       - 21027:21027/udp
+    networks:
+      - no-internet
+      - internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -286,6 +296,8 @@ services:
       - 1.1.1.1
     cap_add:
       - NET_ADMIN
+    networks:
+      - no-internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -303,18 +315,29 @@ services:
     ports:
       - 3000:3000
     shm_size: "1gb"
+    networks:
+      - no-internet
     deploy:
       restart_policy:
-       condition: on-failure" >> docker-compose.yml
+       condition: on-failure
+
+# For networking setup explaination, see this link:
+# https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+networks:
+    no-internet:
+      driver: bridge
+      internal: true
+    internet:
+      driver: bridge" >> docker-compose.yml
 
 nano docker-compose.yml
 
 # Take the opportunity to clean up any old junk before running the stack
 docker system prune
+docker-compose -f docker-compose.yml -p $stackname up -d 
 
 #docker-compose up -d --compose-file docker-compose.yml
-
-docker stack deploy --compose-file docker-compose.yml "$stackname"
+#docker stack deploy --compose-file docker-compose.yml "$stackname"
 
 # Wait a bit for the stack to deploy
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml ]
