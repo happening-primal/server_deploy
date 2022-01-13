@@ -277,9 +277,9 @@ services:
     #container_name: pihole # Depricated
     image: pihole/pihole:latest
     ports:
-      - 53:53/tcp
       - 53:53/udp
-      - 67:67/udp
+      - 53:53/tcp
+      - 67:67/tcp
       #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
       #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
     environment:
