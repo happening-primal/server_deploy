@@ -313,7 +313,7 @@ services:
       - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
     volumes:
       - $rootdir/docker/firefox:/config
-    ports:
+    #ports:
       #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
     shm_size: "1gb"
     networks:
