@@ -148,7 +148,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
         [Yy]* ) rm -r docker;
                 docker stack rm $stackname;
                 docker swarm leave --force;
-                docker swarm init;
+                #docker swarm init;
                 #  You must create these directories manually or else the container won't run
                 mkdir docker;
                 mkdir docker/authelia;
@@ -262,7 +262,7 @@ services:
       - $rootdir/docker/syncthing/data1:/data1
       - $rootdir/docker/syncthing/data2:/data2
     ports:
-      - 8384:8384
+      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
       - 22000:22000/tcp
       - 22000:22000/udp
       - 21027:21027/udp
@@ -280,8 +280,8 @@ services:
       - 53:53/tcp
       - 53:53/udp
       - 67:67/udp
-      - 8080:80/tcp # Must point to port 80 on the downstream side
-      #- 8443:443/tcp
+      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
     environment:
       - PUID=1000
       - PGID=1000
@@ -298,6 +298,7 @@ services:
       - NET_ADMIN
     networks:
       - no-internet
+      - internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -313,10 +314,11 @@ services:
     volumes:
       - $rootdir/docker/firefox:/config
     ports:
-      - 3000:3000
+      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
     shm_size: "1gb"
     networks:
       - no-internet
+      - internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -510,7 +512,9 @@ docker system prune
 #docker stack deploy --compose-file docker-compose.yml "$stackname"
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
-docker stack deploy --compose-file docker-compose.yml "$stackname"
+docker-compose -f docker-compose.yml -p $stackname up -d 
+
+#docker stack deploy --compose-file docker-compose.yml "$stackname"
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 #  Store non-persistent variables in .bashrc for later use across reboots
