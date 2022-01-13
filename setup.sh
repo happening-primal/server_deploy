@@ -173,15 +173,22 @@ done
 echo "
 Creating firewall rules...
 "
+# Some usefull iptables commands
+#  List entries:
+#  	sudo iptables -L -n -v
 
-##now for the sake add rate limit general (avoid flooding)
+#  Delete an entry:
+#  	sudo iptables -L INPUT -n --line-numbers
+#  	sudo iptables -D INPUT 3
+
+# Now for the sake add rate limit general (avoid flooding)
  iptables -N udp-flood
  iptables -A udp-flood -m limit --limit 4/second --limit-burst 4 -j RETURN
  iptables -A udp-flood -j DROP
  iptables -A INPUT -i eth0 -p udp -j udp-flood
  iptables -A INPUT -i eth0 -f -j DROP
 
-##these comes from freek's blog post
+# These comes from freek's blog post
  iptables -A INPUT -p udp --dport 53 -m string --from 40 --algo bm --hex-string '|0000FF0001|' -m recent --set --name dnsanyquery
  iptables -A INPUT -p udp --dport 53 -m string --from 40 --algo bm --hex-string '|0000FF0001|' -m recent --name dnsanyquery --rcheck --seconds 60 --hitcount 3 -j DROP
  iptables -A INPUT -p tcp --dport 53 -m string --from 52 --algo bm --hex-string '|0000FF0001|' -m recent --set --name dnsanyquery
@@ -199,7 +206,7 @@ Creating firewall rules...
  iptables -t filter -A OUTPUT -p udp --dport $newport -j ACCEPT
  iptables -t filter -A INPUT -p udp --dport $newport -j ACCEPT
 
-# Allow dns requests 
+# Allow dns requests and other ports for pihole - https://docs.pi-hole.net/main/prerequisites/
  iptables -A INPUT -p udp --dport 53 -j ACCEPT
  iptables -A INPUT -p tcp --dport 53 -j ACCEPT
  iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
@@ -208,6 +215,9 @@ Creating firewall rules...
  iptables -A INPUT -p tcp --dport 67 -j ACCEPT
  iptables -A OUTPUT -p udp --dport 67 -j ACCEPT
  iptables -A OUTPUT -p tcp --dport 67 -j ACCEPT
+ iptables -I INPUT 1 -p udp --dport 67:68 --sport 67:68 -j ACCEPT
+ iptables -I INPUT 1 -p tcp -m tcp --dport 4711 -i lo -j ACCEPT
+ iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
  # Allow portainer
  iptables -A INPUT -p udp --dport 9443 -j ACCEPT
@@ -231,7 +241,8 @@ Creating firewall rules...
 
 # Maintain establish connetions
  iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
- iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
+ iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+
  
 # Block all other udp
  iptables -A INPUT -p udp -j DROP
