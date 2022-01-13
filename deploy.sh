@@ -109,12 +109,16 @@ Succesfully created new user $USR_NAME.  We will now change the root password an
 rm deploy.sh
 
 while true; do
-  read -rp "Let's do an initial clean up using bleachbit before we exit (hit Enter to continue or ctrl+C t exit)..." yn
+  read -rp "
+  Let's do an initial clean up using bleachbit before we exit (hit Enter to continue or ctrl+C t exit)..." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
   esac
 done
+
+echo "
+"
 
 bleachbit --list | grep -E "[a-z0-9_\-]+\.[a-z0-9_\-]+" | xargs  bleachbit --clean
 
