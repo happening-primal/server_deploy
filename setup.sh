@@ -174,11 +174,6 @@ echo "
 Creating firewall rules...
 "
 
-# Set the default policy of the INPUT chain to DROP
-#iptables -P INPUT DROP
-#iptables -P FORWARD DROP
-#iptables -P OUTPUT ACCEPT
-
 ##now for the sake add rate limit general (avoid flooding)
  iptables -N udp-flood
  iptables -A udp-flood -m limit --limit 4/second --limit-burst 4 -j RETURN
@@ -252,10 +247,10 @@ Creating firewall rules...
  iptables -t filter -P FORWARD DROP 
  iptables -t filter -P OUTPUT DROP 
 
+# Save your changes
+iptables-save
 
  # Install docker
- #
-
  if ! dockerd --help > /dev/null 2>&1; then
    while true; do
      read -rp "Docker is not installed. Would you like to install it? [Y/n]" yn
