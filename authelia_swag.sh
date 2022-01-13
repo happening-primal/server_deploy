@@ -273,7 +273,8 @@ services:
       restart_policy:
        condition: on-failure
        
-  pihole:
+  pihole:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
+           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
     #container_name: pihole # Depricated
     image: pihole/pihole:latest
     ports:
