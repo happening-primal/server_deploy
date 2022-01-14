@@ -137,6 +137,26 @@ Enter your desired pihole password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5
   break
 done
 
+while true; do
+  read -rp "
+Enter your desired neko user password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " nupass
+  if [[ -z "${nupass}" ]]; then
+    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " napass
+  if [[ -z "${napass}" ]]; then
+    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 # If using zerossl
 #while true; do
 #  read -rp "
@@ -331,7 +351,7 @@ services:
       - $rootdir/docker/firefox:/config
     #ports:
       #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    shm_size: "1gb"
+    shm_size: \"1gb\"
     networks:
       - no-internet
       - internet
@@ -380,6 +400,24 @@ services:
     networks:
       - no-internet
       - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  neko:
+    image: m1k1o/neko:firefox
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52000-52100:52000-52100/udp
+    environment:
+      NEKO_SCREEN: 1920x1080@30
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52000-52100
+      NEKO_ICELITE: 1
+    networks:
+      - no-internet
     deploy:
       restart_policy:
        condition: on-failure
