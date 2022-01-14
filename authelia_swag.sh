@@ -464,19 +464,20 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak
 
-#  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
+#  Comment out all the lines in the ~/docker/authelia/users_database.yml configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
+# Generate the hashed password line to be added to users_database.yml.
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authpwd | awk '{print $3}')
     
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
-# Update the users database file
+# Update the users database file with your username and hashed password.
 echo "
 users:
   $authusr:
     displayname: \"$authusr\"
-    password: \"$pwdhash\"  # Password is '$authpwd'
+    password: \"$pwdhash\"
     email: authelia@authelia.com
     groups: []
 ..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
@@ -519,6 +520,15 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
 
+#  Perform some SWAG hardening
+#    https://virtualize.link/secure/
+#  No more Google FLoC
+echo "add_header Permissions-Policy \"interest-cohort=()\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
+#  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
+echo "aadd_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
+#  Enable HTTP Strict Transport Security (HSTS) 
+echo "aadd_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
+
 echo "
 Cleaning up and restarting the stack for the final time...
 "
@@ -533,10 +543,10 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 #  Store non-persistent variables in .bashrc for later use across reboots
 echo "
 " >> ~/.bashrc
-export stackname=$stackname >> ~/.bashrc
-export authusr=$authusr >> ~/.bashrc
-export authpwd=$authpwd >> ~/.bashrc
-export swagloc=$swagloc >> ~/.bashrc
+echo "export stackname=$stackname" >> ~/.bashrc
+echo "export authusr=$authusr" >> ~/.bashrc
+echo "export authpwd=$authpwd" >> ~/.bashrc
+echo "export swagloc=$swagloc" >> ~/.bashrc
 
 echo "
 Now restart the box and then navigate to your fqdn, 
