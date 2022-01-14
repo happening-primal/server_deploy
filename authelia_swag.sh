@@ -610,7 +610,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$
 
 #  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
 
-#  Prepare the nake proxy-conf file using syncthing.subfolder.conf as a template
+#  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
 
@@ -652,9 +652,8 @@ sed -i 's/    \"DisableProfileRefresh\": true/    \"DisableProfileRefresh\": fal
 EOF
 
 docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' /usr/lib/firefox/distribution/policies.json
+sed -i 's/        \"installation_mode\": \"blocked\"/        \"installation_mode\": \"allowed\"''/g' /usr/lib/firefox/distribution/policies.json
 EOF
-
 
 # sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
 # sed -i 's/   \"BlockAboutProfiles\": true/   \"BlockAboutProfiles\": false''/g' policies.json
@@ -669,11 +668,6 @@ EOF
 #grep URL_BASE /tmp/config.ini
 # any other command you like
 #EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
 
 #  Perform some SWAG hardening
 #    https://virtualize.link/secure/
