@@ -522,6 +522,8 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 
 #  Perform some SWAG hardening
 #    https://virtualize.link/secure/
+echo "
+\#  Additional SWAG hardening - https:\/\/virtualize.link\/secure\/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  No more Google FLoC
 echo "add_header Permissions-Policy \"interest-cohort=()\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
