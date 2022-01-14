@@ -618,6 +618,62 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 sed -i 's/syncthing/neko''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
 
+#  Unlock neko policies in /usr/lib/firefox/distribution/policies.json
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"BlockAboutProfiles\": true/    \"BlockAboutProfiles\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"DisableAppUpdate\": true/    \"DisableAppUpdate\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"DisableFirefoxAccounts\": true/    \"DisableFirefoxAccounts\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"DisablePrivateBrowsing\": true/    \"DisablePrivateBrowsing\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"DisableProfileImport\": true/    \"DisableProfileImport\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"DisableProfileRefresh\": true/    \"DisableProfileRefresh\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
+
+# sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
+# sed -i 's/   \"BlockAboutProfiles\": true/   \"BlockAboutProfiles\": false''/g' policies.json
+# sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' policies.json
+#  Get the authelia_swag_neko container name:
+#    sudo docker ps | grep _neko | awk '{print $NF}'
+
+#  https://stackoverflow.com/questions/39236537/exec-sed-command-to-a-docker-container
+#  Run commands inside the docker
+#docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+#sed -ire '/URL_BASE = /c\api.myapiurl' /tmp/config.ini
+#grep URL_BASE /tmp/config.ini
+# any other command you like
+#EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
+EOF
+
 
 #  Perform some SWAG hardening
 #    https://virtualize.link/secure/
