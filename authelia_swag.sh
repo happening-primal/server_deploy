@@ -655,6 +655,11 @@ docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 sed -i 's/        \"installation_mode\": \"blocked\"/        \"installation_mode\": \"allowed\"''/g' /usr/lib/firefox/distribution/policies.json
 EOF
 
+#  Or remove the policy restrictions all together :)
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak
+EOF
+
 # sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
 # sed -i 's/   \"BlockAboutProfiles\": true/   \"BlockAboutProfiles\": false''/g' policies.json
 # sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' policies.json
