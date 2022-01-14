@@ -619,52 +619,27 @@ sed -i 's/syncthing/neko''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
 
 #  Unlock neko policies in /usr/lib/firefox/distribution/policies.json
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
+#docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+#sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
+#EOF
 
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"BlockAboutProfiles\": true/    \"BlockAboutProfiles\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
+#  Pihole may block this domain which will prevent n.eko from running - checkip.amazonaws.com
 
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"DisableAppUpdate\": true/    \"DisableAppUpdate\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"DisableFirefoxAccounts\": true/    \"DisableFirefoxAccounts\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"DisablePrivateBrowsing\": true/    \"DisablePrivateBrowsing\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"DisableProfileImport\": true/    \"DisableProfileImport\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/    \"DisableProfileRefresh\": true/    \"DisableProfileRefresh\": false''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
-sed -i 's/        \"installation_mode\": \"blocked\"/        \"installation_mode\": \"allowed\"''/g' /usr/lib/firefox/distribution/policies.json
-EOF
-
-#  Or remove the policy restrictions all together :)
+#  Remove the policy restrictions all together :)
 docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak
 EOF
 
-# sed -i 's/    \"BlockAboutConfig\": true/    \"BlockAboutConfig\": false''/g' /usr/lib/firefox/distribution/policies.json
-# sed -i 's/   \"BlockAboutProfiles\": true/   \"BlockAboutProfiles\": false''/g' policies.json
-# sed -i 's/    \"BlockAboutSupport\": true/    \"BlockAboutSupport\": false''/g' policies.json
-#  Get the authelia_swag_neko container name:
-#    sudo docker ps | grep _neko | awk '{print $NF}'
+# Change some of the parameters in mozilla.cfg (about:config) - /usr/lib/firefox/mozilla.cfg
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/lockPref(\"xpinstall.enabled\", false);/''/g' /usr/lib/firefox/mozilla.cfg
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/''/g' /usr/lib/firefox/mozilla.cfg
+EOF
+
+#  /home/neko/.mozilla/firefox/profile.default - prefs.js
 
 #  https://stackoverflow.com/questions/39236537/exec-sed-command-to-a-docker-container
 #  Run commands inside the docker
