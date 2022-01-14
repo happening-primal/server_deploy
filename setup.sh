@@ -43,6 +43,8 @@ apt purge tcpdump -y
 apt purge nmap-ncat -y
 apt purge wpa_supplicant -y
 apt purge avahi-daemon -y
+# Required for whoogle
+apt-get install -y libcurl4-openssl-dev libssl-dev
 # Clean up
 apt-get autoremove -y
 apt-get autoclean -y
