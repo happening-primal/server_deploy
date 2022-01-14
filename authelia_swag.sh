@@ -21,10 +21,7 @@ rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
 sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
-#sudo lsof -i -P -n | grep LISTEN
-
-
-
+#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
 
 echo "
  - Run this script as superuser.
@@ -45,12 +42,10 @@ Enter your fully qualified domain name (FQDN) from your DNS provider - would loo
   break
 done
 
-
 # Because of the limitation on setting wildcard domains using http we have to specify each domain,
 # one by one.  The following will automate the process for you by generating the specified
 # number of 8 digit random subdomain names.  Adds www by default.  See swag docker-compose.yml
 # output file for further infrormation.
-
 while true; do
   read -rp "
 How many random subdomains would you like to generate?: " rnddomain
@@ -70,8 +65,6 @@ do
         subdomains+=", "
         subdomains+=$(echo $RANDOM | md5sum | head -c 8)
 done
-
-echo $subdomain
 
 # If using duckdns
 #while true; do
@@ -351,6 +344,7 @@ nano docker-compose.yml
 
 # Take the opportunity to clean up any old junk before running the stack
 docker system prune
+#  Run the stack
 docker-compose -f docker-compose.yml -p $stackname up -d 
 
 #docker-compose up -d --compose-file docker-compose.yml
@@ -365,7 +359,6 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 echo "
 The stack started successfully...
 "
-
 # Make a backup of the clean authelia configuration file 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak
@@ -440,11 +433,7 @@ docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
 
-
-#  Need to restart the stack - or maybe try these commands
-#  docker-compose pull
-#  docker-compose up --detach
-#  First wait until the stack if first initialized...
+#  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep authelia_swag)" ];
 do
  sleep 5
@@ -453,8 +442,7 @@ do
 echo "
 Cleaning up and restarting the stack...
 "
-
-# Make sure the stack started properly
+# Make sure the stack started properly by checking for the existence of users_database.yml
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml ]
     do
       sleep 5
@@ -497,7 +485,7 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
 
-#  Prepare the firefox container - copy the calibre.subfolder.conf as a as a template.
+#  Prepare the firefox container - copy the calibre.subfolder.conf use it as a template.
 #  Be mindful of the line that says to add 'SUBFOLDER=/firefox/' to your docker compose
 #  file or you will get a an error that says 'Cannot GET /firefox/' displayed when you 
 #  navigate to the specified url (e.g. https://your-fqdn/firefox)
@@ -534,9 +522,7 @@ echo "aadd_header Strict-Transport-Security \"max-age=63072000; includeSubDomain
 echo "
 Cleaning up and restarting the stack for the final time...
 "
-
-#  Need to restart the stack - or maybe try these commands
-docker system prune
+#  Need to restart the stack
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
@@ -551,11 +537,11 @@ echo "export authpwd=$authpwd" >> ~/.bashrc
 echo "export swagloc=$swagloc" >> ~/.bashrc
 
 echo "
-Now restart the box and then navigate to your fqdn, 
+Now you may want to restart the box and then navigate to your fqdn, 
 
      'https://$fqdn'
 
-Tell it the secondary authentication you want, like TOTP and then
+Tell Authelia the secondary authentication you want, like TOTP and then
 after your first login attempt, use your ssh terminal to get the 
 authentication url using these commands:
 
@@ -564,4 +550,5 @@ authentication url using these commands:
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
  "
 
+#  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
