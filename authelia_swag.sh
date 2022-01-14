@@ -411,7 +411,7 @@ services:
       #- 8080:8080
       - 52000-52100:52000-52100/udp
     environment:
-      NEKO_SCREEN: 1920x1080@30
+      NEKO_SCREEN: 1440x900@60
       NEKO_PASSWORD: $nupass
       NEKO_PASSWORD_ADMIN: $napass
       NEKO_EPR: 52000-52100
@@ -434,9 +434,8 @@ networks:
 nano docker-compose.yml
 
 # Take the opportunity to clean up any old junk before running the stack
-docker system prune
 #  Run the stack
-docker-compose -f docker-compose.yml -p $stackname up -d 
+docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
 
 #docker-compose up -d --compose-file docker-compose.yml
 #docker stack deploy --compose-file docker-compose.yml "$stackname"
@@ -611,6 +610,15 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$
 
 #  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
 
+#  Prepare the nake proxy-conf file using syncthing.subfolder.conf as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
+sed -i 's/syncthing/neko''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
+
+
 #  Perform some SWAG hardening
 #    https://virtualize.link/secure/
 echo "
@@ -638,6 +646,8 @@ echo "export stackname=$stackname" >> ~/.bashrc
 echo "export authusr=$authusr" >> ~/.bashrc
 echo "export authpwd=$authpwd" >> ~/.bashrc
 echo "export swagloc=$swagloc" >> ~/.bashrc
+# Commit the .bashrc changes
+source ~/.bashrc
 
 echo "
 Now you may want to restart the box and then navigate to your fqdn, 
