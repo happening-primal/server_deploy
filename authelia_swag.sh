@@ -639,6 +639,12 @@ docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/''/g' /usr/lib/firefox/mozilla.cfg
 EOF
 
+#  Add custom search engine
+#    You must install the add-on 'Add custom search engine' in firefox.
+#  After you add the custom search enigine, you can disable it
+#  Whoogle
+#  https://farside.link/whoogle/search?q=%s
+
 #  /home/neko/.mozilla/firefox/profile.default - prefs.js
 
 #  https://stackoverflow.com/questions/39236537/exec-sed-command-to-a-docker-container
@@ -648,6 +654,11 @@ EOF
 #grep URL_BASE /tmp/config.ini
 # any other command you like
 #EOF
+
+#  Move your firefox cointainers
+#  about:support
+#  Follow the link to 'Profile Folder'
+
 
 #  Perform some SWAG hardening
 #    https://virtualize.link/secure/
