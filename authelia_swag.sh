@@ -179,6 +179,14 @@ done
 echo "
 "
 
+#  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
+#  Install dependencies
+apt-get install -y libcurl4-openssl-dev libssl-dev
+git clone https://github.com/benbusby/whoogle-search.git /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker
+
+#Move the contents from directory whoogle-search to directory whoogle
+mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
+
 rm docker-compose.yml
 touch docker-compose.yml
 
@@ -324,6 +332,51 @@ services:
     #ports:
       #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
     shm_size: "1gb"
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  whoogle:
+    image: benbusby/whoogle-search
+    pids_limit: 50
+    mem_limit: 256mb
+    memswap_limit: 256mb
+    # user debian-tor from tor package
+    user: '102'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /config/:size=10M,uid=102,gid=102,mode=1700
+      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
+      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
+    environment: # Uncomment to configure environment variables
+      # Basic auth configuration, uncomment to enable
+      #- WHOOGLE_USER=<auth username>
+      #- WHOOGLE_PASS=<auth password>
+      # Proxy configuration, uncomment to enable
+      #- WHOOGLE_PROXY_USER=<proxy username>
+      #- WHOOGLE_PROXY_PASS=<proxy password>
+      #- WHOOGLE_PROXY_TYPE=<proxy type (http|https|socks4|socks5)
+      #- WHOOGLE_PROXY_LOC=<proxy host/ip>
+      - EXPOSE_PORT=5000
+      # Site alternative configurations, uncomment to enable
+      # Note: If not set, the feature will still be available
+      # with default values.
+      - WHOOGLE_ALT_TW=farside.link/nitter
+      - WHOOGLE_ALT_YT=farside.link/invidious
+      - WHOOGLE_ALT_IG=farside.link/bibliogram/u
+      - WHOOGLE_ALT_RD=farside.link/libreddit
+      - WHOOGLE_ALT_MD=farside.link/scribe
+      - WHOOGLE_ALT_TL=lingva.ml
+    #env_file: # Alternatively, load variables from whoogle.env
+      #- whoogle.env
+    #ports:
+      #- 5000:5000
     networks:
       - no-internet
       - internet
@@ -519,11 +572,8 @@ echo "add_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> /
 #  Enable HTTP Strict Transport Security (HSTS) 
 echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 
-#  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
-#  Install dependencies
-#  apt-get install -y libcurl4-openssl-dev libssl-dev
-#  git clone https://github.com/benbusby/whoogle-search.git /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker
-#  docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle-search/docker-compose.yml -p $stackname up -d 
+
+#docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle/docker-compose.yml -p $stackname up -d 
 
 
 #  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
@@ -533,8 +583,14 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+#sed -i 's/    set $upstream_app whoogle;/    set $upstream_app whoogle-search;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 
 #  https://bbs.archlinux.org/viewtopic.php?id=228053
+
+#  Put whoogle on the same network(2) as the rest of the stacks
+    #networks:
+      #- no-internet
+      #- internet
 
 echo "
 Cleaning up and restarting the stack for the final time...
