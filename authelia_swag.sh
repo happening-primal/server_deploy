@@ -174,6 +174,8 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/heimdall;
                 mkdir docker/neko;
                 mkdir docker/neko/firefox;
+                mkdir docker/neko/firefox/home;
+                mkdir docker/neko/firefox/usr;
                 mkdir docker/neko/tor;
                 mkdir docker/neko/tor/home;
                 mkdir docker/neko/tor/usr;
@@ -269,6 +271,9 @@ services:
       NEKO_PASSWORD_ADMIN: $napass
       NEKO_EPR: 52000-52100
       NEKO_ICELITE: 1
+    volumes:
+       - $rootdir/docker/neko/firefox/usr:/usr
+       - $rootdir/docker/neko/firefox/home/:/home
     networks:
       - no-internet
     deploy:
