@@ -179,16 +179,18 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 #  You must create these directories manually or else the container won't run
                 mkdir docker;
                 mkdir docker/authelia;
-                mkdir docker/heimdall;
-                mkdir docker/swag;
                 mkdir docker/firefox;
-                mkdir docker/pihole
-                mkdir docker/pihole/etc-pihole
-                mkdir docker/pihole/etc-dnsmasq.d
-                mkdir docker/neko
-                mkdir docker/syncthing
-                mkdir docker/syncthing/data1
-                mkdir docker/syncthing/data2
+                mkdir docker/heimdall;
+                mkdir docker/neko;
+                mkdir docker/neko/firefox;
+                mkdir docker/neko/tor;
+                mkdir docker/pihole;
+                mkdir docker/pihole/etc-pihole;
+                mkdir docker/pihole/etc-dnsmasq.d;
+                mkdir docker/swag;
+                mkdir docker/syncthing;
+                mkdir docker/syncthing/data1;
+                mkdir docker/syncthing/data2;
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
