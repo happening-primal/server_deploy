@@ -400,6 +400,10 @@ services:
       #- WHOOGLE_PROXY_PASS=<proxy password>
       #- WHOOGLE_PROXY_TYPE=<proxy type (http|https|socks4|socks5)
       #- WHOOGLE_PROXY_LOC=<proxy host/ip>
+      #  See the subfolder /static/settings folder for .json files with options on country and language
+      - WHOOGLE_CONFIG_COUNTRY=US
+      - WHOOGLE_CONFIG_LANGUAGE=lang_en
+      - WHOOGLE_CONFIG_SEARCH_LANGUAGE=lang_en
       - EXPOSE_PORT=5000
       # Site alternative configurations, uncomment to enable
       # Note: If not set, the feature will still be available
