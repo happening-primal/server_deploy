@@ -1,8 +1,16 @@
 #!/bin/bash
 
+#  Variables
 stackname=authelia_swag
 swagloc=swag
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+
+#  Generate some of the variables that will be used later but that the user does
+#  not need to keep track of
+#    https://linuxhint.com/generate-random-string-bash/
+jwts=$(openssl rand -base64 40)     # Authelia JWT secret
+auths=$(openssl rand -base64 40)    # Authelia secret
+authec=$(openssl rand -base64 40)   # Authelia encryption key
 
 #======================================================================================
 #  Prep the system
@@ -70,35 +78,6 @@ done
 #done
 
 while true; do
-  read -rp "Enter your desired Authelai JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
-  if [[ -z "${jwts}" ]]; then
-    echo "Enter your desired JWT secret or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired Authelia secret - example - 'KnCfXrWCRU7of96XqvTxQ9Zm8BFHKUFfnTXSUoiDM9kV8A94Cp': " auths
-  if [[ -z "${auths}" ]]; then
-    echo "Enter your desired Authelia secret or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired Authelia encryption key - example - 'NER38ZZAswXqnrkDzRAyVnXcxBJa2v9ffZC55r7W': " authec
-  if [[ -z "${authec}" ]]; then
-    echo "Enter your desired Authelia encryption key or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
   read -rp "
 Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
   if [[ -z "${authusr}" ]]; then
@@ -148,7 +127,7 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
   break
 done
 
-# If using zerossl
+# If using zerossl instead of letsencrypt
 #while true; do
 #  read -rp "
 #Enter your zerossl account email address: " zspwd
@@ -380,7 +359,7 @@ services:
       #- DNSPLUGIN=cloudfare #optional
       #- PROPAGATION= #optional
       #- DUCKDNSTOKEN=$ducktkn
-      #- EMAIL=$zspwd
+      #- EMAIL=$zspwd  # Zerossl password
       - ONLY_SUBDOMAINS=false #optional
       #- EXTRA_DOMAINS= #optional
       - STAGING=false #optional
@@ -451,23 +430,25 @@ networks:
     internet:
       driver: bridge" >> docker-compose.yml
 
-# Take the opportunity to clean up any old junk before running the stack
-#  Run the stack
+# Take the opportunity to clean up any old junk before running the stack and then run it
 docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
 
 # Wait a bit for the stack to deploy
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml ]
     do
-      sleep 5
+      sleep 5;
     done
     
 echo "
 The stack started successfully...
 "
 
-# Make a backup of the clean authelia configuration file 
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak
+# Make a backup of the clean authelia configuration file if needed
+while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak ]
+    do
+      cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml \
+         /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak;
+    done
 
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
@@ -555,9 +536,12 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
       sleep 5
     done
 
-# Make a backup of the clean authelia configuration file 
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak
+# Make a backup of the clean authelia configuration file if needed
+while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak ]
+    do
+       cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml \
+          /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak;
+    done
 
 #  Comment out all the lines in the ~/docker/authelia/users_database.yml configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
@@ -750,9 +734,10 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 #  Store non-persistent variables in .bashrc for later use across reboots
 echo "
 " >> ~/.bashrc
-echo "export stackname=$stackname" >> ~/.bashrc
 echo "export authusr=$authusr" >> ~/.bashrc
 echo "export authpwd=$authpwd" >> ~/.bashrc
+echo "export rootdir=$rootdir" >> ~/.bashrc
+echo "export stackname=$stackname" >> ~/.bashrc
 echo "export swagloc=$swagloc" >> ~/.bashrc
 
 # Commit the .bashrc changes
