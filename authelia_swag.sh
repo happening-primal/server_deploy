@@ -184,6 +184,8 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/neko;
                 mkdir docker/neko/firefox;
                 mkdir docker/neko/tor;
+                mkdir docker/neko/tor/home;
+                mkdir docker/neko/tor/usr;
                 mkdir docker/pihole;
                 mkdir docker/pihole/etc-pihole;
                 mkdir docker/pihole/etc-dnsmasq.d;
@@ -206,7 +208,7 @@ echo "
 apt-get install -y libcurl4-openssl-dev libssl-dev
 git clone https://github.com/benbusby/whoogle-search.git /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker
 
-#Move the contents from directory whoogle-search to directory whoogle
+# Move the contents from directory whoogle-search to directory whoogle
 mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
 
 rm docker-compose.yml
@@ -215,6 +217,147 @@ touch docker-compose.yml
 echo "version: \"3.1\"
 
 services:
+
+  authelia:
+    image: authelia/authelia:latest #4.32.0
+    #container_name: authelia # Depricated
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - $rootdir/docker/authelia:/config
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+       
+  heimdall:
+    image: ghcr.io/linuxserver/heimdall
+    #container_name: heimdall # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/heimdall:/config
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+  
+  firefox:  # linuxserver.io firefox browser
+    image: lscr.io/linuxserver/firefox
+    #container_name: firefox # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
+    volumes:
+      - $rootdir/docker/firefox:/config
+    #ports:
+      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    shm_size: \"1gb\"
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  neko:  # Neko firefox browser
+    image: m1k1o/neko:firefox
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52000-52100:52000-52100/udp
+    environment:
+      NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52000-52100
+      NEKO_ICELITE: 1
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  tor:  # Neko tor browser
+    image: m1k1o/neko:tor-browser
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52200-52300:52200-52300/udp
+    environment:
+      NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52200-52300
+      NEKO_ICELITE: 1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  pihole:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
+           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+    #container_name: pihole # Depricated
+    image: pihole/pihole:latest
+    ports:
+      - 53:53/udp
+      - 53:53/tcp
+      - 67:67/tcp
+      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - WEBPASSWORD=$pipass
+      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
+    volumes:
+       - $rootdir/docker/pihole/etc-pihole:/etc/pihole
+       - $rootdir/docker/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  syncthing:
+    image: lscr.io/linuxserver/syncthing
+    #container_name: syncthing # Depricated
+    hostname: syncthing # Optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/syncthing:/config
+      - $rootdir/docker/syncthing/data1:/data1
+      - $rootdir/docker/syncthing/data2:/data2
+    ports:
+      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+ 
   swag:
     image: linuxserver/swag
     #container_name: swag # Depricated
@@ -257,110 +400,7 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-
-  authelia:
-    image: authelia/authelia:latest #4.32.0
-    #container_name: authelia # Depricated
-    environment:
-      - TZ=America/New_York
-    volumes:
-      - $rootdir/docker/authelia:/config
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-       
-  heimdall:
-    image: ghcr.io/linuxserver/heimdall
-    #container_name: heimdall # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/heimdall:/config
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-  
-  syncthing:
-    image: lscr.io/linuxserver/syncthing
-    #container_name: syncthing # Depricated
-    hostname: syncthing # Optional
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/syncthing:/config
-      - $rootdir/docker/syncthing/data1:/data1
-      - $rootdir/docker/syncthing/data2:/data2
-    ports:
-      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      - 22000:22000/tcp
-      - 22000:22000/udp
-      - 21027:21027/udp
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-       
-  pihole:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
-           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-    #container_name: pihole # Depricated
-    image: pihole/pihole:latest
-    ports:
-      - 53:53/udp
-      - 53:53/tcp
-      - 67:67/tcp
-      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - WEBPASSWORD=$pipass
-      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
-    volumes:
-       - $rootdir/docker/pihole/etc-pihole:/etc/pihole
-       - $rootdir/docker/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d
-    dns:
-      - 127.0.0.1
-      - 1.1.1.1
-    cap_add:
-      - NET_ADMIN
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-       
-  firefox:
-    image: lscr.io/linuxserver/firefox
-    #container_name: firefox # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
-    volumes:
-      - $rootdir/docker/firefox:/config
-    #ports:
-      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    shm_size: \"1gb\"
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
+ 
   whoogle:
     image: benbusby/whoogle-search
     pids_limit: 50
@@ -406,24 +446,6 @@ services:
       restart_policy:
        condition: on-failure
 
-  neko:
-    image: m1k1o/neko:firefox
-    shm_size: \"2gb\"
-    ports:
-      #- 8080:8080
-      - 52000-52100:52000-52100/udp
-    environment:
-      NEKO_SCREEN: 1440x900@60
-      NEKO_PASSWORD: $nupass
-      NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52000-52100
-      NEKO_ICELITE: 1
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
 # For networking setup explaination, see this link:
 # https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 networks:
@@ -439,9 +461,6 @@ nano docker-compose.yml
 #  Run the stack
 docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
 
-#docker-compose up -d --compose-file docker-compose.yml
-#docker stack deploy --compose-file docker-compose.yml "$stackname"
-
 # Wait a bit for the stack to deploy
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml ]
     do
@@ -451,6 +470,7 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 echo "
 The stack started successfully...
 "
+
 # Make a backup of the clean authelia configuration file 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak
@@ -518,7 +538,7 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
-# You have to go through the startup twice because authelia starts, prints the *.yml file, then exits.
+# You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
@@ -526,7 +546,7 @@ docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
 
 #  First wait until the stack is first initialized...
-while [ -f "$(sudo docker ps | grep authelia_swag)" ];
+while [ -f "$(sudo docker ps | grep $stackname)" ];
 do
  sleep 5
  done
@@ -563,7 +583,12 @@ users:
 ..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
 sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-# Mind the $ signs and forward slashes :(
+# Mind the $ signs and forward slashes / :(
+
+
+##################################################################################################################################
+
+#  Configure the swag proxy-confs files for specific services
 
 # Update the swag nginx default landing page to redirect to Authelia authentication and allow heimdall to work
 sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
@@ -571,11 +596,10 @@ sed -i 's/\    location \/ {/#    location \/ {''/g' /home/$(who | awk '{print $
 sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;/#        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
 
-#  Activate the heimdall folder.conf to serve as the root URL landing page proxied through authelia
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
+##################################################################################################################################
+
+# Firefox - linuxserver.io
 
 #  Prepare the firefox container - copy the calibre.subfolder.conf use it as a template.
 #  Be mindful of the line that says to add 'SUBFOLDER=/firefox/' to your docker compose
@@ -588,29 +612,21 @@ sed -i 's/calibre/firefox''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 
-#  Prepare the pihole container
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
+##################################################################################################################################
 
-#  Prepare the syncthing proxy-conf file
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
+# Heimdall - linuxserver.io
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
+#  Activate the heimdall folder.conf to serve as the root URL landing page proxied through authelia
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
 
-#docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle/docker-compose.yml -p $stackname up -d 
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
 
-#  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+##################################################################################################################################
 
-#  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
+# Neko firefox browser
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
@@ -662,8 +678,61 @@ EOF
 #  Follow the link to 'Profile Folder'
 
 
-#  Perform some SWAG hardening
+##################################################################################################################################
+
+# Neko Tor browser
+
+#  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
+sed -i 's/syncthing/tor''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
+
+
+##################################################################################################################################
+
+# Pihole
+
+#  Prepare the pihole container
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
+
+
+##################################################################################################################################
+
+# Syncthing
+
+#  Prepare the syncthing proxy-conf file
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
+
+
+##################################################################################################################################
+
+#  Whoogle
+
+#  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+
+#  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
+
+
+##################################################################################################################################
+
+#  Perform some SWAG hardening:
 #    https://virtualize.link/secure/
+
 echo "
 \#  Additional SWAG hardening - https:\/\/virtualize.link\/secure\/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  No more Google FLoC
@@ -693,7 +762,7 @@ echo "export swagloc=$swagloc" >> ~/.bashrc
 source ~/.bashrc
 
 echo "
-Now you may want to restart the box and then navigate to your fqdn, 
+Now you may want to restart the box.  Either way navigate to your fqdn, 
 
      'https://$fqdn'
 
