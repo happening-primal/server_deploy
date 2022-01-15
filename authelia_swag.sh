@@ -1,13 +1,5 @@
 #!/bin/bash
 
-# ToDo:
-#  1.  Commit some of these variables to .bashrc for future use
-#  2.  Change swag directory to config
-#  3.  Add a way to cycle through the swag installers and add enough 
-#      subdomains to accomodate all of them and then sed the files with the
-#      created subdoimains so that they work 'out of the box'.
-
-
 stackname=authelia_swag
 swagloc=swag
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
@@ -16,8 +8,8 @@ rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v
 #  Prep the system
 
 #  Needed if you are going to run pihole
-#  Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-#  Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
+#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
 sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
@@ -78,7 +70,7 @@ done
 #done
 
 while true; do
-  read -rp "Enter your desired JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
+  read -rp "Enter your desired Authelai JWT secret - example - 'AUVV2tYhu7YD5vbqZMkxDqX3wDEDkYYk8jQwBDq82Y9P3tHsSR': " jwts
   if [[ -z "${jwts}" ]]; then
     echo "Enter your desired JWT secret or hit ctrl+C to exit."
     continue
@@ -126,10 +118,9 @@ Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDY
   break
 done
 
-
 while true; do
   read -rp "
-Enter your desired pihole password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
+Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
   if [[ -z "${pipass}" ]]; then
     echo "Enter your desired pihole password or hit ctrl+C to exit."
     continue
@@ -447,15 +438,13 @@ services:
        condition: on-failure
 
 # For networking setup explaination, see this link:
-# https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 networks:
     no-internet:
       driver: bridge
       internal: true
     internet:
       driver: bridge" >> docker-compose.yml
-
-nano docker-compose.yml
 
 # Take the opportunity to clean up any old junk before running the stack
 #  Run the stack
@@ -538,6 +527,10 @@ sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
+echo "
+Cleaning up and restarting the stack...
+"
+
 # You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
@@ -551,9 +544,6 @@ do
  sleep 5
  done
  
-echo "
-Cleaning up and restarting the stack...
-"
 # Make sure the stack started properly by checking for the existence of users_database.yml
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml ]
     do
@@ -745,6 +735,7 @@ echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains
 echo "
 Cleaning up and restarting the stack for the final time...
 "
+
 #  Need to restart the stack
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
@@ -758,6 +749,7 @@ echo "export stackname=$stackname" >> ~/.bashrc
 echo "export authusr=$authusr" >> ~/.bashrc
 echo "export authpwd=$authpwd" >> ~/.bashrc
 echo "export swagloc=$swagloc" >> ~/.bashrc
+
 # Commit the .bashrc changes
 source ~/.bashrc
 
@@ -774,6 +766,5 @@ authentication url using these commands:
 
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
  "
-
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
