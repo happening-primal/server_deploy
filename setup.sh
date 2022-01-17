@@ -267,13 +267,16 @@ iptables-save
  if ! dockerd --help > /dev/null 2>&1; then
    while true; do
      read -rp "
-     Docker is not installed. Would you like to install it? [Y/n]" yn
+Docker is not installed. Would you like to install it? [Y/n]" yn
      case $yn in
        [Yy]*) break ;;
        [Nn]*) exit 0 ;;
        *) echo "Please answer yes or no." ;;
      esac
    done
+
+echo "
+"
 
    apt-get remove containerd docker docker-engine docker.io runc
    apt-get update
