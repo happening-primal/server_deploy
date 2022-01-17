@@ -180,10 +180,10 @@ echo "
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
 apt-get install -y libcurl4-openssl-dev libssl-dev
-git clone https://github.com/benbusby/whoogle-search.git /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker
+git clone https://github.com/benbusby/whoogle-search.git 
 
 # Move the contents from directory whoogle-search to directory whoogle
-mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
+mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
 
 rm docker-compose.yml
 touch docker-compose.yml
@@ -247,7 +247,7 @@ services:
       #- 8080:8080
       - 52000-52100:52000-52100/udp
     environment:
-       NEKO_SCREEN: 1440x900@60
+      NEKO_SCREEN: 1440x900@60
       NEKO_PASSWORD: $nupass
       NEKO_PASSWORD_ADMIN: $napass
       NEKO_EPR: 52000-52100
