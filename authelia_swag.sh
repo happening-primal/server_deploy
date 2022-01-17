@@ -153,8 +153,10 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/heimdall;
                 mkdir docker/neko;
                 mkdir docker/neko/firefox;
-                mkdir docker/neko/firefox/home;
+                mkdir docker/neko/firefox/home/neko;
                 mkdir docker/neko/firefox/usr;
+                mkdir docker/neko/firefox/usr/lib;
+                mkdir docker/neko/firefox/usr/lib/firefox;
                 mkdir docker/neko/tor;
                 mkdir docker/neko/tor/home;
                 mkdir docker/neko/tor/usr;
@@ -238,26 +240,27 @@ services:
       restart_policy:
        condition: on-failure
 
-#  neko:  # Neko firefox browser
-#    image: m1k1o/neko:firefox
-#    shm_size: \"2gb\"
-#    ports:
-#      #- 8080:8080
-#      - 52000-52100:52000-52100/udp
-#    environment:
-#      NEKO_SCREEN: 1440x900@60
-#      NEKO_PASSWORD: $nupass
-#      NEKO_PASSWORD_ADMIN: $napass
-#      NEKO_EPR: 52000-52100
-#      NEKO_ICELITE: 1
+  neko:  # Neko firefox browser
+    image: m1k1o/neko:firefox
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52000-52100:52000-52100/udp
+    environment:
+       NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52000-52100
+      NEKO_ICELITE: 1
 #    volumes:
-#       - $rootdir/docker/neko/firefox/usr:/usr
-#       - $rootdir/docker/neko/firefox/home/:/home
-#    networks:
-#      - no-internet
-#    deploy:
-#      restart_policy:
-#       condition: on-failure
+#       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
+#       - $rootdir/docker/neko/firefox/home/neko:/home/neko
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
 
   tor:  # Neko tor browser
     image: m1k1o/neko:tor-browser
@@ -715,7 +718,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$
 #    https://virtualize.link/secure/
 
 echo "
-\#  Additional SWAG hardening - https:\/\/virtualize.link\/secure\/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
+#  Additional SWAG hardening - https:\/\/virtualize.link\/secure\/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  No more Google FLoC
 echo "add_header Permissions-Policy \"interest-cohort=()\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
