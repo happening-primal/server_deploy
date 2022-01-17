@@ -322,8 +322,7 @@ services:
       - TZ=Europe/London
     volumes:
       - $rootdir/docker/syncthing:/config
-      - $rootdir/docker/syncthing/data1:/data1
-      - $rootdir/docker/syncthing/data2:/data2
+      - $rootdir/docker:/config/Sync
     ports:
       #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
       - 22000:22000/tcp
