@@ -8,9 +8,9 @@ rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
 #    https://linuxhint.com/generate-random-string-bash/
-jwts=$(openssl rand -base64 40)     # Authelia JWT secret
-auths=$(openssl rand -base64 40)    # Authelia secret
-authec=$(openssl rand -base64 40)   # Authelia encryption key
+jwts=$(echo $RANDOM | md5sum | head -c 40)     # Authelia JWT secret
+auths=$(echo $RANDOM | md5sum | head -c 40)    # Authelia secret
+authec=$(echo $RANDOM | md5sum | head -c 40)   # Authelia encryption key
 
 #======================================================================================
 #  Prep the system
@@ -142,10 +142,10 @@ while true; do
     read -p "
 Do you want to perform a completely fresh install (y/n)? " yn
     case $yn in
-        [Yy]* ) rm -r docker;
-                docker stack rm $stackname;
-                docker swarm leave --force;
-                #docker swarm init;
+        [Yy]* ) docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
+                docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
+                docker system prune;
+                rm -r docker;
                 #  You must create these directories manually or else the container won't run
                 mkdir docker;
                 mkdir docker/authelia;
@@ -238,26 +238,26 @@ services:
       restart_policy:
        condition: on-failure
 
-  neko:  # Neko firefox browser
-    image: m1k1o/neko:firefox
-    shm_size: \"2gb\"
-    ports:
-      #- 8080:8080
-      - 52000-52100:52000-52100/udp
-    environment:
-      NEKO_SCREEN: 1440x900@60
-      NEKO_PASSWORD: $nupass
-      NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52000-52100
-      NEKO_ICELITE: 1
-    volumes:
-       - $rootdir/docker/neko/firefox/usr:/usr
-       - $rootdir/docker/neko/firefox/home/:/home
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
+#  neko:  # Neko firefox browser
+#    image: m1k1o/neko:firefox
+#    shm_size: \"2gb\"
+#    ports:
+#      #- 8080:8080
+#      - 52000-52100:52000-52100/udp
+#    environment:
+#      NEKO_SCREEN: 1440x900@60
+#      NEKO_PASSWORD: $nupass
+#      NEKO_PASSWORD_ADMIN: $napass
+#      NEKO_EPR: 52000-52100
+#      NEKO_ICELITE: 1
+#    volumes:
+#       - $rootdir/docker/neko/firefox/usr:/usr
+#       - $rootdir/docker/neko/firefox/home/:/home
+#    networks:
+#      - no-internet
+#    deploy:
+#      restart_policy:
+#       condition: on-failure
 
   tor:  # Neko tor browser
     image: m1k1o/neko:tor-browser
@@ -444,8 +444,7 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
     done
     
 echo "
-The stack started successfully...
-"
+The stack started successfully..."
 
 # Make a backup of the clean authelia configuration file if needed
 while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak ]
@@ -456,6 +455,7 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+
 
 #  Uncomment/modify the required lines in the /docker/authelia/configuration.yml.bak file
 sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
@@ -477,15 +477,15 @@ sed -i 's/\#  period: 30/  period: 30''/g' /home/$(who | awk '{print $1}' | awk 
 sed -i 's/\#  skew: 1/  skew: 1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#authentication_backend:/authentication_backend:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  disable_reset_password: false/  disable_reset_password: false''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  # file:/  file:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #   path: \/config\/users_database.yml/     path: \/config\/users_database.yml''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #   password:/     password:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #     algorithm: argon2id/       algorithm: argon2id''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #     iterations: 1/       iterations: 1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #     key_length: 32/       key_length: 32''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #     salt_length: 16/       salt_length: 16''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #     memory: 1024/       memory: 1024''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #     parallelism: 8/       parallelism: 8''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#    file:/   file:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#       path: \/config\/users_database.yml/       path: \/config\/users_database.yml''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#       password:/       password:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#         algorithm: argon2id/         algorithm: argon2id''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#         iterations: 1/         iterations: 1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#         key_length: 32/         key_length: 32''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#         salt_length: 16/         salt_length: 16''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#         memory: 1024/         memory: 1024''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#         parallelism: 8/         parallelism: 8''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#access_control:/access_control:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  default_policy: deny/  default_policy: deny''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  rules:/  rules:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
@@ -505,14 +505,13 @@ sed -i 's/\#  max_retries: 3/  max_retries: 3''/g' /home/$(who | awk '{print $1}
 sed -i 's/\#  find_time: 2m/  find_time: 2m''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#  ban_time: 5m/  ban_time: 5m''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#storage:/storage:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  # local:/   local:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #   path: \/config\/db.sqlite3/     path: \/config\/db.sqlite3''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\     password: mypassword/#     password: mypassword''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  # encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/   encryption_key: '"$authec"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  \# encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/   encryption_key: '"$authec"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  \# local:/   local:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  \#   path: \/config\/db.sqlite3/     path: \/config\/db.sqlite3''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i 's/\#notifier:/notifier:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 sed -i ':a;N;$!ba;s/\#  disable_startup_check: false/  disable_startup_check: false''/2' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  # filesystem:/  filesystem:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  #   filename: \/config\/notification.txt/     filename: \/config\/notification.txt''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  \# filesystem:/   filesystem:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+sed -i 's/\#  \#   filename: \/config\/notification.txt/     filename: \/config\/notification.txt''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
 # Yeah, that was exhausting...
 #sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
@@ -523,7 +522,6 @@ Cleaning up and restarting the stack...
 
 # You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-docker system prune
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
@@ -761,4 +759,3 @@ authentication url using these commands:
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++')"/docker/authelia/notification.txt | grep http'
  "
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
-
