@@ -16,6 +16,7 @@ rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
 #    https://linuxhint.com/generate-random-string-bash/
+
 jwts=$(openssl rand -hex 25)     # Authelia JWT secret
 auths=$(openssl rand -hex 25)    # Authelia secret
 authec=$(openssl rand -hex 25)   # Authelia encryption key
@@ -26,6 +27,7 @@ authec=$(openssl rand -hex 25)   # Authelia encryption key
 #  Needed if you are going to run pihole
 #    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
 #    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
+
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
 sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
@@ -34,6 +36,7 @@ sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
 echo "
  - Run this script as superuser.
 "
+
 # Detect Root
 if [[ "${EUID}" -ne 0 ]]; then
   echo "This installer needs to be run with superuser privileges." >&2
@@ -158,7 +161,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker;
                 mkdir docker/authelia;
                 mkdir docker/firefox;
-                mkdir docker/heimdall;
+                mkdir docker/homer;
                 mkdir docker/neko;
                 mkdir docker/neko/firefox;
                 mkdir docker/neko/firefox/home/neko;
@@ -212,21 +215,6 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-       
-  homer:
-    image: b4bz/homer
-    #container_name: homer # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/homer:/www/assets
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
 
   firefox:  # linuxserver.io firefox browser
     image: lscr.io/linuxserver/firefox
@@ -248,6 +236,21 @@ services:
       restart_policy:
        condition: on-failure
 
+  homer:
+    image: b4bz/homer
+    #container_name: homer # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/homer:/www/assets
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+       
   neko:  # Neko firefox browser
     image: m1k1o/neko:firefox
     shm_size: \"2gb\"
@@ -320,29 +323,6 @@ services:
       restart_policy:
        condition: on-failure
 
-  syncthing:
-    image: lscr.io/linuxserver/syncthing
-    #container_name: syncthing # Depricated
-    hostname: syncthing # Optional
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/syncthing:/config
-      - $rootdir/docker:/config/Sync
-    ports:
-      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      - 22000:22000/tcp
-      - 22000:22000/udp
-      - 21027:21027/udp
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
   swag:
     image: linuxserver/swag
     #container_name: swag # Depricated
@@ -379,6 +359,29 @@ services:
       - 443:443
       - 80:80 
       # You must leave port 80 open or you won't be able to get your ssl certificate via http
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  syncthing:
+    image: lscr.io/linuxserver/syncthing
+    #container_name: syncthing # Depricated
+    hostname: syncthing # Optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/syncthing:/config
+      - $rootdir/docker:/config/Sync
+    ports:
+      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
     networks:
       - no-internet
       - internet
@@ -465,7 +468,6 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-
 
 #  Uncomment/modify the required lines in the /docker/authelia/configuration.yml.bak file
 sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
@@ -574,6 +576,7 @@ users:
 ..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 
 sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+
 # Mind the $ signs and forward slashes / :(
 
 ##################################################################################################################################
@@ -829,7 +832,7 @@ echo "export swagloc=$swagloc" >> ~/.bashrc
 source ~/.bashrc
 
 echo "
-Now you may want to restart the box.  Either way navigate to your fqdn, 
+Now you may want to restart the box.  Either way navigate to your fqdn: 
 
      'https://$fqdn'
 
