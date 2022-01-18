@@ -576,7 +576,6 @@ users:
 sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
 # Mind the $ signs and forward slashes / :(
 
-
 ##################################################################################################################################
 
 #  Configure the swag proxy-confs files for specific services
@@ -586,7 +585,6 @@ sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/ngi
 sed -i 's/\    location \/ {/#    location \/ {''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
 sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;/#        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
-
 
 ##################################################################################################################################
 
@@ -619,11 +617,6 @@ sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' 
 sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-
-7uP6BAh7LvqWdsmocY
-
-sed -i 's/subtitle: \"7uP6BAh7LvqWdsmocY\"/subtitle: \"'"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-
 
 # Throw everything over line 69
 sed -i '73,$ d' config.yml
@@ -700,7 +693,6 @@ sed -i '6 i }' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | 
 sed -i '7 i 
 ' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
 
-
 ##################################################################################################################################
 
 # Neko firefox browser
@@ -754,7 +746,6 @@ EOF
 #  about:support
 #  Follow the link to 'Profile Folder'
 
-
 ##################################################################################################################################
 
 # Neko Tor browser
@@ -767,7 +758,6 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 sed -i 's/syncthing/tor''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
 
-
 ##################################################################################################################################
 
 # Pihole
@@ -778,7 +768,6 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
 
-
 ##################################################################################################################################
 
 # Syncthing
@@ -788,7 +777,6 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
-
 
 ##################################################################################################################################
 
@@ -803,7 +791,6 @@ sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 
 #  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
-
 
 ##################################################################################################################################
 
@@ -855,8 +842,3 @@ authentication url using these commands:
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"/docker/authelia/notification.txt | grep http'
  "
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
-
-
-
-
-
