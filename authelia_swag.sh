@@ -389,6 +389,36 @@ services:
       restart_policy:
        condition: on-failure
  
+  wireguard:
+    image: ghcr.io/linuxserver/wireguard
+    #container_name: wireguard # Depricated
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - SERVERURL=$fqdn
+      - SERVERPORT=51220
+      - PEERS=3
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.18.18.0
+      - ALLOWEDIPS=0.0.0.0/0
+    volumes:
+      - ./data:/config
+      - /lib/modules:/lib/modules
+    ports:
+      - 51220:51220/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+ 
   whoogle:
     image: benbusby/whoogle-search
     pids_limit: 50
