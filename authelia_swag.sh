@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# ToDo:
+#  1.  Configure iptable rules
+#  2.  Wireguard
+#  3.  OpenVPN
+#  4.  Shadowsocks
+#  5.  ShadowVPN
+#  For these VPN options, see the following - https://github.com/vimagick/dockerfiles
+
 #  Variables
 stackname=authelia_swag
 swagloc=swag
