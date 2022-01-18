@@ -213,21 +213,21 @@ services:
       restart_policy:
        condition: on-failure
        
-  heimdall:
-    image: ghcr.io/linuxserver/heimdall
-    #container_name: heimdall # Depricated
+  homer:
+    image: b4bz/homer
+    #container_name: homer # Depricated
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - $rootdir/docker/heimdall:/config
+      - $rootdir/docker/homer:/www/assets
     networks:
       - no-internet
     deploy:
       restart_policy:
        condition: on-failure
-  
+
   firefox:  # linuxserver.io firefox browser
     image: lscr.io/linuxserver/firefox
     #container_name: firefox # Depricated
@@ -606,13 +606,99 @@ sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' /home/$
 
 ##################################################################################################################################
 
-# Heimdall - linuxserver.io
+# Homer - https://github.com/bastienwirtz/homer
+#         https://github.com/bastienwirtz/homer/blob/main/docs/configuration.md
 
-#  Activate the heimdall folder.conf to serve as the root URL landing page proxied through authelia
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml.bak
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/heimdall.subfolder.conf
+sed -i 's/title: \"Demo dashboard\"/title: \"Dashboard - '"$fqdn"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i 's/  - name: \"another page!\"/\#  - name: \"another page!\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+
+7uP6BAh7LvqWdsmocY
+
+sed -i 's/subtitle: \"7uP6BAh7LvqWdsmocY\"/subtitle: \"'"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+
+
+# Throw everything over line 69
+sed -i '73,$ d' config.yml
+
+#sed -i 's/ / ''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+
+echo "    items:
+      - name: \"Firefox (N.eko)\"
+        logo: \"assets/tools/sample.png\"
+        # subtitle: \"Network-wide Ad Blocking\" # optional, if no subtitle is defined, PiHole statistics will be shown
+        tag: \"other\"
+        url: \"http://$fqdn/neko\"
+        type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
+        target: \"_blank\" # optional html a tag target attribute
+        # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
+        # background: red # optional color for card to set color directly without custom stylesheet
+      - name: \"Firefox (Guacamole)\"
+        logo: \"assets/tools/sample.png\"
+        # subtitle: \"Network-wide Ad Blocking\" # optional, if no subtitle is defined, PiHole statistics will be shown
+        tag: \"other\"
+        url: \"http://$fqdn/firefox\"
+        type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
+        target: \"_blank\" # optional html a tag target attribute
+        # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
+        # background: red # optional color for card to set color directly without custom stylesheet
+      - name: \"Pi-hole\"
+        logo: \"assets/tools/sample.png\"
+        # subtitle: \"Network-wide Ad Blocking\" # optional, if no subtitle is defined, PiHole statistics will be shown
+        tag: \"other\"
+        url: \"http://$fqdn/pihole/admin\"
+        type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
+        target: \"_blank\" # optional html a tag target attribute
+        # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
+        # background: red # optional color for card to set color directly without custom stylesheet
+      - name: \"Syncthing\"
+        logo: \"assets/tools/sample.png\"
+        # subtitle: \"Network-wide Ad Blocking\" # optional, if no subtitle is defined, PiHole statistics will be shown
+        tag: \"other\"
+        url: \"http://$fqdn/syncthing\"
+        type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
+        target: \"_blank\" # optional html a tag target attribute
+        # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
+        # background: red # optional color for card to set color directly without custom stylesheet
+      - name: \"Tor\"
+        logo: \"assets/tools/sample.png\"
+        # subtitle: \"Network-wide Ad Blocking\" # optional, if no subtitle is defined, PiHole statistics will be shown
+        tag: \"other\"
+        url: \"http://$fqdn/tor\"
+        type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
+        target: \"_blank\" # optional html a tag target attribute
+        # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
+        # background: red # optional color for card to set color directly without custom stylesheet
+      - name: \"Whoogle\"
+        logo: \"assets/tools/sample.png\"
+        # subtitle: \"Network-wide Ad Blocking\" # optional, if no subtitle is defined, PiHole statistics will be shown
+        tag: \"other\"
+        url: \"http://$fqdn/whoogle\"
+        type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
+        target: \"_blank\" # optional html a tag target attribute
+        # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
+        # background: red # optional color for card to set color directly without custom stylesheet" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+
+
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subdomain.conf.sample \ 
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subdomain.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' \ 
+       /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
+
+sed -i '3 i ' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
+sed -i '4 i location / {' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
+sed -i '5 i    return 301 $scheme://$host/homer/;' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
+sed -i '6 i }' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
+sed -i '7 i 
+' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
 
 
 ##################################################################################################################################
@@ -769,3 +855,8 @@ authentication url using these commands:
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"/docker/authelia/notification.txt | grep http'
  "
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
+
+
+
+
+
