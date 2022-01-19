@@ -138,6 +138,26 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
   break
 done
 
+while true; do
+  read -rp "
+Enter your desired wireguard ui userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " wguid
+if [[ -z "${wguid}" ]]; then
+    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " wgpass
+  if [[ -z "${wgpass}" ]]; then
+    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 # If using zerossl instead of letsencrypt
 #while true; do
 #  read -rp "
@@ -178,6 +198,12 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/syncthing;
                 mkdir docker/syncthing/data1;
                 mkdir docker/syncthing/data2;
+                mkdir docker/wireguard;
+                mkdir docker/wireguard/config;
+                mkdir docker/wireguard/modules;
+                mkdir docker/wireguard/ui;
+                mkdir docker/wireguard/ui/app;
+                mkdir docker/wireguard/ui/etc;
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
@@ -400,18 +426,46 @@ services:
       - PGID=1000
       - TZ=UTC
       - SERVERURL=$fqdn
-      - SERVERPORT=51220
+      - SERVERPORT=50220
       - PEERS=3
       - PEERDNS=auto
       - INTERNAL_SUBNET=10.18.18.0
       - ALLOWEDIPS=0.0.0.0/0
     volumes:
-      - ./data:/config
-      - /lib/modules:/lib/modules
+      - $rootdir/docker/wireguard/config:/config
+      - $rootdir/docker/wireguard/modules:/lib/modules
     ports:
-      - 51220:51220/udp
+      - 50220:50220/udp
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+ 
+  wgui:
+    image: ngoduykhanh/wireguard-ui:latest
+    #container_name: wgui # Depricated
+    # Port 5000
+    cap_add:
+      - NET_ADMIN
+    environment:
+      #- SENDGRID_API_KEY
+      #- EMAIL_FROM_ADDRESS
+      #- EMAIL_FROM_NAME
+      - SESSION_SECRET=$(openssl rand -hex 30)
+      - WGUI_USERNAME=$wguid
+      - WGUI_PASSWORD=$wgpass
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+    volumes:
+      - $rootdir/docker/wireguard/app:/app/db
+      - $rootdir/docker/wireguard/etc:/etc/wireguard
+    network_mode: host
     networks:
       - no-internet
       - internet
