@@ -203,7 +203,9 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/wireguard/modules;
                 mkdir docker/wireguard/ui;
                 mkdir docker/wireguard/ui/app;
+                mkdir docker/wireguard/ui/app/db;
                 mkdir docker/wireguard/ui/etc;
+                mkdir docker/wireguard/ui/etc/wireguard;
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
