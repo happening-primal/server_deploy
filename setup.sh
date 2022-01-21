@@ -36,6 +36,9 @@ apt-get install tmux -y
 apt-get install bleachbit -y
 apt-get install iptables-persistent -y
 apt-get install fail2ban -y
+#  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
+#  Install dependencies
+apt-get install -y libcurl4-openssl-dev libssl-dev
 # Remove some unused applications that may pose as an attack surface
 apt purge telnet -y
 apt purge postfix -y
