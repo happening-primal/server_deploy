@@ -67,15 +67,17 @@ You will paste the above line at the end of the file after the commented (#) lin
 by ctrl-X, y, Enter to commit the changes.
 
 "
-while true; do
-  read -rp "Hit Enter to continue or ctrl+C to exit..." yn
-  case $yn in
-    "") break ;;
-    *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
-  esac
-done
+#while true; do
+#  read -rp "Hit Enter to continue or ctrl+C to exit..." yn
+#  case $yn in
+#    "") break ;;
+#    *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
+#  esac
+#done
 
-crontab -e
+#crontab -e
+
+(crontab -l 2>/dev/null || true; echo "0 0 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs bleachbit --clean") | crontab -
 
 echo "
 
