@@ -345,6 +345,8 @@ done
 
 su $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -c 'crontab -e' #cannot run as root
 
+su $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -c '(crontab -l 2>/dev/null || true; echo "0 1 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs  bleachbit --clean" | crontab -'
+
 echo "
 "
 
