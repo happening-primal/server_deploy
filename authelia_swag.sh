@@ -874,6 +874,8 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
 
+#  When you set up the syncs for pihole, ensure you check 'Ignore Permissions' under the 'Advanced' tab during folder setup.
+
 ##################################################################################################################################
 
 #  Whoogle
