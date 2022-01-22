@@ -26,31 +26,18 @@ while true; do
 done
 
 #Update and install some essential apps
-apt-get update && apt-get upgrade -y  && apt-get dist-upgrade -y
+apt-get -qq update && apt-get -y -qq upgrade  && apt-get -y -qq dist-upgrade
 # Install essential apps
-apt-get install nano -y
-apt-get install wget -y
-apt-get install unattended-upgrades apt-listchanges -y
-apt-get install libpam-google-authenticator -y
-apt-get install tmux -y
-apt-get install bleachbit -y
-apt-get install iptables-persistent -y
-apt-get install fail2ban -y
+apt-get install -y -qq nano wget unattended-upgrades apt-listchanges libpam-google-authenticator
+apt-get install -y -qq tmux bleachbit iptables-persistent fail2ban
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
-apt-get install -y libcurl4-openssl-dev libssl-dev
+apt-get install -y -qq libcurl4-openssl-dev libssl-dev
 # Remove some unused applications that may pose as an attack surface
-apt purge telnet -y
-apt purge postfix -y
-apt purge tcpdump -y
-apt purge nmap-ncat -y
-apt purge wpa_supplicant -y
-apt purge avahi-daemon -y
-# Required for whoogle
-apt-get install -y libcurl4-openssl-dev libssl-dev
+apt purge -y -qq telnet postfix tcpdump nmap-ncat wpa_supplicant avahi-daemon
 # Clean up
-apt-get autoremove -y
-apt-get autoclean -y
+apt -y -qq autoremove 
+apt -y -qq autoclean
 
 #systemctl reload postfix
 
