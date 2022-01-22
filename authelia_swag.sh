@@ -859,8 +859,9 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 
 # Ensure ownership of the 'etc-pihole' folder is set properly.
 chown systemd-coredump:systemd-coredump /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+#  This below step may not be needed.  Need to deploy to a server and check
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
-chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+#chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
 
 
 ##################################################################################################################################
