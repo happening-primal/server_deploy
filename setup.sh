@@ -243,14 +243,20 @@ Creating firewall rules...
  iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
  iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 
- 
-# Block all other udp
- #iptables -A INPUT -p udp -j DROP
- #iptables -A OUTPUT -p udp -j DROP
+#  Open ports for neko firefox
+ iptables -A INPUT -p udp --dport 52000:52100 -j ACCEPT
+
+# Open ports for neko tor
+ iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
+
+# Block ipv6
+ ip6tables -A INPUT -p tcp -j DROP
+ ip6tables -A OUTPUT -p tcp -j DROP
  ip6tables -A INPUT -p udp -j DROP
  ip6tables -A OUTPUT -p udp -j DROP
  
-#  Specific requests to block
+#  Specific requests to block dns requests by nane.  The number (02, 08, 09) represents the count of characters
+#  before the string.
  iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
  iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
  iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
