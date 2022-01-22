@@ -327,6 +327,27 @@ while true; do
   esac
 done
 
+# Add automated cleanup using bleachbit
+echo "
+Let's install a cron job to clean up the system automatically
+using bleachbit.  Copy this text (without the '):
+  '0 1 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs  bleachbit --clean'
+You will paste the above line at the end of the file after the commented (#) lines followed
+by ctrl-X, y, Enter to commit the changes.
+"
+while true; do
+  read -rp "Hit Enter to continue or ctrl+C to exit..." yn
+  case $yn in
+    "") break ;;
+    *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
+  esac
+done
+
+su $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -c 'crontab -e' #cannot run as root
+
+echo "
+"
+
 while true; do
   read -rp "
   We're now going to perform a final cleanup using bleachbit.  Hit Enter to continue." yn
