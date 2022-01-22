@@ -218,7 +218,7 @@ echo "
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
-apt-get install -y libcurl4-openssl-dev libssl-dev
+apt-get install -y -qq libcurl4-openssl-dev libssl-dev
 git clone https://github.com/benbusby/whoogle-search.git 
 
 # Move the contents from directory whoogle-search to directory whoogle
@@ -943,3 +943,18 @@ authentication url using these commands:
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"/docker/authelia/notification.txt | grep http'
  "
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
+
+echo "Save these for future use:
+
+=========================================
+Docker stack name: $stackname
+Fully qualified domain name (FQDN): $fqdn
+Additional subdomains: $subdomains
+Authlia userid: $authusr
+Authelia password: $authpwd
+Pihole password: $pipass
+Neko user password: $nupass
+Neko admin password: $napass
+Wireguard userid: $wguid
+Wireguard password: $wgpass
+========================================="
