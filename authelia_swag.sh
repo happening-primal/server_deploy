@@ -338,7 +338,7 @@ services:
       - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
     volumes:
        - $rootdir/docker/pihole/etc-pihole:/etc/pihole
-       - $rootdir/docker/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d
+       - $rootdir/docker/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
     dns:
       - 127.0.0.1
       - 1.1.1.1
@@ -859,6 +859,9 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 
 # Ensure ownership of the 'etc-pihole' folder is set properly.
 chown systemd-coredump:systemd-coredump /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+#  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
+chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+
 
 ##################################################################################################################################
 
