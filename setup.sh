@@ -118,7 +118,7 @@ while true; do
   esac
 done
 
-apt-get install libpam-google-authenticator -y
+apt-get install libpam-google-authenticator -y -qq
 
 su $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -c google-authenticator #cannot run as root
 
@@ -206,6 +206,12 @@ Creating firewall rules...
  iptables -I INPUT 1 -p tcp -m tcp --dport 4711 -i lo -j ACCEPT
  iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
+#  Specific requests to block dns requests by name.  The number (02, 08, 09) represents the count of characters
+#  before the string.
+ iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
+ iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
+ iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
+
  # Allow portainer
  iptables -A INPUT -p udp --dport 9443 -j ACCEPT
  iptables -A INPUT -p tcp --dport 9443 -j ACCEPT
@@ -242,12 +248,6 @@ Creating firewall rules...
  ip6tables -A INPUT -p udp -j DROP
  ip6tables -A OUTPUT -p udp -j DROP
  
-#  Specific requests to block dns requests by nane.  The number (02, 08, 09) represents the count of characters
-#  before the string.
- iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
- iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
- iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
-
 # Disable incoming pings
  iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
 
@@ -274,9 +274,9 @@ Docker is not installed. Would you like to install it? [Y/n]" yn
 echo "
 "
 
-   apt-get remove containerd docker docker-engine docker.io runc
-   apt-get update
-   apt-get install -y \
+   apt-get remove -qq containerd docker docker-engine docker.io runc
+   apt-get update -qq
+   apt-get install -y -qq \
      apt-transport-https \
      ca-certificates \
      curl \
@@ -289,8 +289,8 @@ echo "
      "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
          $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-   apt-get update
-   apt-get install -y containerd.io docker-ce docker-ce-cli
+   apt-get update -qq
+   apt-get install -y -qq containerd.io docker-ce docker-ce-cli
  fi
 
  curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
