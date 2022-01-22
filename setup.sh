@@ -25,7 +25,7 @@ while true; do
   esac
 done
 
-#Update and install some essential apps
+# Update and install some essential apps
 apt-get -qq update && apt-get -y -qq upgrade  && apt-get -y -qq dist-upgrade
 # Install essential apps
 apt-get install -y -qq nano wget unattended-upgrades apt-listchanges libpam-google-authenticator
@@ -38,8 +38,6 @@ apt purge -y -qq telnet postfix tcpdump nmap-ncat wpa_supplicant avahi-daemon
 # Clean up
 apt -y -qq autoremove 
 apt -y -qq autoclean
-
-#systemctl reload postfix
 
 echo "
 Open a new terminal window and type:
