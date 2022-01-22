@@ -32,29 +32,19 @@ done
 echo "
 "
 
-#Update and install some essential apps
-apt-get update && apt-get upgrade -y  && apt-get dist-upgrade -y
+# Update and install some essential apps
+apt-get -qq update && apt-get -y -qq upgrade  && apt-get -y -qq dist-upgrade
 # Install essential apps
-apt-get install nano -y
-apt-get install wget -y
-apt-get install unattended-upgrades apt-listchanges -y
-apt-get install libpam-google-authenticator -y
-apt-get install tmux -y
-apt-get install bleachbit -y
-apt-get install iptables-persistent -y
-apt-get install fail2ban -y
+apt-get install -y -qq nano wget unattended-upgrades apt-listchanges libpam-google-authenticator
+apt-get install -y -qq tmux bleachbit iptables-persistent fail2ban
+#  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
+#  Install dependencies
+apt-get install -y -qq libcurl4-openssl-dev libssl-dev
 # Remove some unused applications that may pose as an attack surface
-apt purge postfix -y
-apt purge telnet -y
-apt purge tcpdump -y
-apt purge nmap-ncat -y
-apt purge wpa_supplicant -y
-apt purge avahi-daemon -y
+apt purge -y -qq telnet postfix tcpdump nmap-ncat wpa_supplicant avahi-daemon
 # Clean up
-apt-get autoremove -y
-apt-get autoclean -y
-
-#systemctl reload postfix
+apt -y -qq autoremove 
+apt -y -qq autoclean
 
 # Add automated cleanup using bleachbit
 echo "
@@ -74,8 +64,6 @@ by ctrl-X, y, Enter to commit the changes.
 #    *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
 #  esac
 #done
-
-#crontab -e
 
 (crontab -l 2>/dev/null || true; echo "0 0 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs bleachbit --clean") | crontab -
 
