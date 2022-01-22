@@ -874,7 +874,8 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
 
 #  Add a cron job to reset the permissions of the pihole directory if any changes are made - checks once per minute
-(crontab -l 2>/dev/null || true; echo "1 * * * * 'chomd 777 -R /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole'") | crontab -
+#  Don't put ' around the commmand!  And, it must be run as root!
+(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole") | crontab -
 
 #  When you set up the syncs for pihole, ensure you check 'Ignore Permissions' under the 'Advanced' tab during folder setup.
 
