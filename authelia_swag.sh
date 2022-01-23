@@ -815,6 +815,14 @@ docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/''/g' /usr/lib/firefox/mozilla.cfg
 EOF
 
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+echo "lockPref(\"identity.sync.tokenserver.uri\", \"https://aqj9z.mine.nu/f4c4hm/token/1.0/sync/1.5\");" >> /usr/lib/firefox/mozilla.cfg
+EOF
+
+docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+sed -i 's/lockPref(/pref(''/g' /usr/lib/firefox/mozilla.cfg
+EOF
+
 #  Add custom search engine
 #    You must install the add-on 'Add custom search engine' in firefox.
 #  After you add the custom search enigine, you can disable it
@@ -943,18 +951,3 @@ authentication url using these commands:
       'sudo cat /home/"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"/docker/authelia/notification.txt | grep http'
  "
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
-
-echo "Save these for future use:
-
-=========================================
-Docker stack name: $stackname
-Fully qualified domain name (FQDN): $fqdn
-Additional subdomains: $subdomains
-Authlia userid: $authusr
-Authelia password: $authpwd
-Pihole password: $pipass
-Neko user password: $nupass
-Neko admin password: $napass
-Wireguard userid: $wguid
-Wireguard password: $wgpass
-========================================="
