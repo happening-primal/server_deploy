@@ -186,68 +186,76 @@ Creating firewall rules...
  iptables -t filter -A INPUT -p tcp --dport 443 -j ACCEPT
 
 # Open ssh port 
- iptables -t filter -A OUTPUT -p tcp --dport $newport -j ACCEPT
- iptables -t filter -A INPUT -p tcp --dport $newport -j ACCEPT
- iptables -t filter -A OUTPUT -p udp --dport $newport -j ACCEPT
- iptables -t filter -A INPUT -p udp --dport $newport -j ACCEPT
+iptables -t filter -A OUTPUT -p tcp --dport $newport -j ACCEPT
+iptables -t filter -A INPUT -p tcp --dport $newport -j ACCEPT
+iptables -t filter -A OUTPUT -p udp --dport $newport -j ACCEPT
+iptables -t filter -A INPUT -p udp --dport $newport -j ACCEPT
 
 # Allow dns requests and other ports for pihole - https://docs.pi-hole.net/main/prerequisites/
- iptables -A INPUT -p udp --dport 53 -j ACCEPT
- iptables -A INPUT -p tcp --dport 53 -j ACCEPT
- iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
- iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
- iptables -A INPUT -p udp --dport 67 -j ACCEPT
- iptables -A INPUT -p tcp --dport 67 -j ACCEPT
- iptables -A OUTPUT -p udp --dport 67 -j ACCEPT
- iptables -A OUTPUT -p tcp --dport 67 -j ACCEPT
- iptables -I INPUT 1 -p udp --dport 67:68 --sport 67:68 -j ACCEPT
- iptables -I INPUT 1 -p tcp -m tcp --dport 4711 -i lo -j ACCEPT
- iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 67 -j ACCEPT
+iptables -A INPUT -p tcp --dport 67 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 67 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 67 -j ACCEPT
+iptables -I INPUT 1 -p udp --dport 67:68 --sport 67:68 -j ACCEPT
+iptables -I INPUT 1 -p tcp -m tcp --dport 4711 -i lo -j ACCEPT
+iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
 #  Specific requests to block dns requests by name.  The number (02, 08, 09) represents the count of characters
 #  before the string.
- iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
- iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
- iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
+iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
+iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
+iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
 
- # Allow portainer
- iptables -A INPUT -p udp --dport 9443 -j ACCEPT
- iptables -A INPUT -p tcp --dport 9443 -j ACCEPT
- iptables -A OUTPUT -p udp --dport 9443 -j ACCEPT
- iptables -A OUTPUT -p tcp --dport 9443 -j ACCEPT
+# Allow portainer
+iptables -A INPUT -p udp --dport 9443 -j ACCEPT
+iptables -A INPUT -p tcp --dport 9443 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 9443 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 9443 -j ACCEPT
  
 # Allow syncthing
- iptables -A INPUT -p udp --dport 21027 -j ACCEPT
- iptables -A INPUT -p tcp --dport 21027 -j ACCEPT
- iptables -A OUTPUT -p udp --dport 21027 -j ACCEPT
- iptables -A OUTPUT -p tcp --dport 21027 -j ACCEPT
- iptables -A INPUT -p udp --dport 22000 -j ACCEPT
- iptables -A INPUT -p tcp --dport 22000 -j ACCEPT
- iptables -A OUTPUT -p udp --dport 22000 -j ACCEPT
- iptables -A OUTPUT -p tcp --dport 22000 -j ACCEPT
+iptables -A INPUT -p udp --dport 21027 -j ACCEPT
+iptables -A INPUT -p tcp --dport 21027 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 21027 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 21027 -j ACCEPT
+iptables -A INPUT -p udp --dport 22000 -j ACCEPT
+iptables -A INPUT -p tcp --dport 22000 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 22000 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 22000 -j ACCEPT
 
 # Allow loopback connections - required in some cases
- iptables -t filter -A INPUT -i lo -j ACCEPT 
- iptables -t filter -A OUTPUT -o lo -j ACCEPT
+iptables -t filter -A INPUT -i lo -j ACCEPT 
+iptables -t filter -A OUTPUT -o lo -j ACCEPT
 
 # Maintain establish connetions
- iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
- iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT 
+iptables -A OUTPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
 
 #  Open ports for neko firefox
- iptables -A INPUT -p udp --dport 52000:52100 -j ACCEPT
+iptables -A INPUT -p udp --dport 52000:52100 -j ACCEPT
 
 # Open ports for neko tor
- iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
+iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
+
+iptables -A INPUT -m string --algo bm --string "m194-158-73-136.andorpac.ad" -j DROP
+iptables -A INPUT -m string --algo bm --string "m194-158-73-136.andorpac.ad" -j DROP
+iptables -A INPUT -m string --algo bm --string "m194-158-72-169.andorpac.ad" -j DROP
+iptables -A INPUT -m string --algo bm --string "m194-158-75-213.andorpac.ad" -j DROP
+iptables -A INPUT -m string --algo bm --string "m194-158-72-158.andorpac.ad" -j DROP
+iptables -A INPUT -m string --algo bm --string "m194-158-73-141.andorpac.ad" -j DROP
+iptables -A INPUT -m string --algo bm --string "m194-158-72-198.andorpac.ad" -j DROP
 
 # Block ipv6
- ip6tables -A INPUT -p tcp -j DROP
- ip6tables -A OUTPUT -p tcp -j DROP
- ip6tables -A INPUT -p udp -j DROP
- ip6tables -A OUTPUT -p udp -j DROP
+ip6tables -A INPUT -p tcp -j DROP
+ip6tables -A OUTPUT -p tcp -j DROP
+ip6tables -A INPUT -p udp -j DROP
+ip6tables -A OUTPUT -p udp -j DROP
  
 # Disable incoming pings
- iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
+iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
 
 # Block everything else
  #iptables -t filter -P INPUT DROP 
