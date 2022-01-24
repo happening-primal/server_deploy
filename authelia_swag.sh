@@ -184,6 +184,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/homer;
                 mkdir docker/neko;
                 mkdir docker/neko/firefox;
+                mkdir docker/neko/firefox/home;
                 mkdir docker/neko/firefox/home/neko;
                 mkdir docker/neko/firefox/usr;
                 mkdir docker/neko/firefox/usr/lib;
@@ -467,7 +468,7 @@ services:
     volumes:
       - $rootdir/docker/wireguard/app:/app/db
       - $rootdir/docker/wireguard/etc:/etc/wireguard
-    network_mode: host
+    #network_mode: host
     networks:
       - no-internet
       - internet
