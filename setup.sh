@@ -209,6 +209,7 @@ iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
 iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
 iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
+iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|07|version|04|bind" --algo bm -j DROP -m comment --comment 'version.bind'
 
 # Allow portainer
 iptables -A INPUT -p udp --dport 9443 -j ACCEPT
