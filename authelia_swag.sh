@@ -546,7 +546,7 @@ services:
 # For ways to see how to set up specific networks for docker see:
 #   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
 #   Note the requirement to remove existing newtorks using:
-#     docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
+#     docker network ls | grep authelia_swag | awk '{ print\$1 }' | docker network rm;
 networks:
     no-internet:
       driver: bridge
