@@ -941,6 +941,20 @@ echo "export swagloc=$swagloc" >> ~/.bashrc
 source ~/.bashrc
 
 echo "
+Keeps these in a safe place for future reference:
+
+===============================================================================
+Fully qualified domain name (FQDN): $fqdn
+Subdomains: $subdomains
+Authelia userid: $authusr
+Authelia password: $authpwd
+Neko user password: $nupass
+Neko admin password: $napass
+Pihole admin password: $pipass
+Wireguard userid: $wguid
+Wireguard password: $wgpass
+===============================================================================
+
 Now you may want to restart the box.  Either way navigate to your fqdn: 
 
      'https://$fqdn'
