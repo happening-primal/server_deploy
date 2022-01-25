@@ -177,6 +177,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
     case $yn in
         [Yy]* ) docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
                 docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
+                docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
                 docker system prune;
                 rm -r docker;
                 #  You must create these directories manually or else the container won't run
@@ -355,6 +356,7 @@ services:
       - NET_ADMIN
     networks:
       - no-internet
+      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
       - internet
     deploy:
       restart_policy:
