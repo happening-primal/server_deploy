@@ -32,6 +32,8 @@ sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
 sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
 #  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
+#  sudo apt-get install net-tools
+#  sudo netstat -tulpn | grep ":53 " - port 53
 
 echo "
  - Run this script as superuser.
@@ -295,6 +297,12 @@ services:
 #    volumes:
 #       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
 #       - $rootdir/docker/neko/firefox/home/neko:/home/neko
+    dns:
+#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
+#  If you are running pihole in a docker container, point neko to the pihole
+#  docker container ip address.  Probably best to set a static ip address for 
+#  the pihole in the configuration so that it will never change.
+#       - 192.168.48.5
     networks:
       - no-internet
       - internet
