@@ -179,7 +179,8 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
                 #  Remove the docker containers associated with stackname
                 docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
-                #  Remove the networks associated with stackname
+                #  Remove the networks associated with stackname...these are a bit persistent and need
+                #  to be removed so they don't cause a conflict with any revised configureations.
                 docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
                 #  Purge any dangling items...
                 docker system prune;
@@ -542,6 +543,10 @@ services:
 
 # For networking setup explaination, see this link:
 #   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+# For ways to see how to set up specific networks for docker see:
+#   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
+#   Note the requirement to remove existing newtorks using:
+#     docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
 networks:
     no-internet:
       driver: bridge
