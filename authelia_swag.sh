@@ -175,9 +175,13 @@ while true; do
     read -p "
 Do you want to perform a completely fresh install (y/n)? " yn
     case $yn in
-        [Yy]* ) docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
+        [Yy]* ) # Stop the running docker containers
+                docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
+                #  Remove the docker containers associated with stackname
                 docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
+                #  Remove the networks associated with stackname
                 docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
+                #  Purge any dangling items...
                 docker system prune;
                 rm -r docker;
                 #  You must create these directories manually or else the container won't run
@@ -303,7 +307,7 @@ services:
 #  If you are running pihole in a docker container, point neko to the pihole
 #  docker container ip address.  Probably best to set a static ip address for 
 #  the pihole in the configuration so that it will never change.
-#       - 192.168.48.5
+       - 172.20.10.10
     networks:
       - no-internet
       - internet
@@ -357,7 +361,8 @@ services:
     networks:
       - no-internet
       #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
-      - internet
+      internet:
+          ipv4_address: 172.20.10.10 
     deploy:
       restart_policy:
        condition: on-failure
@@ -542,7 +547,12 @@ networks:
       driver: bridge
       internal: true
     internet:
-      driver: bridge" >> docker-compose.yml
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: 172.20.10.0/24
+           gateway: 172.20.10.1" >> docker-compose.yml
 
 # Take the opportunity to clean up any old junk before running the stack and then run it
 docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
