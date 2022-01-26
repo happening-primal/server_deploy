@@ -943,6 +943,14 @@ echo "add_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> /
 #  Enable HTTP Strict Transport Security (HSTS) 
 echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 
+##################################################################################################################################
+
+#  Seal a recently revelead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
+
+chmod 0755 /usr/bin/pkexec
+
+##################################################################################################################################
+
 echo "
 Cleaning up and restarting the stack for the final time...
 "
