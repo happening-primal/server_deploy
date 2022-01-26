@@ -945,7 +945,7 @@ echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains
 
 ##################################################################################################################################
 
-#  Seal a recently revelead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
+#  Seal a recently revealead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
 
 chmod 0755 /usr/bin/pkexec
 
