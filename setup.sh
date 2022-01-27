@@ -158,6 +158,9 @@ done
 echo "
 Creating firewall rules...
 "
+#  https://www.cyberciti.biz/tips/linux-iptables-examples.html
+#  https://www.perturb.org/display/1186_Linux_Block_DNS_queries_for_specific_zone_with_IPTables.html
+#  https://discourse.pi-hole.net/t/amplification-iptables-rules/6777/12
 # Some usefull iptables commands
 #  List entries:
 #  	sudo iptables -L -n -v
@@ -206,10 +209,17 @@ iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 
 #  Specific requests to block dns requests by name.  The number (02, 08, 09) represents the count of characters
 #  before the string.
+#  |Type | Code| |------------| |Any | 00ff| |A | 0011| |CNAME | 0005| |MX | 000f| |AAAA | 001c| |NS | 0002| |SOA | 0006|
 iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|02|sl|00|" --algo bm -j DROP -m comment --comment 'sl'
 iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|09|peacecorp|03|org" --algo bm -j DROP -m comment --comment 'peacecorp.org'
 iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|08|pizzaseo|03|com" --algo bm -j DROP -m comment --comment 'pizzaseo.com'
-iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|07|version|04|bind" --algo bm -j DROP -m comment --comment 'version.bind'
+iptables -I INPUT -i eth0 -p udp -m udp --dport 53 -m string --hex-string "|07|version|04|bind|0000ff|" --algo bm -j DROP -m comment --comment 'version.bind'
+
+iptables -A FORWARD -p tcp --dport 53 -m string --algo kmp --string "gateway.fe.apple-dns.net" -j DROP
+iptables -A FORWARD -p tcp --dport 53 -m string --algo kmp --string "peacecorp.org" -j DROP
+iptables -A FORWARD -p tcp --dport 53 -m string --algo kmp --string "pizzaseo.com" -j DROP
+iptables -A FORWARD -p tcp --dport 53 -m string --algo kmp --string "plato.junkemailfilter.com" -j DROP
+iptables -A FORWARD -p tcp --dport 53 -m string --algo kmp --string "version.bind" -j DROP
 
 # Allow portainer
 iptables -A INPUT -p udp --dport 9443 -j ACCEPT
