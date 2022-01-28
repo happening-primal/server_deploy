@@ -839,6 +839,34 @@ docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.enabled\", false);/''/g' /usr/lib/firefox/mozilla.cfg
 EOF
 
+
+
+
+
+docker exec -i --user root $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF 
+chmod 777 -R /opt/rss-proxy
+EOF
+
+docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
+sed -i 's/href=\"styles/href=\"rss-proxy\/styles''/g' /opt/rss-proxy/static/index.html
+EOF
+
+docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
+sed -i 's/<base href=\"\/\">/<base href\="\/rss-proxy\">''/g' /opt/rss-proxy/static/index.html
+EOF
+
+sudo docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
+sed -i 's/src=\"/src=\"rss-proxy\/''/g' /opt/rss-proxy/static/index.html
+EOF
+
+docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
+sed -i "s/app.use('\//app.use('\/rss-proxy\//g" /opt/rss-proxy/app.js
+EOF
+
+
+
+
+
 docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/''/g' /usr/lib/firefox/mozilla.cfg
 EOF
