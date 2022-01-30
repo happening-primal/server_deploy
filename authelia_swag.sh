@@ -866,6 +866,15 @@ EOF
 
 
 
+docker exec -i $(sudo docker ps | grep translate | awk '{print $NF}') bash <<EOF
+sed -i 's/script src=\"\//script src=\"\/translate\//g' /app/app/templates/index.html
+EOF
+
+
+
+
+
+
 
 docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/''/g' /usr/lib/firefox/mozilla.cfg
