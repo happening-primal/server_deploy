@@ -812,6 +812,12 @@ sed -i '7 i
 
 ##################################################################################################################################
 
+#  Jitsi meet server
+#  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
+#  https://github.com/jitsi/jitsi-meet-electron/releases
+
+##################################################################################################################################
+
 # Neko firefox browser
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
