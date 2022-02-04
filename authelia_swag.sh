@@ -822,6 +822,7 @@ sed -i '7 i
 
 jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
+stackname=authelia_swag # Can remove later
 
 wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
 tar -xzsf $jitsilatest.tar.gz
@@ -831,19 +832,33 @@ cp ~/extractdir/env.example ~/extractdir/.env
 ~/extractdir/gen-passwords.sh
 
 mkdir -p ~/.jitsi-meet-cfg/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
-
-sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' ~/extractdir/.env
-sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' ~/extractdir/.env
-sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' ~/extractdir/.env
-sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' ~/extractdir/.env
-sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' ~/extractdir/.env
-sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' ~/extractdir/.env
-sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' ~/extractdir/.env
-sed -i 's///g' ~/extractdir/.env
-sed -i 's///g' ~/extractdir/.env
+    
+sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 
+sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
+sed -i 's///g' ~/$extractdir/.env
 
+sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+
+docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
 
 ##################################################################################################################################
 
