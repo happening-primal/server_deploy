@@ -227,8 +227,12 @@ echo "
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
-apt-get install -y -qq libcurl4-openssl-dev libssl-dev
+apt-get install -y -qq libcurl4-openssl-dev libssl-dev 
 git clone https://github.com/benbusby/whoogle-search.git 
+
+#  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
+#  Install dependencies
+apt-get install -y -qq linux-image-extra-virtual
 
 # Move the contents from directory whoogle-search to directory whoogle
 mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
@@ -815,6 +819,31 @@ sed -i '7 i
 #  Jitsi meet server
 #  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
 #  https://github.com/jitsi/jitsi-meet-electron/releases
+
+jitsilatest=stable-6826
+extractdir=docker-jitsi-meet-$jitsilatest
+
+wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
+tar -xzsf $jitsilatest.tar.gz
+
+cp ~/extractdir/env.example ~/extractdir/.env
+
+~/extractdir/gen-passwords.sh
+
+mkdir -p ~/.jitsi-meet-cfg/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+
+sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' ~/extractdir/.env
+sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' ~/extractdir/.env
+sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' ~/extractdir/.env
+sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' ~/extractdir/.env
+sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' ~/extractdir/.env
+sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' ~/extractdir/.env
+sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' ~/extractdir/.env
+sed -i 's///g' ~/extractdir/.env
+sed -i 's///g' ~/extractdir/.env
+
+
+
 
 ##################################################################################################################################
 
