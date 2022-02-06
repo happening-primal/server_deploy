@@ -819,13 +819,14 @@ sed -i '7 i
 #  Jitsi meet server
 #  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
 #  https://github.com/jitsi/jitsi-meet-electron/releases
+#  https://scribe.rip/nginx-and-lets-encrypt-with-docker-in-less-than-5-minutes-b4b8a60d3a71
 
 #!/bin/bash
 
 jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 stackname=authelia_swag # Can remove later
-fqdn= # Can remove later
+fqdn=# Can remove later
 
 rm stable-6826.tar.gz
 rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
@@ -879,6 +880,38 @@ ENABLE_HTTP_REDIRECT=1" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
+
+# Make Jitsi-Meet work on a sub URL
+# https://stackoverflow.com/questions/32295168/make-jitsi-meet-work-with-apache-on-a-sub-url
+docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+sed -i 's/href=\"\/\"/href=\"\/jitsiweb\/\"/g' /usr/share/jitsi-meet/base.html
+EOF
+
+docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
+EOF
+
+
+docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+sed -i 's/include virtual=\"\/interface_config.js/include virtual=\"\/jitsiweb\/interface_config.js/g' /usr/share/jitsi-meet/index.html
+EOF
+
+
+docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+sed -i 's/include virtual=\"\/logging_config.js/include virtual=\"\/jitsiweb\/logging_config.js/g' /usr/share/jitsi-meet/index.html
+EOF
+
+
+docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+sed -i 's///g' /usr/share/jitsi-meet/index.html
+EOF
+
+
+
+  #include virtual="/config.js"  to    #include virtual="config.js"  
+  #include virtual="/interface_config.js"  to  #include virtual="interface_config.js"
+  #include virtual="/logging_config.js" to #include virtual="logging_config.js"
+
 
 ##################################################################################################################################
 
