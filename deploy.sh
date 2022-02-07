@@ -22,7 +22,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 while true; do
-  read -rp "Let's run and update first (hit Enter to continue or ctrl+C t exit)..." yn
+  read -rp "Let's run an update first (hit Enter to continue or ctrl+C t exit)..." yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
