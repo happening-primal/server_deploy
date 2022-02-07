@@ -869,7 +869,7 @@ sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | 
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
-https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
+#https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
 
 echo "
 ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
@@ -878,6 +878,7 @@ echo "
 ENABLE_HTTP_REDIRECT=1" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
 
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
 
@@ -906,7 +907,7 @@ docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
 sed -i 's///g' /usr/share/jitsi-meet/index.html
 EOF
 
-
+#linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1 | echo $((linnum+1)))
 
   #include virtual="/config.js"  to    #include virtual="config.js"  
   #include virtual="/interface_config.js"  to  #include virtual="interface_config.js"
