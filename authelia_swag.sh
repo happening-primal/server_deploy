@@ -827,18 +827,26 @@ jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 stackname=authelia_swag # Can remove later
 fqdn=# Can remove later
+jconttdir="docker/jitsi-meet" 
 
 rm stable-6826.tar.gz
 rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
+rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$jcontdir
 
 wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
 tar -xzsf $jitsilatest.tar.gz
+
+exit
 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/env.example /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/gen-passwords.sh
 
-mkdir -p /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.jitsi-meet-cfg/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+mkdir -p /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+
+CONFIG=~/.jitsi-meet-cfg
+
+sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG=~\/'$jcontdir'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
@@ -849,9 +857,11 @@ sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' /home/$(who | awk '{p
 sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
+#  If having any issues with nginx not picking up the letsencrypt certificate see:
+#  https://github.com/jitsi/docker-jitsi-meet/issues/92
 sed -i 's/\#ENABLE_LETSENCRYPT=1/ENABLE_LETSENCRYPT=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL=a'$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#LETSENCRYPT_USE_STAGING=1/LETSENCRYPT_USE_STAGING=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 # Use the staging server (for avoiding rate limits while testing)
@@ -860,7 +870,6 @@ sed -i 's/\#LETSENCRYPT_USE_STAGING=1/LETSENCRYPT_USE_STAGING=1/g' /home/$(who |
 sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
-
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
@@ -869,8 +878,8 @@ sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | 
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
-#https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
-
+#h ttps://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
+# Solution below:
 echo "
 ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
@@ -878,34 +887,34 @@ echo "
 ENABLE_HTTP_REDIRECT=1" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
-linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
+#linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
 
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
 
 # Make Jitsi-Meet work on a sub URL
 # https://stackoverflow.com/questions/32295168/make-jitsi-meet-work-with-apache-on-a-sub-url
-docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-sed -i 's/href=\"\/\"/href=\"\/jitsiweb\/\"/g' /usr/share/jitsi-meet/base.html
-EOF
+#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+#sed -i 's/href=\"\/\"/href=\"\/jitsiweb\/\"/g' /usr/share/jitsi-meet/base.html
+#EOF
 
-docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
-EOF
-
-
-docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-sed -i 's/include virtual=\"\/interface_config.js/include virtual=\"\/jitsiweb\/interface_config.js/g' /usr/share/jitsi-meet/index.html
-EOF
+#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+#sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
+#EOF
 
 
-docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-sed -i 's/include virtual=\"\/logging_config.js/include virtual=\"\/jitsiweb\/logging_config.js/g' /usr/share/jitsi-meet/index.html
-EOF
+#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+#sed -i 's/include virtual=\"\/interface_config.js/include virtual=\"\/jitsiweb\/interface_config.js/g' /usr/share/jitsi-meet/index.html
+#EOF
 
 
-docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-sed -i 's///g' /usr/share/jitsi-meet/index.html
-EOF
+#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+#sed -i 's/include virtual=\"\/logging_config.js/include virtual=\"\/jitsiweb\/logging_config.js/g' /usr/share/jitsi-meet/index.html
+#EOF
+
+
+#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
+#sed -i 's///g' /usr/share/jitsi-meet/index.html
+#EOF
 
 #linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1 | echo $((linnum+1)))
 
