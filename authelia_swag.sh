@@ -1145,9 +1145,11 @@ docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++'
 #EOF
 
 docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
-prosodyctl --config /config/prosody.cfg.lua register 4T6vC5US meet.jitsi 7k3UJexfR9YsL6qe7nBuybDGxueDV33ddKyiT2Mq
+prosodyctl --config /config/prosody.cfg.lua register userid meet.jitsi password
 EOF
 
+# See this for a possible way to disable guest users from creating rooms
+#  https://github.com/jitsi/jicofo#secure-domain
 
 #docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
 #sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
