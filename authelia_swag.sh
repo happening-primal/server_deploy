@@ -71,6 +71,21 @@ done
 
 # Create domain string
 subdomains="www"
+#  Add a few specific use case subdomains
+#  jitsiweb
+jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$jwebsubdomain
+#  libretranslate
+ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$ltsubdomain
+#  rss-proxy
+rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$rpsubdomain
+
+
 i=0
 while [ $i -ne $rnddomain ]
 do
@@ -1022,7 +1037,8 @@ jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 stackname=authelia_swag # Can remove later
 fqdn=      # Can remove later
-jcontdir=jitsi-meet 
+jcontdir=jitsi-meet
+jwebsubdomain=
 
 echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
 echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir
@@ -1088,34 +1104,26 @@ sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="
 #linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
 
 
-sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 echo "networks:
     no-internet:
       driver: bridge
       internal: true
-    internet:
-     driver: bridge
-     ipam:
-       driver: default
-       config:
-         - subnet: 172.20.10.0/24
-           gateway: 172.20.10.1
     meet.jitsi:
       driver: bridge
       internal: true" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 
-exit
+#  Prepare the jitsi-meet proxy-conf file using syncthing.subfolder.conf as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+
+#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/syncthing/jitsiweb''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+sed -i 's/server_name syncthing./server_name '$jwebsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
-
-#  Prepare the jitsi-meet proxy-conf file using syncthing.subfolder.conf as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 
 # Make Jitsi-Meet work on a sub URL
 # https://stackoverflow.com/questions/32295168/make-jitsi-meet-work-with-apache-on-a-sub-url
