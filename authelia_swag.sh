@@ -1143,46 +1143,83 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' /home/$(w
 
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
 
-# Make Jitsi-Meet work on a sub URL
-# https://stackoverflow.com/questions/32295168/make-jitsi-meet-work-with-apache-on-a-sub-url
-#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-#sed -i 's/href=\"\/\"/href=\"\/jitsiweb\/\"/g' /usr/share/jitsi-meet/base.html
-#EOF
-
 docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
 prosodyctl --config /config/prosody.cfg.lua register userid meet.jitsi password
 EOF
 
-# See this for a possible way to disable guest users from creating rooms
-#  https://github.com/jitsi/jicofo#secure-domain
-#  https://jitsi.github.io/handbook/docs/devops-guide/secure-domain
-
-#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-#sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
-#EOF
-
-
-#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-#sed -i 's/include virtual=\"\/interface_config.js/include virtual=\"\/jitsiweb\/interface_config.js/g' /usr/share/jitsi-meet/index.html
-#EOF
-
-
-#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-#sed -i 's/include virtual=\"\/logging_config.js/include virtual=\"\/jitsiweb\/logging_config.js/g' /usr/share/jitsi-meet/index.html
-#EOF
-
-
-#docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
-#sed -i 's///g' /usr/share/jitsi-meet/index.html
-#EOF
-
-#linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1 | echo $((linnum+1)))
-
-  #include virtual="/config.js"  to    #include virtual="config.js"  
-  #include virtual="/interface_config.js"  to  #include virtual="interface_config.js"
-  #include virtual="/logging_config.js" to #include virtual="logging_config.js"
-
 ##################################################################################################################################
+
+version: "3.5"
+services:
+  rss-proxy:
+    image: damoeb/rss-proxy:js
+    #container_name: heimdall # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+#    volumes:
+#      - /home/3gNqFD9VFoi9wch2vo/docker/rss-proxy:/opt/rss-proxy
+#    ports:
+#      - 3000:3000
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+# For networking setup explaination, see this link:
+#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+networks:
+   no-internet:
+     driver: bridge
+     internal: true
+   internet:
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: "172.20.10.0/24"
+           gateway: 172.20.10.1
+
+
+
+version: "3.5"
+services:
+  translate:
+    image: libretranslate/libretranslate
+    #container_name: heimdall # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    #build: .
+#    ports:
+#      - 5000:5000
+    networks:
+      - no-internet
+      - internet
+deploy:
+      restart_policy:
+       condition: on-failure
+    ## Uncomment below command and define your args if necessary
+    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
+    command: --ssl
+# For networking setup explaination, see this link:
+#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+networks:
+   no-internet:
+     driver: bridge
+     internal: true
+   internet:
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: "172.20.10.0/24"
+           gateway: 172.20.10.1
+
+
 
 # Errata
 
