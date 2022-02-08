@@ -1104,9 +1104,13 @@ ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" 
 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml.bak
 
+# Rename the web gui container
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
-#linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
 
+# Prevent guests from creating rooms or joining until a moderator has joined
+sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+
+# Add the required netowrks for compatability with other containers
 sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 echo "networks:
@@ -1150,6 +1154,7 @@ EOF
 
 # See this for a possible way to disable guest users from creating rooms
 #  https://github.com/jitsi/jicofo#secure-domain
+#  https://jitsi.github.io/handbook/docs/devops-guide/secure-domain
 
 #docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
 #sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
