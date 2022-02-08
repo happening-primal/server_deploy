@@ -364,7 +364,7 @@ services:
     cap_add:
       - NET_ADMIN
     networks:
-      - no-internet
+      #- no-internet  #  I think this one not needed...
       #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
       internet:
           ipv4_address: 172.20.10.10 
@@ -556,12 +556,12 @@ networks:
       driver: bridge
       internal: true
     internet:
-     driver: bridge
-     ipam:
-       driver: default
-       config:
-         - subnet: 172.20.10.0/24
-           gateway: 172.20.10.1" >> docker-compose.yml
+      driver: bridge
+      ipam:
+        driver: default
+        config:
+          - subnet: 172.20.10.0/24
+            gateway: 172.20.10.1" >> docker-compose.yml
 
 # Take the opportunity to clean up any old junk before running the stack and then run it
 docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
@@ -720,7 +720,6 @@ sed -i 's/calibre/firefox''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 
-
 ##################################################################################################################################
 
 # Homer - https://github.com/bastienwirtz/homer
@@ -813,7 +812,6 @@ sed -i '5 i    return 301 $scheme://$host/homer/;' /home/$(who | awk '{print $1}
 sed -i '6 i }' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
 sed -i '7 i 
 ' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-
 
 ##################################################################################################################################
 
@@ -940,7 +938,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$
 #    https://virtualize.link/secure/
 
 echo "
-#  Additional SWAG hardening - https:\/\/virtualize.link\/secure\/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
+#  Additional SWAG hardening - https://virtualize.link/secure/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  No more Google FLoC
 echo "add_header Permissions-Policy \"interest-cohort=()\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 #  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
@@ -1009,8 +1007,9 @@ authentication url using these commands:
  "
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
-
 ##################################################################################################################################
+
+exit
 
 #  Jitsi meet server
 #  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
@@ -1022,27 +1021,26 @@ authentication url using these commands:
 jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 stackname=authelia_swag # Can remove later
-fqdn=# Can remove later
-jconttdir="docker/jitsi-meet" 
+fqdn=af1b8470.42rktcxz.3utilities.com       # Can remove later
+jcontdir=jitsi-meet 
+
+echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
+echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir
 
 rm stable-6826.tar.gz
 rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
-rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$jcontdir
+rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir
 
 wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
 tar -xzsf $jitsilatest.tar.gz
-
-exit
 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/env.example /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/gen-passwords.sh
 
-mkdir -p /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+mkdir -p /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 
-CONFIG=~/.jitsi-meet-cfg
-
-sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG=~\/'$jcontdir'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG=~\/docker\/'$jcontdir'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
@@ -1055,10 +1053,10 @@ sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' /home/$
 
 #  If having any issues with nginx not picking up the letsencrypt certificate see:
 #  https://github.com/jitsi/docker-jitsi-meet/issues/92
-sed -i 's/\#ENABLE_LETSENCRYPT=1/ENABLE_LETSENCRYPT=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_USE_STAGING=1/LETSENCRYPT_USE_STAGING=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 # Use the staging server (for avoiding rate limits while testing)
 #LETSENCRYPT_USE_STAGING=1
@@ -1066,7 +1064,8 @@ sed -i 's/\#LETSENCRYPT_USE_STAGING=1/LETSENCRYPT_USE_STAGING=1/g' /home/$(who |
 sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
@@ -1074,18 +1073,28 @@ sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | 
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
-#h ttps://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
+# https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
 # Solution below:
 echo "
-ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
-echo "
-ENABLE_HTTP_REDIRECT=1" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+# Added based on this - https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
+ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 #linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
 
+exit
+
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
+
+#  Prepare the jitsi-meet proxy-conf file using syncthing.subfolder.conf as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+
 
 # Make Jitsi-Meet work on a sub URL
 # https://stackoverflow.com/questions/32295168/make-jitsi-meet-work-with-apache-on-a-sub-url
