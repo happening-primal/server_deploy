@@ -1113,9 +1113,19 @@ echo "networks:
     no-internet:
       driver: bridge
       internal: true
+    internet:
+      driver: bridge
+      ipam:
+        driver: default
+        config:
+          - subnet: 172.20.10.0/24
+            gateway: 172.20.10.1
     meet.jitsi:
       driver: bridge
       internal: true" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+
+#  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
+sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 
 #  Prepare the jitsi-meet proxy-conf file using syncthing.subfolder.conf as a template
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
@@ -1133,6 +1143,11 @@ docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++'
 #docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
 #sed -i 's/href=\"\/\"/href=\"\/jitsiweb\/\"/g' /usr/share/jitsi-meet/base.html
 #EOF
+
+docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
+prosodyctl --config /config/prosody.cfg.lua register 4T6vC5US meet.jitsi 7k3UJexfR9YsL6qe7nBuybDGxueDV33ddKyiT2Mq
+EOF
+
 
 #docker exec -i $(sudo docker ps | jitsiweb | awk '{print $NF}') bash <<EOF
 #sed -i 's/include virtual=\"\/config.js/include virtual=\"\/jitsiweb\/config.js/g' /usr/share/jitsi-meet/index.html
