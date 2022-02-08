@@ -1021,7 +1021,7 @@ exit
 jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 stackname=authelia_swag # Can remove later
-fqdn=af1b8470.42rktcxz.3utilities.com       # Can remove later
+fqdn=      # Can remove later
 jcontdir=jitsi-meet 
 
 echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
@@ -1040,7 +1040,10 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 
 mkdir -p /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 
-sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG=~\/docker\/'$jcontdir'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+mypath="/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"
+mypath=${mypath//\//\\/}
+
+sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 
 sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
 sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
@@ -1084,6 +1087,24 @@ ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" 
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 #linnum=$(sed -n '/transcripts\:\/usr\/share\/jitsi-meet\/transcripts\:Z/=' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml | head -1) | echo $((linnum+1))
 
+
+sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+echo "networks:
+    no-internet:
+      driver: bridge
+      internal: true
+    internet:
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: 172.20.10.0/24
+           gateway: 172.20.10.1
+    meet.jitsi:
+      driver: bridge
+      internal: true" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+
 exit
 
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
@@ -1095,7 +1116,6 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-
 
 # Make Jitsi-Meet work on a sub URL
 # https://stackoverflow.com/questions/32295168/make-jitsi-meet-work-with-apache-on-a-sub-url
