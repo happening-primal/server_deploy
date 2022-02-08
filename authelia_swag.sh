@@ -1199,7 +1199,7 @@ services:
     networks:
       - no-internet
       - internet
-deploy:
+    deploy:
       restart_policy:
        condition: on-failure
     ## Uncomment below command and define your args if necessary
