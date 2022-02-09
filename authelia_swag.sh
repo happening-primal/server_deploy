@@ -517,16 +517,18 @@ services:
     mem_limit: 256mb
     memswap_limit: 256mb
     # user debian-tor from tor package
-    user: '102'
+#    user: '102'
     security_opt:
       - no-new-privileges
     cap_drop:
       - ALL
-    tmpfs:
-      - /config/:size=10M,uid=102,gid=102,mode=1700
-      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
-      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
+#    tmpfs:
+#      - /config/:size=10M,uid=102,gid=102,mode=1700
+#      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
+#      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
     environment: # Uncomment to configure environment variables
+      - PUID=1000
+      - PGID=1000
       # Basic auth configuration, uncomment to enable
       #- WHOOGLE_USER=<auth username>
       #- WHOOGLE_PASS=<auth password>
