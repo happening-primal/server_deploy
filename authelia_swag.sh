@@ -27,7 +27,6 @@ authec=$(openssl rand -hex 25)   # Authelia encryption key
 #  Needed if you are going to run pihole
 #    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
 #    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
-
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
 sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
@@ -58,7 +57,8 @@ done
 # Because of the limitation on setting wildcard domains using http we have to specify each domain,
 # one by one.  The following will automate the process for you by generating the specified
 # number of 8 digit random subdomain names.  Adds www by default.  See swag docker-compose.yml
-# output file for further infrormation.
+# output file for further infrormation.  Also adds required domains for subsequent services
+# that require a subdomain such as jitsi-meet, libretranslate, and rss-proxy.
 while true; do
   read -rp "
 How many random subdomains would you like to generate?: " rnddomain
@@ -245,16 +245,17 @@ echo "
 apt-get install -y -qq libcurl4-openssl-dev libssl-dev 
 git clone https://github.com/benbusby/whoogle-search.git 
 
+# Move the contents from directory whoogle-search to directory whoogle
+mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
+
 #  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
 #  Install dependencies
 apt-get install -y -qq linux-image-extra-virtual
 
-# Move the contents from directory whoogle-search to directory whoogle
-mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
-
 rm docker-compose.yml
 touch docker-compose.yml
 
+# Create the docker-compose.yml file for the initial base installation
 echo "version: \"3.1\"
 
 services:
@@ -659,7 +660,6 @@ sed -i 's/\#  \# filesystem:/  filesystem:''/g' /home/$(who | awk '{print $1}' |
 sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/notification.txt''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
 # Yeah, that was exhausting...
-#sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
 
 echo "
 Cleaning up and restarting the stack...
@@ -696,8 +696,6 @@ sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+
 # Generate the hashed password line to be added to users_database.yml.
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authpwd | awk '{print $3}')
     
-#sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
-
 # Update the users database file with your username and hashed password.
 echo "
 users:
@@ -713,7 +711,6 @@ sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n
 # Mind the $ signs and forward slashes / :(
 
 ##################################################################################################################################
-
 #  Configure the swag proxy-confs files for specific services
 
 # Update the swag nginx default landing page to redirect to Authelia authentication and allow heimdall to work
@@ -723,7 +720,6 @@ sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
 
 ##################################################################################################################################
-
 # Firefox - linuxserver.io
 
 #  Prepare the firefox container - copy the calibre.subfolder.conf use it as a template.
@@ -738,7 +734,6 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
 
 ##################################################################################################################################
-
 # Homer - https://github.com/bastienwirtz/homer
 #         https://github.com/bastienwirtz/homer/blob/main/docs/configuration.md
 
@@ -753,11 +748,10 @@ sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-
 sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 
-# Throw everything over line 69
+# Throw everything over line 73
 sed -i '73,$ d' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 
-#sed -i 's/ / ''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-
+#  Add the links to other services installed above
 echo "    items:
       - name: \"Firefox (N.eko)\"
         logo: \"assets/tools/sample.png\"
@@ -814,6 +808,7 @@ echo "    items:
         # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
         # background: red # optional color for card to set color directly without custom stylesheet" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 
+##################################################################################################################################
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
@@ -831,7 +826,6 @@ sed -i '7 i
 ' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
 
 ##################################################################################################################################
-
 # Neko firefox browser
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
@@ -892,7 +886,6 @@ EOF
 #  Follow the link to 'Profile Folder'
 
 ##################################################################################################################################
-
 # Neko Tor browser
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
@@ -904,7 +897,6 @@ sed -i 's/syncthing/tor''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+"
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
 
 ##################################################################################################################################
-
 # Pihole
 
 #  Prepare the pihole container
@@ -920,7 +912,6 @@ chown systemd-coredump:systemd-coredump /home/$(who | awk '{print $1}' | awk -v 
 #chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
 
 ##################################################################################################################################
-
 # Syncthing
 
 #  Prepare the syncthing proxy-conf file
@@ -936,7 +927,6 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  When you set up the syncs for pihole, ensure you check 'Ignore Permissions' under the 'Advanced' tab during folder setup.
 
 ##################################################################################################################################
-
 #  Whoogle
 
 #  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
@@ -950,7 +940,6 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$
 #  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
 
 ##################################################################################################################################
-
 #  Perform some SWAG hardening:
 #    https://virtualize.link/secure/
 
@@ -964,8 +953,7 @@ echo "add_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> /
 echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
 
 ##################################################################################################################################
-
-#  Seal a recently revealead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
+#  Seal a recently (Jan-2022) revealead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
 
 chmod 0755 /usr/bin/pkexec
 
@@ -982,7 +970,6 @@ docker-compose -f docker-compose.yml -p $stackname up -d
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 ##################################################################################################################################
-
 #  Store non-persistent variables in .bashrc for later use across reboots
 echo "
 " >> ~/.bashrc
@@ -1229,7 +1216,6 @@ networks:
            gateway: 172.20.10.1
 
 ##################################################################################################################################
-
 #  Synapse matrix server
 #  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
 version: '3'
@@ -1277,7 +1263,6 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       no-internet:
-
 networks:
    no-internet:
      driver: bridge
@@ -1289,12 +1274,3 @@ networks:
        config:
          - subnet: "172.20.10.0/24"
            gateway: 172.20.10.1
-
-
-
-
-
-
-
-
-
