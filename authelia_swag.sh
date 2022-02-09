@@ -1221,9 +1221,65 @@ networks:
          - subnet: "172.20.10.0/24"
            gateway: 172.20.10.1
 
+#  Synapse matrix server
+#  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
+version: '3'
+services:
+  synapse:
+    container_name: synapse
+    hostname: ${MATRIX_HOSTNAME}
+    build:
+        context: ../..
+        dockerfile: docker/Dockerfile
+    image: docker.io/matrixdotorg/synapse:latest
+    restart: unless-stopped
+    environment:
+      - SYNAPSE_SERVER_NAME=${MATRIX_HOSTNAME}
+      - SYNAPSE_REPORT_STATS=yes
+      - SYNAPSE_NO_TLS=1
+      #- SYNAPSE_ENABLE_REGISTRATION=no
+      #- SYNAPSE_CONFIG_PATH=/config
+      # - SYNAPSE_LOG_LEVEL=DEBUG
+      - SYNAPSE_REGISTRATION_SHARED_SECRET=${REG_SHARED_SECRET}
+      - POSTGRES_DB=synapse
+      - POSTGRES_HOST=synapsedb
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - synapse-data:/data
+    depends_on:
+      - synapsedb
+    # In order to expose Synapse, remove one of the following, you might for
+    # instance expose the TLS port directly:
+    # ports:
+    #   - 8448:8448/tcp
+    networks:
+      no-internet:
+      internet:
 
+  synapsedb:
+    container_name: postgres
+    image: docker.io/postgres:10-alpine
+    environment:
+      - POSTGRES_DB=synapse
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      no-internet:
 
-# Errata
+networks:
+   no-internet:
+     driver: bridge
+     internal: true
+   internet:
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: "172.20.10.0/24"
+           gateway: 172.20.10.1
 
 
 
