@@ -40,7 +40,16 @@ apt -y -qq autoremove
 apt -y -qq autoclean
 
 echo "
-Open a new terminal window and type:
+You need to have an ssh key on your current computer.  If you don't have one, or don't even know what one
+is, see this page - https://www.ssh.com/academy/ssh/keygen.  Recommend you use ecdsa for the most up-to-date
+security.  The creation command is:
+
+     ssh-keygen -f <file location/name> -t ecdsa -b 521
+     
+     Example:  
+     ssh-keygen -f ~/.ssh/ecdsa-key -t ecdsa -b 521
+
+After you are sure you have a key (don't proceed until you do!), open a new terminal window and type:
 
     'ssh-copy-id" $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
 "
