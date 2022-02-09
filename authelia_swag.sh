@@ -1000,14 +1000,19 @@ Keeps these in a safe place for future reference:
 
 ===============================================================================
 Fully qualified domain name (FQDN): $fqdn
-Subdomains: $subdomains
-Authelia userid: $authusr
-Authelia password: $authpwd
-Neko user password: $nupass
-Neko admin password: $napass
-Pihole admin password: $pipass
-Wireguard userid: $wguid
-Wireguard password: $wgpass
+Subdomains:                         $subdomains
+Authelia userid:                    $authusr
+Authelia password:                  $authpwd
+Neko user password:                 $nupass
+Neko admin password:                $napass
+Pihole admin password:              $pipass
+Wireguard userid:                   $wguid
+Wireguard password:                 $wgpass
+Jitsi-meet web:                     $jwebsubdomain.$fqdn
+Libretranslate:                     $ltsubdomain.$fqdn
+RSS-Proxy:                          $rpsubdomain.$fqdn
+Synapse (Matrix Server):            
+E-Mail Server:                      
 ===============================================================================
 
 Now you may want to restart the box.  Either way navigate to your fqdn: 
@@ -1025,9 +1030,6 @@ authentication url using these commands:
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
 ##################################################################################################################################
-
-exit
-
 #  Jitsi meet server
 #  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
 #  https://github.com/jitsi/jitsi-meet-electron/releases
@@ -1107,7 +1109,7 @@ ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" 
 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml.bak
 
-# Rename the web gui container
+# Rename the web gui docker container
 sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 
 # Prevent guests from creating rooms or joining until a moderator has joined
@@ -1134,34 +1136,38 @@ echo "networks:
 #  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
 sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
 
-#  Prepare the jitsi-meet proxy-conf file using syncthing.subfolder.conf as a template
+#  Prepare the jitsi-meet proxy-conf file using syncthing.subdomain.conf as a template
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 
+# If you enable authelia, users will need additional credentials to log on, so, maybe don't do that :)
 #sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/syncthing/jitsiweb''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 
+#  Up the docker containers
 docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
 
+# Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
 docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
 prosodyctl --config /config/prosody.cfg.lua register userid meet.jitsi password
 EOF
 
 ##################################################################################################################################
+#  Will not run on a subfolder, need to use a subdomain
 
 version: "3.5"
 services:
   rss-proxy:
     image: damoeb/rss-proxy:js
-    #container_name: heimdall # Depricated
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
 #    volumes:
-#      - /home/3gNqFD9VFoi9wch2vo/docker/rss-proxy:/opt/rss-proxy
+#      - /home/folder/docker/rss-proxy:/opt/rss-proxy
+#    Don't expose external ports to prevent access outside swag
 #    ports:
 #      - 3000:3000
     networks:
@@ -1184,18 +1190,19 @@ networks:
          - subnet: "172.20.10.0/24"
            gateway: 172.20.10.1
 
-
+##################################################################################################################################
+#  Will not run on a subfolder, need to use a subdomain
 
 version: "3.5"
 services:
   translate:
     image: libretranslate/libretranslate
-    #container_name: heimdall # Depricated
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
     #build: .
+#    Don't expose external ports to prevent access outside swag
 #    ports:
 #      - 5000:5000
     networks:
@@ -1220,6 +1227,8 @@ networks:
        config:
          - subnet: "172.20.10.0/24"
            gateway: 172.20.10.1
+
+##################################################################################################################################
 
 #  Synapse matrix server
 #  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
@@ -1282,33 +1291,6 @@ networks:
            gateway: 172.20.10.1
 
 
-
-docker exec -i --user root $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF 
-chmod 777 -R /opt/rss-proxy
-EOF
-
-docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
-sed -i 's/href=\"styles/href=\"rss-proxy\/styles''/g' /opt/rss-proxy/static/index.html
-EOF
-
-docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
-sed -i 's/<base href=\"\/\">/<base href\="\/rss-proxy\">''/g' /opt/rss-proxy/static/index.html
-EOF
-
-sudo docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
-sed -i 's/src=\"/src=\"rss-proxy\/''/g' /opt/rss-proxy/static/index.html
-EOF
-
-docker exec -i $(sudo docker ps | grep rss-proxy | awk '{print $NF}') bash <<EOF
-sed -i "s/app.use('\//app.use('\/rss-proxy\//g" /opt/rss-proxy/app.js
-EOF
-
-
-
-
-docker exec -i $(sudo docker ps | grep translate | awk '{print $NF}') bash <<EOF
-sed -i 's/script src=\"\//script src=\"\/translate\//g' /app/app/templates/index.html
-EOF
 
 
 
