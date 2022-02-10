@@ -1274,3 +1274,11 @@ networks:
        config:
          - subnet: "172.20.10.0/24"
            gateway: 172.20.10.1
+           
+#https://hub.docker.com/r/hwdsl2/ipsec-vpn-server
+#https://hub.docker.com/r/adrum/wireguard-ui
+#https://github.com/EmbarkStudios/wg-ui
+#https://hub.docker.com/r/dockage/shadowsocks-server
+#openvpn
+#ptpp
+#onionshare
