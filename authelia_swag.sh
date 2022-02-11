@@ -432,14 +432,15 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-shadowsocks:
-  image: shadowsocks/shadowsocks-libev
-  ports:
-    - "58211:58211/tcp"
-    - "58211:58211/udp"
-  environment:
-    - METHOD=aes-256-gcm
-    - PASSWORD=9MLSpPmNt
+
+  shadowsocks:
+    image: shadowsocks/shadowsocks-libev
+    ports:
+      - 58211:58211/tcp
+      - 58211:58211/udp
+    environment:
+      - METHOD=aes-256-gcm
+      - PASSWORD=$sspass
 
   swag:
     image: linuxserver/swag
