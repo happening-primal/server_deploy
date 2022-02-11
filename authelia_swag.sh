@@ -438,9 +438,12 @@ services:
     ports:
       - 58211:58211/tcp
       - 58211:58211/udp
+      #  need to configure to use pihole dns on local machine
+      #  default is google servers 8.8.8.8 8.8.4.4 
     environment:
       - METHOD=aes-256-gcm
       - PASSWORD=$sspass
+      - DNS_ADDRS=1.1.1.1,9.9.9.9 #comma delimited list
 
   swag:
     image: linuxserver/swag
