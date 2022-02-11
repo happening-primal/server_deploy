@@ -22,7 +22,8 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 while true; do
-  read -rp "Let's run an update first (hit Enter to continue or ctrl+C t exit)..." yn
+  read -rp "Let's run an update first (hit Enter to continue or ctrl+C t exit)...
+  (select yes at the two prompts regarding ipv4 and ipv6) " yn
   case $yn in
     "") break ;;
     *) echo "Please hit Enter to continue or ctrl+C to exit." ;;
@@ -30,7 +31,7 @@ while true; do
 done
 
 echo "
-Select yes at the two prompts regarding i[v4 and ipv6.
+Select yes at the two prompts regarding ipv4 and ipv6.
 "
 
 # Update and install some essential apps
