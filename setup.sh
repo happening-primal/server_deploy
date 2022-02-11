@@ -46,7 +46,7 @@ security.  The creation command is:
 
      'ssh-keygen -f <file location/name> -t ecdsa -b 521'
        or for windows using powershell
-     'type C:\Users\dylan\.ssh\linodetest-key.pub | ssh fdgh1567@212.71.252.125 "cat >> .ssh/authorized_keys"'
+     'type C:\Users\dylan\.ssh\linodetest-key.pub | ssh fdgh1567@212.71.252.125 \"cat >> .ssh/authorized_keys\"'
      
      Example:  
      'ssh-keygen -f ~/.ssh/ecdsa-key -t ecdsa -b 521'
