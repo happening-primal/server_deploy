@@ -118,7 +118,8 @@ echo "
 Next we're going to set up TOTP.  Be sure to scan the QR code or enter the TOTP code
 (new secret key) into your authenticator and also store the emergency scratch codes 
 in your password manager.  Answer yes to everything except the disalowing multiple 
-uses and 30 second token (i.e. y, y, n, n, y).
+uses and 30 second token (i.e. y, y, n, n, y).  Save the 'secret key' and the 
+'scratch codes'!
 "
 
 while true; do
