@@ -113,11 +113,6 @@ echo "Now exit this shell by typing 'exit' and then re-log on using:
     'ssh $USR_NAME"@""$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'
 
 After you get logged back in using the above, with the password that you set for the new user,
-create the setup.sh script using the following commands:
-
-    'nano setup.sh && sudo bash setup.sh'
-    
-Copy and paste the text from setup.sh into the window followed by ctrl+x, y, enter.  
-
+create and run the setup.sh.
 "
 exit 5
