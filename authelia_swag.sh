@@ -227,13 +227,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/syncthing/data1;
                 mkdir docker/syncthing/data2;
                 mkdir docker/wireguard;
-                mkdir docker/wireguard/config;
-                mkdir docker/wireguard/modules;
-                mkdir docker/wireguard/ui;
-                mkdir docker/wireguard/ui/app;
-                mkdir docker/wireguard/ui/app/db;
-                mkdir docker/wireguard/ui/etc;
-                mkdir docker/wireguard/ui/etc/wireguard;
+                mkdir docker/wireguard/{config,app,etc}
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
@@ -311,7 +305,27 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-       
+
+  translate:
+    image: libretranslate/libretranslate
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    #build: .
+#    Don't expose external ports to prevent access outside swag
+#    ports:
+#      - 5000:5000
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+    ## Uncomment below command and define your args if necessary
+    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
+    command: --ssl
+
   neko:  # Neko firefox browser
     image: m1k1o/neko:firefox
     shm_size: \"2gb\"
@@ -391,7 +405,24 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-
+  rssproxy:
+    image: damoeb/rss-proxy:js
+    #container_name: heimdall # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+#    volumes:
+#      - /home/3gNqFD9VFoi9wch2vo/docker/rss-proxy:/opt/rss-proxy
+#    ports:
+#      - 3000:3000
+    networks:
+      - internet
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+       
   swag:
     image: linuxserver/swag
     #container_name: swag # Depricated
@@ -492,8 +523,8 @@ services:
     image: ngoduykhanh/wireguard-ui:latest
     #container_name: wgui # Depricated
     # Port 5000
-    cap_add:
-      - NET_ADMIN
+    #cap_add:
+    #  - NET_ADMIN
     environment:
       #- SENDGRID_API_KEY
       #- EMAIL_FROM_ADDRESS
@@ -813,6 +844,18 @@ echo "    items:
         # background: red # optional color for card to set color directly without custom stylesheet" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
 
 ##################################################################################################################################
+#  libretranslate - will not run on a subfolder!
+
+#  Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
+sed -i 's/syncthing/translate''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+sed -i 's/    server_name syncthing./    server_name '$ltsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
+
+##################################################################################################################################
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
@@ -915,6 +958,18 @@ chown systemd-coredump:systemd-coredump /home/$(who | awk '{print $1}' | awk -v 
 #  This below step may not be needed.  Need to deploy to a server and check
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
 #chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+
+##################################################################################################################################
+#  rss-proxy - will not run on a subfolder!
+
+#  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
+sed -i 's/syncthing/rssproxy''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+sed -i 's/    server_name syncthing./    server_name '$rpsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
 
 ##################################################################################################################################
 # Syncthing
