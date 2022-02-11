@@ -44,10 +44,14 @@ You need to have an ssh key on your current computer.  If you don't have one, or
 is, see this page - https://www.ssh.com/academy/ssh/keygen.  Recommend you use ecdsa for the most up-to-date
 security.  The creation command is:
 
-     ssh-keygen -f <file location/name> -t ecdsa -b 521
+     'ssh-keygen -f <file location/name> -t ecdsa -b 521'
+       or for windows using powershell
+     'type C:\Users\dylan\.ssh\linodetest-key.pub | ssh fdgh1567@212.71.252.125 "cat >> .ssh/authorized_keys"'
      
      Example:  
-     ssh-keygen -f ~/.ssh/ecdsa-key -t ecdsa -b 521
+     'ssh-keygen -f ~/.ssh/ecdsa-key -t ecdsa -b 521'
+       or for windows using powershell
+     ''
 
 After you are sure you have a key (don't proceed until you do!), open a new terminal window and type:
 
