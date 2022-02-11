@@ -84,6 +84,10 @@ subdomains+=$ltsubdomain
 rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$rpsubdomain
+#  wireguard gui
+rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$wgsubdomain
 
 
 i=0
@@ -810,6 +814,7 @@ echo "    items:
 
 ##################################################################################################################################
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
+
 cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
    /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
 
@@ -927,6 +932,18 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  When you set up the syncs for pihole, ensure you check 'Ignore Permissions' under the 'Advanced' tab during folder setup.
 
 ##################################################################################################################################
+#  Wireguard gui - will not run on a subfolder!
+
+#  Prepare the wireguard gui (wgui) proxy-conf file using syncthing.subdomain.conf.sample as a template
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+sed -i 's/syncthing/wgui''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+sed -i 's/    server_name syncthing./    server_name '$wgsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
+
+##################################################################################################################################
 #  Whoogle
 
 #  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
@@ -936,8 +953,6 @@ cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'roo
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-
-#  There is some non-fatal error thrown by whoogle docker.  This may be the answer - https://bbs.archlinux.org/viewtopic.php?id=228053
 
 ##################################################################################################################################
 #  Perform some SWAG hardening:
@@ -1142,7 +1157,7 @@ prosodyctl --config /config/prosody.cfg.lua register userid meet.jitsi password
 EOF
 
 ##################################################################################################################################
-#  Will not run on a subfolder, need to use a subdomain
+#  rss-proxy - Will not run on a subfolder, need to use a subdomain
 
 version: "3.5"
 services:
@@ -1178,7 +1193,7 @@ networks:
            gateway: 172.20.10.1
 
 ##################################################################################################################################
-#  Will not run on a subfolder, need to use a subdomain
+#  libretranslate - Will not run on a subfolder, need to use a subdomain
 
 version: "3.5"
 services:
