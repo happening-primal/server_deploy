@@ -30,6 +30,7 @@ while true; do
 done
 
 echo "
+Select yes at the two prompts regarding i[v4 and ipv6.
 "
 
 # Update and install some essential apps
@@ -48,13 +49,8 @@ apt -y -qq autoclean
 
 # Add automated cleanup using bleachbit
 echo "
-Let's install a cron job to clean up the system automatically
-using bleachbit.  Copy this text (without the '):
-
-  '0 0 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs  bleachbit --clean'
-
-You will paste the above line at the end of the file after the commented (#) lines followed
-by ctrl-X, y, Enter to commit the changes.
+Now installing a cron job to clean up the system automatically
+using bleachbit.  Runs once a month.  
 
 "
 #while true; do
