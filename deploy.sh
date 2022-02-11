@@ -47,9 +47,7 @@ apt -y -qq autoclean
 # Add automated cleanup using bleachbit
 echo "
 Now installing a cron job to clean up the system automatically
-using bleachbit.  Runs once a month.  
-
-"
+using bleachbit.  Runs once a month."
 #while true; do
 #  read -rp "Hit Enter to continue or ctrl+C to exit..." yn
 #  case $yn in
