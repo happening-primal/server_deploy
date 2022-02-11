@@ -1087,6 +1087,7 @@ Wireguard password:                 $wgpass
 Jitsi-meet web:                     $jwebsubdomain.$fqdn
 Libretranslate:                     $ltsubdomain.$fqdn
 RSS-Proxy:                          $rpsubdomain.$fqdn
+Shadowsocks password:               $sspass
 Synapse (Matrix Server):            
 E-Mail Server:                      
 ===============================================================================
