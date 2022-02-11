@@ -133,7 +133,7 @@ while true; do
   read -rp "
 Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
   if [[ -z "${pipass}" ]]; then
-    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    echo "Enter your desired pihole webgui password or hit ctrl+C to exit."
     continue
   fi
   break
@@ -143,7 +143,7 @@ while true; do
   read -rp "
 Enter your desired neko user password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " nupass
   if [[ -z "${nupass}" ]]; then
-    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    echo "Enter your desired neko user password or hit ctrl+C to exit."
     continue
   fi
   break
@@ -153,7 +153,17 @@ while true; do
   read -rp "
 Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " napass
   if [[ -z "${napass}" ]]; then
-    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    echo "Enter your desired neko admin password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired shadowsocks password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " sspass
+if [[ -z "${sspass}" ]]; then
+    echo "Enter your desired shadowsocks password or hit ctrl+C to exit."
     continue
   fi
   break
@@ -163,7 +173,7 @@ while true; do
   read -rp "
 Enter your desired wireguard ui userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " wguid
 if [[ -z "${wguid}" ]]; then
-    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    echo "Enter your desired wireguard ui userid or hit ctrl+C to exit."
     continue
   fi
   break
@@ -173,7 +183,7 @@ while true; do
   read -rp "
 Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " wgpass
   if [[ -z "${wgpass}" ]]; then
-    echo "Enter your desired pihole password or hit ctrl+C to exit."
+    echo "Enter your desired wireguard ui password or hit ctrl+C to exit."
     continue
   fi
   break
@@ -422,7 +432,15 @@ services:
     deploy:
       restart_policy:
        condition: on-failure
-       
+shadowsocks:
+  image: shadowsocks/shadowsocks-libev
+  ports:
+    - "58211:58211/tcp"
+    - "58211:58211/udp"
+  environment:
+    - METHOD=aes-256-gcm
+    - PASSWORD=9MLSpPmNt
+
   swag:
     image: linuxserver/swag
     #container_name: swag # Depricated
