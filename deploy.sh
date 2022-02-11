@@ -30,10 +30,6 @@ while true; do
   esac
 done
 
-echo "
-Select yes at the two prompts regarding ipv4 and ipv6.
-"
-
 # Update and install some essential apps
 apt-get -qq update && apt-get -y -qq upgrade  && apt-get -y -qq dist-upgrade
 # Install essential apps
