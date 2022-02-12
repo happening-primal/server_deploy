@@ -1400,6 +1400,18 @@ sed -i 's/matrix/'$sysubdomain'''/g' /home/$(who | awk '{print $1}' | awk -v RS=
 
 
 
+#  farside - https://github.com/benbusby/farside
+#  Download the latest copy of radis - https://redis.io/
+#  wget https://download.redis.io/releases/redis-6.2.6.tar.gz
+#  Unpack the tarball
+#  tar -xzsf redis-6.2.6.tar.gz
+#  Install elixer - https://elixir-lang.org/install.html
+#  sudo apt install redis-server
+#  wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
+#  sudo apt-get update
+#  sudo apt-get install esl-erlang
+#  sudo apt-get install elixir
+
 
 
 
