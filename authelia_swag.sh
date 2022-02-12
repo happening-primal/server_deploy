@@ -85,9 +85,13 @@ rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$rpsubdomain
 #  wireguard gui
-rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$wgsubdomain
+#  synapse
+sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$sysubdomain
 
 
 i=0
@@ -1380,3 +1384,27 @@ networks:
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
 docker run -it --rm -v /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+docker exec -it synapse register_new_matrix_user -u myuser -p mypw -a -c /data/homeserver.yaml
+
+#  https://github.com/matrix-org/synapse/issues/6783
+docker exec -it $(sudo docker ps | grep synapse | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u myuser -p mypw -a -c /data/homeserver.yaml
+sudo docker ps | grep synapse | awk '{ print$NF }'
+
+cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample \
+   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+
+sed -i 's/matrix/'$sysubdomain'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+
+
+
+
+
+
+
+
+
+
+
+
+
+
