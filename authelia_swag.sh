@@ -233,6 +233,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 mkdir docker/pihole/etc-pihole;
                 mkdir docker/pihole/etc-dnsmasq.d;
                 mkdir docker/swag;
+                mkdir docker/synapse/{data};
                 mkdir docker/syncthing;
                 mkdir docker/syncthing/data1;
                 mkdir docker/syncthing/data2;
@@ -1375,3 +1376,7 @@ networks:
 #openvpn
 #ptpp
 #onionshare
+
+#  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
+#  Run first to generate the homeserver.yaml file
+docker run -it --rm -v /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
