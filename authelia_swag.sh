@@ -986,6 +986,10 @@ chown systemd-coredump:systemd-coredump /home/$(who | awk '{print $1}' | awk -v 
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
 #chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
 
+#  Route all traffic including localhost traffci through the pihole
+#  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
+sed -i 's/nameserver 8.8.8.8/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)'/g' /etc/resolv.conf
+
 ##################################################################################################################################
 #  rss-proxy - will not run on a subfolder!
 
