@@ -12,14 +12,34 @@
 stackname=authelia_swag
 swagloc=swag
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+ymlhdr="version: \"3.1\"
+services:"
+ymlftr="# For networking setup explaination, see this link:
+#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+# For ways to see how to set up specific networks for docker see:
+#   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
+#   Note the requirement to remove existing newtorks using:
+#     docker network ls | grep authelia_swag | awk '{ print\$1 }' | docker network rm;
+networks:
+    no-internet:
+      driver: bridge
+      internal: true
+    internet:
+      driver: bridge
+      ipam:
+        driver: default
+        config:
+          - subnet: 172.20.10.0/24
+            gateway: 172.20.10.1"
 
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
 #    https://linuxhint.com/generate-random-string-bash/
-
 jwts=$(openssl rand -hex 25)     # Authelia JWT secret
 auths=$(openssl rand -hex 25)    # Authelia secret
 authec=$(openssl rand -hex 25)   # Authelia encryption key
+
+usrdirroot=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
 
 #======================================================================================
 #  Prep the system
@@ -29,7 +49,7 @@ authec=$(openssl rand -hex 25)   # Authelia encryption key
 #    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
-sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf
+sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf # We will change this later after the pihole is set up
 #  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
 #  sudo apt-get install net-tools
 #  sudo netstat -tulpn | grep ":53 " - port 53
@@ -92,7 +112,6 @@ subdomains+=$wgsubdomain
 sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$sysubdomain
-
 
 i=0
 while [ $i -ne $rnddomain ]
@@ -270,9 +289,7 @@ touch docker-compose.yml
 
 # Create the docker-compose.yml file for the initial base installation
 echo "version: \"3.1\"
-
 services:
-
   authelia:
     image: authelia/authelia:latest #4.32.0
     #container_name: authelia # Depricated
@@ -1079,6 +1096,16 @@ echo "export authpwd=$authpwd" >> ~/.bashrc
 echo "export rootdir=$rootdir" >> ~/.bashrc
 echo "export stackname=$stackname" >> ~/.bashrc
 echo "export swagloc=$swagloc" >> ~/.bashrc
+echo "export fqdn=$fqdn" >> ~/.bashrc
+echo "export nupass=$nupass" >> ~/.bashrc
+echo "export napass=$napass" >> ~/.bashrc
+echo "export pipass=$pipass" >> ~/.bashrc
+echo "export wguid=$wguid" >> ~/.bashrc
+echo "export wgpass=$wgpass" >> ~/.bashrc
+echo "export jwebsubdomain=$jwebsubdomain" >> ~/.bashrc
+echo "export wltsubdomain=$ltsubdomain" >> ~/.bashrc
+echo "export rpsubdomain=$rpsubdomain" >> ~/.bashrc
+echo "export sspass=$sspass" >> ~/.bashrc
 
 # Commit the .bashrc changes
 source ~/.bashrc
@@ -1102,6 +1129,7 @@ RSS-Proxy:                          $rpsubdomain.$fqdn
 Shadowsocks password:               $sspass
 Synapse (Matrix Server):            
 E-Mail Server:                      
+User directory root:                $usrdirroot
 ===============================================================================
 
 Now you may want to restart the box.  Either way navigate to your fqdn: 
