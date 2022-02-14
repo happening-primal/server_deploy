@@ -1090,25 +1090,25 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 ##################################################################################################################################
 #  Store non-persistent variables in .bashrc for later use across reboots
 echo "
-" >> ~/.bashrc
-echo "export authusr=$authusr" >> ~/.bashrc
-echo "export authpwd=$authpwd" >> ~/.bashrc
-echo "export rootdir=$rootdir" >> ~/.bashrc
-echo "export stackname=$stackname" >> ~/.bashrc
-echo "export swagloc=$swagloc" >> ~/.bashrc
-echo "export fqdn=$fqdn" >> ~/.bashrc
-echo "export nupass=$nupass" >> ~/.bashrc
-echo "export napass=$napass" >> ~/.bashrc
-echo "export pipass=$pipass" >> ~/.bashrc
-echo "export wguid=$wguid" >> ~/.bashrc
-echo "export wgpass=$wgpass" >> ~/.bashrc
-echo "export jwebsubdomain=$jwebsubdomain" >> ~/.bashrc
-echo "export wltsubdomain=$ltsubdomain" >> ~/.bashrc
-echo "export rpsubdomain=$rpsubdomain" >> ~/.bashrc
-echo "export sspass=$sspass" >> ~/.bashrc
+" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export authusr=$authusr" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export authpwd=$authpwd" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export rootdir=$rootdir" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export stackname=$stackname" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export swagloc=$swagloc" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export fqdn=$fqdn" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export nupass=$nupass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export napass=$napass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export pipass=$pipass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export wguid=$wguid" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export wgpass=$wgpass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export jwebsubdomain=$jwebsubdomain" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export wltsubdomain=$ltsubdomain" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export rpsubdomain=$rpsubdomain" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+echo "export sspass=$sspass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
 
 # Commit the .bashrc changes
-source ~/.bashrc
+source /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
 
 echo "
 Keeps these in a safe place for future reference:
