@@ -1443,6 +1443,18 @@ sed -i 's/matrix/'$sysubdomain'''/g' /home/$(who | awk '{print $1}' | awk -v RS=
 #  sudo apt-get update
 #  sudo apt-get install esl-erlang
 #  sudo apt-get install elixir
+#  wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
+#  tar -xzsf v0.1.0.tar.gz
+#  cd farside-0.1.0
+#  Run the below from within the unpacked farside folder (farside-0.1.0)
+#  redis-server
+#  mix deps.get
+#  mix run -e Farside.Instances.sync
+#  elixir --erl "-detached" -S mix run --no-halt
+#  Uses localhost:4001
+#  edit farside-0.1.0/services.json if you desire to control the instances of redirects
+#  such as if you want to create your own federated list of servers to choose from
+#  in a less trusted model (e.g. yourserver.1, yourserver.2, yourserver.3...) ;)
 
 
 
