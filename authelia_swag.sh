@@ -66,11 +66,6 @@ subdomains+=", "
 subdomains+=$wgsubdomain
 
 ##################################################################################################################################
-#  Prep the system
-
-
-
-##################################################################################################################################
 
 echo "
  - Run this script as superuser.
@@ -1101,12 +1096,12 @@ do
 done
 
 #  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
-cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/syncthing/whoogle''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/whoogle''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
 ##################################################################################################################################
 #  Wireguard
@@ -1220,7 +1215,8 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 
 
 ##################################################################################################################################
-#  Seal a recently (Jan-2022) revealead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
+#  Seal a recently (Jan-2022) revealead vulnerabilty
+#    https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
 
 chmod 0755 /usr/bin/pkexec
 
