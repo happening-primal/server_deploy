@@ -241,10 +241,11 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
                 #  Purge any dangling items...
                 docker system prune;
+                #  Remove the docker directory
                 rm -r docker;
-                #  You must create these directories manually or else the container won't run
+                #  Make a new, fresh docker directory
                 mkdir docker;
-                chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
+                #chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
@@ -253,398 +254,6 @@ done
 
 echo "
 "
-
-#  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
-#  Install dependencies
-apt-get install -y -qq linux-image-extra-virtual
-
-rm docker-compose.yml
-touch docker-compose.yml
-
-# Create the docker-compose.yml file for the initial base installation
-echo "version: \"3.1\"
-services:
-  authelia:
-    image: authelia/authelia:latest #4.32.0
-    #container_name: authelia # Depricated
-    environment:
-      - TZ=America/New_York
-    volumes:
-      - $rootdir/docker/authelia:/config
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  firefox:  # linuxserver.io firefox browser
-    image: lscr.io/linuxserver/firefox
-    #container_name: firefox # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
-    volumes:
-      - $rootdir/docker/firefox:/config
-    #ports:
-      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    shm_size: \"1gb\"
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  homer:
-    image: b4bz/homer
-    #container_name: homer # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/homer:/www/assets
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  translate:
-    image: libretranslate/libretranslate
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    #build: .
-#    Don't expose external ports to prevent access outside swag
-#    ports:
-#      - 5000:5000
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-    ## Uncomment below command and define your args if necessary
-    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
-    command: --ssl
-
-  neko:  # Neko firefox browser
-    image: m1k1o/neko:firefox
-    shm_size: \"2gb\"
-    ports:
-      #- 8080:8080
-      - 52000-52100:52000-52100/udp
-    environment:
-      NEKO_SCREEN: 1440x900@60
-      NEKO_PASSWORD: $nupass
-      NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52000-52100
-      NEKO_ICELITE: 1
-#    volumes:
-#       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
-#       - $rootdir/docker/neko/firefox/home/neko:/home/neko
-    dns:
-#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
-#  If you are running pihole in a docker container, point neko to the pihole
-#  docker container ip address.  Probably best to set a static ip address for 
-#  the pihole in the configuration so that it will never change.
-       - 172.20.10.10
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  tor:  # Neko tor browser
-    image: m1k1o/neko:tor-browser
-    shm_size: \"2gb\"
-    ports:
-      #- 8080:8080
-      - 52200-52300:52200-52300/udp
-    environment:
-      NEKO_SCREEN: 1440x900@60
-      NEKO_PASSWORD: $nupass
-      NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52200-52300
-      NEKO_ICELITE: 1
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  pihole:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
-           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-    #container_name: pihole # Depricated
-    image: pihole/pihole:latest
-    ports:
-      - 53:53/udp
-      - 53:53/tcp
-      - 67:67/tcp
-      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - WEBPASSWORD=$pipass
-      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
-    volumes:
-       - $rootdir/docker/pihole/etc-pihole:/etc/pihole
-       - $rootdir/docker/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
-    dns:
-      - 127.0.0.1
-      - 1.1.1.1
-    cap_add:
-      - NET_ADMIN
-    networks:
-      #- no-internet  #  I think this one not needed...
-      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
-      internet:
-          ipv4_address: 172.20.10.10 
-    deploy:
-      restart_policy:
-       condition: on-failure
-  rssproxy:
-    image: damoeb/rss-proxy:js
-    #container_name: heimdall # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-#    volumes:
-#      - /home/3gNqFD9VFoi9wch2vo/docker/rss-proxy:/opt/rss-proxy
-#    ports:
-#      - 3000:3000
-    networks:
-      - internet
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  shadowsocks:
-    image: shadowsocks/shadowsocks-libev
-    ports:
-      - 58211:58211/tcp
-      - 58211:58211/udp
-      #  need to configure to use pihole dns on local machine
-      #  default is google servers 8.8.8.8 8.8.4.4 
-    environment:
-      - METHOD=aes-256-gcm
-      - PASSWORD=$sspass
-      - DNS_ADDRS=1.1.1.1,9.9.9.9 #comma delimited list
-
-  swag:
-    image: linuxserver/swag
-    #container_name: swag # Depricated
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-      - URL=$fqdn
-      #
-      # Use of wildcard domains is no longer possible using http authentication for letsencrypt or zerossl
-      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
-      # 'Client with the currently selected authenticator does not support 
-      # any combination of challenges that will satisfy the CA. 
-      # You may need to use an authenticator plugin that can do challenges over DNS.'
-      #- SUBDOMAINS=wildcard
-      - SUBDOMAINS=$subdomains
-      #
-      # If CERTPROVIDER is left blank, letsencrypt will be used
-      #- CERTPROVIDER=zerossl
-      #
-      #- VALIDATION=duckdns
-      #- DNSPLUGIN=cloudfare #optional
-      #- PROPAGATION= #optional
-      #- DUCKDNSTOKEN=$ducktkn
-      #- EMAIL=$zspwd  # Zerossl password
-      - ONLY_SUBDOMAINS=false #optional
-      #- EXTRA_DOMAINS= #optional
-      - STAGING=false #optional
-    volumes:
-      - $rootdir/docker/swag:/config
-    ports:
-      - 443:443
-      - 80:80 
-      # You must leave port 80 open or you won't be able to get your ssl certificate via http
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  syncthing:
-    image: lscr.io/linuxserver/syncthing
-    #container_name: syncthing # Depricated
-    hostname: syncthing # Optional
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/syncthing:/config
-      - $rootdir/docker:/config/Sync
-    ports:
-      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      - 22000:22000/tcp
-      - 22000:22000/udp
-      - 21027:21027/udp
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
-  wireguard:
-    image: ghcr.io/linuxserver/wireguard
-    #container_name: wireguard # Depricated
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=UTC
-      - SERVERURL=$fqdn
-      - SERVERPORT=50220
-      - PEERS=3
-      - PEERDNS=auto
-      - INTERNAL_SUBNET=10.18.18.0
-      - ALLOWEDIPS=0.0.0.0/0
-    volumes:
-      - $rootdir/docker/wireguard/config:/config
-      - $rootdir/docker/wireguard/modules:/lib/modules
-    ports:
-      - 50220:50220/udp
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
-  wgui:
-    image: ngoduykhanh/wireguard-ui:latest
-    #container_name: wgui # Depricated
-    # Port 5000
-    #cap_add:
-    #  - NET_ADMIN
-    environment:
-      #- SENDGRID_API_KEY
-      #- EMAIL_FROM_ADDRESS
-      #- EMAIL_FROM_NAME
-      - SESSION_SECRET=$(openssl rand -hex 30)
-      - WGUI_USERNAME=$wguid
-      - WGUI_PASSWORD=$wgpass
-    logging:
-      driver: json-file
-      options:
-        max-size: 50m
-    volumes:
-      - $rootdir/docker/wireguard/app:/app/db
-      - $rootdir/docker/wireguard/etc:/etc/wireguard
-    #network_mode: host
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
-  whoogle:
-    image: benbusby/whoogle-search
-    pids_limit: 50
-    mem_limit: 256mb
-    memswap_limit: 256mb
-    # user debian-tor from tor package
-#    user: '102'
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
-#    tmpfs:
-#      - /config/:size=10M,uid=102,gid=102,mode=1700
-#      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
-#      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
-    environment: # Uncomment to configure environment variables
-      - PUID=1000
-      - PGID=1000
-      # Basic auth configuration, uncomment to enable
-      #- WHOOGLE_USER=<auth username>
-      #- WHOOGLE_PASS=<auth password>
-      # Proxy configuration, uncomment to enable
-      #- WHOOGLE_PROXY_USER=<proxy username>
-      #- WHOOGLE_PROXY_PASS=<proxy password>
-      #- WHOOGLE_PROXY_TYPE=<proxy type (http|https|socks4|socks5)
-      #- WHOOGLE_PROXY_LOC=<proxy host/ip>
-      #  See the subfolder /static/settings folder for .json files with options on country and language
-      - WHOOGLE_CONFIG_COUNTRY=US
-      - WHOOGLE_CONFIG_LANGUAGE=lang_en
-      - WHOOGLE_CONFIG_SEARCH_LANGUAGE=lang_en
-      - EXPOSE_PORT=5000
-      # Site alternative configurations, uncomment to enable
-      # Note: If not set, the feature will still be available
-      # with default values.
-      - WHOOGLE_ALT_TW=farside.link/nitter
-      - WHOOGLE_ALT_YT=farside.link/invidious
-      - WHOOGLE_ALT_IG=farside.link/bibliogram/u
-      - WHOOGLE_ALT_RD=farside.link/libreddit
-      - WHOOGLE_ALT_MD=farside.link/scribe
-      - WHOOGLE_ALT_TL=lingva.ml
-    #env_file: # Alternatively, load variables from whoogle.env
-      #- whoogle.env
-    #ports:
-      #- 5000:5000
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-# For networking setup explaination, see this link:
-#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
-# For ways to see how to set up specific networks for docker see:
-#   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
-#   Note the requirement to remove existing newtorks using:
-#     docker network ls | grep authelia_swag | awk '{ print\$1 }' | docker network rm;
-networks:
-    no-internet:
-      driver: bridge
-      internal: true
-    internet:
-      driver: bridge
-      ipam:
-        driver: default
-        config:
-          - subnet: 172.20.10.0/24
-            gateway: 172.20.10.1" >> docker-compose.yml
-
-# Take the opportunity to clean up any old junk before running the stack and then run it
-docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
-
-# Wait a bit for the stack to deploy
-while [ ! -f $rootdir/docker/authelia/configuration.yml ]
-    do
-      sleep 5;
-    done
-    
-echo "
-The stack started successfully..."
 
 ##################################################################################################################################
 #  Secure Web Access Gateway (SWAG).  Set this one up first because all the other web services
@@ -1692,6 +1301,10 @@ authentication url using these commands:
 
 #!/bin/bash
 
+#  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
+#  Install dependencies
+apt-get install -y -qq linux-image-extra-virtual
+
 jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 stackname=authelia_swag # Can remove later
@@ -2006,3 +1619,390 @@ docker-compose -f docker-compose.yml -p $stackname up -d
 
 
 
+rm docker-compose.yml
+touch docker-compose.yml
+
+# Create the docker-compose.yml file for the initial base installation
+echo "version: \"3.1\"
+services:
+  authelia:
+    image: authelia/authelia:latest #4.32.0
+    #container_name: authelia # Depricated
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - $rootdir/docker/authelia:/config
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  firefox:  # linuxserver.io firefox browser
+    image: lscr.io/linuxserver/firefox
+    #container_name: firefox # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
+    volumes:
+      - $rootdir/docker/firefox:/config
+    #ports:
+      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    shm_size: \"1gb\"
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  homer:
+    image: b4bz/homer
+    #container_name: homer # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/homer:/www/assets
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  translate:
+    image: libretranslate/libretranslate
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    #build: .
+#    Don't expose external ports to prevent access outside swag
+#    ports:
+#      - 5000:5000
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+    ## Uncomment below command and define your args if necessary
+    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
+    command: --ssl
+
+  neko:  # Neko firefox browser
+    image: m1k1o/neko:firefox
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52000-52100:52000-52100/udp
+    environment:
+      NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52000-52100
+      NEKO_ICELITE: 1
+#    volumes:
+#       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
+#       - $rootdir/docker/neko/firefox/home/neko:/home/neko
+    dns:
+#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
+#  If you are running pihole in a docker container, point neko to the pihole
+#  docker container ip address.  Probably best to set a static ip address for 
+#  the pihole in the configuration so that it will never change.
+       - 172.20.10.10
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  tor:  # Neko tor browser
+    image: m1k1o/neko:tor-browser
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52200-52300:52200-52300/udp
+    environment:
+      NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52200-52300
+      NEKO_ICELITE: 1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  pihole:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
+           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+    #container_name: pihole # Depricated
+    image: pihole/pihole:latest
+    ports:
+      - 53:53/udp
+      - 53:53/tcp
+      - 67:67/tcp
+      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - WEBPASSWORD=$pipass
+      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
+    volumes:
+       - $rootdir/docker/pihole/etc-pihole:/etc/pihole
+       - $rootdir/docker/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      #- no-internet  #  I think this one not needed...
+      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
+      internet:
+          ipv4_address: 172.20.10.10 
+    deploy:
+      restart_policy:
+       condition: on-failure
+  rssproxy:
+    image: damoeb/rss-proxy:js
+    #container_name: heimdall # Depricated
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+#    volumes:
+#      - /home/userid/docker/rss-proxy:/opt/rss-proxy
+#    ports:
+#      - 3000:3000
+    networks:
+      - internet
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  shadowsocks:
+    image: shadowsocks/shadowsocks-libev
+    ports:
+      - 58211:58211/tcp
+      - 58211:58211/udp
+      #  need to configure to use pihole dns on local machine
+      #  default is google servers 8.8.8.8 8.8.4.4 
+    environment:
+      - METHOD=aes-256-gcm
+      - PASSWORD=$sspass
+      - DNS_ADDRS=1.1.1.1,9.9.9.9 #comma delimited list
+
+  swag:
+    image: linuxserver/swag
+    #container_name: swag # Depricated
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - URL=$fqdn
+      #
+      # Use of wildcard domains is no longer possible using http authentication for letsencrypt or zerossl
+      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
+      # 'Client with the currently selected authenticator does not support 
+      # any combination of challenges that will satisfy the CA. 
+      # You may need to use an authenticator plugin that can do challenges over DNS.'
+      #- SUBDOMAINS=wildcard
+      - SUBDOMAINS=$subdomains
+      #
+      # If CERTPROVIDER is left blank, letsencrypt will be used
+      #- CERTPROVIDER=zerossl
+      #
+      #- VALIDATION=duckdns
+      #- DNSPLUGIN=cloudfare #optional
+      #- PROPAGATION= #optional
+      #- DUCKDNSTOKEN=$ducktkn
+      #- EMAIL=$zspwd  # Zerossl password
+      - ONLY_SUBDOMAINS=false #optional
+      #- EXTRA_DOMAINS= #optional
+      - STAGING=false #optional
+    volumes:
+      - $rootdir/docker/swag:/config
+    ports:
+      - 443:443
+      - 80:80 
+      # You must leave port 80 open or you won't be able to get your ssl certificate via http
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+  syncthing:
+    image: lscr.io/linuxserver/syncthing
+    #container_name: syncthing # Depricated
+    hostname: syncthing # Optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/syncthing:/config
+      - $rootdir/docker:/config/Sync
+    ports:
+      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+ 
+  wireguard:
+    image: ghcr.io/linuxserver/wireguard
+    #container_name: wireguard # Depricated
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - SERVERURL=$fqdn
+      - SERVERPORT=50220
+      - PEERS=3
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.18.18.0
+      - ALLOWEDIPS=0.0.0.0/0
+    volumes:
+      - $rootdir/docker/wireguard/config:/config
+      - $rootdir/docker/wireguard/modules:/lib/modules
+    ports:
+      - 50220:50220/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+ 
+  wgui:
+    image: ngoduykhanh/wireguard-ui:latest
+    #container_name: wgui # Depricated
+    # Port 5000
+    #cap_add:
+    #  - NET_ADMIN
+    environment:
+      #- SENDGRID_API_KEY
+      #- EMAIL_FROM_ADDRESS
+      #- EMAIL_FROM_NAME
+      - SESSION_SECRET=$(openssl rand -hex 30)
+      - WGUI_USERNAME=$wguid
+      - WGUI_PASSWORD=$wgpass
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+    volumes:
+      - $rootdir/docker/wireguard/app:/app/db
+      - $rootdir/docker/wireguard/etc:/etc/wireguard
+    #network_mode: host
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+ 
+  whoogle:
+    image: benbusby/whoogle-search
+    pids_limit: 50
+    mem_limit: 256mb
+    memswap_limit: 256mb
+    # user debian-tor from tor package
+#    user: '102'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+#    tmpfs:
+#      - /config/:size=10M,uid=102,gid=102,mode=1700
+#      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
+#      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
+    environment: # Uncomment to configure environment variables
+      - PUID=1000
+      - PGID=1000
+      # Basic auth configuration, uncomment to enable
+      #- WHOOGLE_USER=<auth username>
+      #- WHOOGLE_PASS=<auth password>
+      # Proxy configuration, uncomment to enable
+      #- WHOOGLE_PROXY_USER=<proxy username>
+      #- WHOOGLE_PROXY_PASS=<proxy password>
+      #- WHOOGLE_PROXY_TYPE=<proxy type (http|https|socks4|socks5)
+      #- WHOOGLE_PROXY_LOC=<proxy host/ip>
+      #  See the subfolder /static/settings folder for .json files with options on country and language
+      - WHOOGLE_CONFIG_COUNTRY=US
+      - WHOOGLE_CONFIG_LANGUAGE=lang_en
+      - WHOOGLE_CONFIG_SEARCH_LANGUAGE=lang_en
+      - EXPOSE_PORT=5000
+      # Site alternative configurations, uncomment to enable
+      # Note: If not set, the feature will still be available
+      # with default values.
+      - WHOOGLE_ALT_TW=farside.link/nitter
+      - WHOOGLE_ALT_YT=farside.link/invidious
+      - WHOOGLE_ALT_IG=farside.link/bibliogram/u
+      - WHOOGLE_ALT_RD=farside.link/libreddit
+      - WHOOGLE_ALT_MD=farside.link/scribe
+      - WHOOGLE_ALT_TL=lingva.ml
+    #env_file: # Alternatively, load variables from whoogle.env
+      #- whoogle.env
+    #ports:
+      #- 5000:5000
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
+# For networking setup explaination, see this link:
+#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
+# For ways to see how to set up specific networks for docker see:
+#   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
+#   Note the requirement to remove existing newtorks using:
+#     docker network ls | grep authelia_swag | awk '{ print\$1 }' | docker network rm;
+networks:
+    no-internet:
+      driver: bridge
+      internal: true
+    internet:
+      driver: bridge
+      ipam:
+        driver: default
+        config:
+          - subnet: 172.20.10.0/24
+            gateway: 172.20.10.1" >> docker-compose.yml
+
+# Take the opportunity to clean up any old junk before running the stack and then run it
+docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
+
+# Wait a bit for the stack to deploy
+while [ ! -f $rootdir/docker/authelia/configuration.yml ]
+    do
+      sleep 5;
+    done
+    
+echo "
+The stack started successfully..."
