@@ -44,26 +44,26 @@ authec=$(openssl rand -hex 25)   # Authelia encryption key
 # Create domain string
 subdomains="www"
 #  Add a few specific use case subdomains
-#  jitsiweb
-jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$jwebsubdomain
 #  libretranslate
 ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$ltsubdomain
+#  jitsiweb
+jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$jwebsubdomain
 #  rss-proxy
 rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$rpsubdomain
-#  wireguard gui
-wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$wgsubdomain
 #  synapse
 sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$sysubdomain
+#  wireguard gui
+wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$wgsubdomain
 
 ##################################################################################################################################
 #  Prep the system
