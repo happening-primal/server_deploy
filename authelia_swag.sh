@@ -68,15 +68,7 @@ subdomains+=$wgsubdomain
 ##################################################################################################################################
 #  Prep the system
 
-#  Needed if you are going to run pihole
-#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
-sudo systemctl stop systemd-resolved.service
-sudo systemctl disable systemd-resolved.service
-sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9 \# Quad9''/g' /etc/resolv.conf # We will change this later after the pihole is set up
-#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
-#  sudo apt-get install net-tools
-#  sudo netstat -tulpn | grep ":53 " - port 53
+
 
 ##################################################################################################################################
 
@@ -914,9 +906,19 @@ chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihol
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
 #chmod 777 $rootdir/docker/pihole/etc-pihole
 
-#  Route all traffic including localhost traffci through the pihole
+#  Needed if you are going to run pihole
+#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
+sudo systemctl stop systemd-resolved.service
+sudo systemctl disable systemd-resolved.service
+sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9 \# Quad9''/g' /etc/resolv.conf # We will change this later after the pihole is set up
+#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
+#  sudo apt-get install net-tools
+#  sudo netstat -tulpn | grep ":53 " - port 53
+
+#  Route all traffic including localhost traffic through the pihole
 #  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
-sed -i 's/nameserver 8.8.8.8/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)'/g' /etc/resolv.conf
+sed -i 's/nameserver 9.9.9.9/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)'/g' /etc/resolv.conf
 
 ##################################################################################################################################
 #  rss-proxy - will not run on a subfolder!
