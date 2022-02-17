@@ -9,18 +9,18 @@
 #  For these VPN options, see the following - https://github.com/vimagick/dockerfiles
 
 #  Variables
-stackname=authelia_swag
-swagloc=swag
+stackname=authelia_swag  # Docker stack name
+swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
 ymlhdr="version: \"3.1\"
 services:"
 ymlftr="# For networking setup explaination, see this link:
+networks:
 #   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 # For ways to see how to set up specific networks for docker see:
 #   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
 #   Note the requirement to remove existing newtorks using:
 #     docker network ls | grep authelia_swag | awk '{ print\$1 }' | docker network rm;
-networks:
     no-internet:
       driver: bridge
       internal: true
@@ -35,13 +35,37 @@ networks:
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
 #    https://linuxhint.com/generate-random-string-bash/
+# Authelia
 jwts=$(openssl rand -hex 25)     # Authelia JWT secret
 auths=$(openssl rand -hex 25)    # Authelia secret
 authec=$(openssl rand -hex 25)   # Authelia encryption key
 
-usrdirroot=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+# SWAG
+# Create domain string
+subdomains="www"
+#  Add a few specific use case subdomains
+#  jitsiweb
+jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$jwebsubdomain
+#  libretranslate
+ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$ltsubdomain
+#  rss-proxy
+rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$rpsubdomain
+#  wireguard gui
+wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$wgsubdomain
+#  synapse
+sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$sysubdomain
 
-#======================================================================================
+##################################################################################################################################
 #  Prep the system
 
 #  Needed if you are going to run pihole
@@ -49,10 +73,12 @@ usrdirroot=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep
 #    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
-sed -i 's/nameserver 127.0.0.53/nameserver 8.8.8.8''/g' /etc/resolv.conf # We will change this later after the pihole is set up
+sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9 \# Quad9''/g' /etc/resolv.conf # We will change this later after the pihole is set up
 #  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
 #  sudo apt-get install net-tools
 #  sudo netstat -tulpn | grep ":53 " - port 53
+
+##################################################################################################################################
 
 echo "
  - Run this script as superuser.
@@ -89,48 +115,7 @@ How many random subdomains would you like to generate?: " rnddomain
   break
 done
 
-# Create domain string
-subdomains="www"
-#  Add a few specific use case subdomains
-#  jitsiweb
-jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$jwebsubdomain
-#  libretranslate
-ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$ltsubdomain
-#  rss-proxy
-rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$rpsubdomain
-#  wireguard gui
-wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$wgsubdomain
-#  synapse
-sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$sysubdomain
-
-i=0
-while [ $i -ne $rnddomain ]
-do
-        i=$(($i+1))
-        subdomains+=", "
-        subdomains+=$(echo $RANDOM | md5sum | head -c 8)
-done
-
-# If using duckdns
-#while true; do
-#  read -rp "
-#Enter your duckdns token - would look like '1af7e11a-2342-49c9-abcd-88bf6d91de22': " ducktkn
-#  if [[ -z "${ducktkn}" ]]; then
-#    echo "Enter your duckdns token or hit ctrl+C to exit."
-#    continue
-#  fi
-#  break
-#done
+rnddomain=rnddomain+5 # Add a few extras just in case the user doesn't know what the right answer is :)
 
 while true; do
   read -rp "
@@ -212,6 +197,26 @@ Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBb
   break
 done
 
+# Domain and DNS setup section
+i=0
+while [ $i -ne $rnddomain ]
+do
+        i=$(($i+1))
+        subdomains+=", "
+        subdomains+=$(echo $RANDOM | md5sum | head -c 8)
+done
+
+# If using duckdns
+#while true; do
+#  read -rp "
+#Enter your duckdns token - would look like '1af7e11a-2342-49c9-abcd-88bf6d91de22': " ducktkn
+#  if [[ -z "${ducktkn}" ]]; then
+#    echo "Enter your duckdns token or hit ctrl+C to exit."
+#    continue
+#  fi
+#  break
+#done
+
 # If using zerossl instead of letsencrypt
 #while true; do
 #  read -rp "
@@ -239,29 +244,6 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 rm -r docker;
                 #  You must create these directories manually or else the container won't run
                 mkdir docker;
-                mkdir docker/authelia;
-                mkdir docker/firefox;
-                mkdir docker/homer;
-                mkdir docker/neko;
-                mkdir docker/neko/firefox;
-                mkdir docker/neko/firefox/home;
-                mkdir docker/neko/firefox/home/neko;
-                mkdir docker/neko/firefox/usr;
-                mkdir docker/neko/firefox/usr/lib;
-                mkdir docker/neko/firefox/usr/lib/firefox;
-                mkdir docker/neko/tor;
-                mkdir docker/neko/tor/home;
-                mkdir docker/neko/tor/usr;
-                mkdir docker/pihole;
-                mkdir docker/pihole/etc-pihole;
-                mkdir docker/pihole/etc-dnsmasq.d;
-                mkdir docker/swag;
-                mkdir docker/synapse/{data};
-                mkdir docker/syncthing;
-                mkdir docker/syncthing/data1;
-                mkdir docker/syncthing/data2;
-                mkdir docker/wireguard;
-                mkdir docker/wireguard/{config,app,etc}
                 chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
                 break;;
         [Nn]* ) break;;
@@ -271,14 +253,6 @@ done
 
 echo "
 "
-
-#  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
-#  Install dependencies
-apt-get install -y -qq libcurl4-openssl-dev libssl-dev 
-git clone https://github.com/benbusby/whoogle-search.git 
-
-# Move the contents from directory whoogle-search to directory whoogle
-mv /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/whoogle-search /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/whoogle
 
 #  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
 #  Install dependencies
@@ -664,7 +638,7 @@ networks:
 docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
 
 # Wait a bit for the stack to deploy
-while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml ]
+while [ ! -f $rootdir/docker/authelia/configuration.yml ]
     do
       sleep 5;
     done
@@ -672,105 +646,188 @@ while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | gr
 echo "
 The stack started successfully..."
 
-# Make a backup of the clean authelia configuration file if needed
-while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak ]
-    do
-      cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml \
-         /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml.bak;
-    done
+##################################################################################################################################
+#  Secure Web Access Gateway (SWAG).  Set this one up first because all the other web services
+#  created later use it and it's configuration files.
+#  Create the docker-compose file
+containername=swag
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
 
-#  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
-sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+rm $ymlname
+touch $ymlname
 
-#  Uncomment/modify the required lines in the /docker/authelia/configuration.yml.bak file
-sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#theme: light/theme: light''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#jwt_secret: a_very_important_secret/jwt_secret: '"$jwts"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#default_redirection_url: https:\/\/home.example.com\/default_redirection_url: https:\/\/"$fqdn"\//''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#server:/server:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  host: 0.0.0.0/  host: 0.0.0.0''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  port: 9091/  port: 9091''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  path: ""/  path: \"authelia\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  read_buffer_size: 4096/  read_buffer_size: 4096''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  write_buffer_size: 4096/  write_buffer_size: 4096''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#log:/log:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  level: debug/  level: debug''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#totp:/totp:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  algorithm: sha1/  algorithm: sha1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  digits: 6/  digits: 6''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  period: 30/  period: 30''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  skew: 1/  skew: 1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#authentication_backend:/authentication_backend:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  disable_reset_password: false/  disable_reset_password: false''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \# file:/  file:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#   path: \/config\/users_database.yml/    path: \/config\/users_database.yml''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#  \#   password:/    password:''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#     algorithm: argon2id/      algorithm: argon2id''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#     iterations: 1/      iterations: 1''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#     key_length: 32/      key_length: 32''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#     salt_length: 16/      salt_length: 16''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#     memory: 1024/      memory: 1024''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#     parallelism: 8/      parallelism: 8''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#access_control:/access_control:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  default_policy: deny/  default_policy: deny''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  rules:/  rules:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#    - domain:/    - domain:''/3' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#        - secure.example.com/      - '"$fqdn"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#        - private.example.com/      - \"*.'"$fqdn"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#      policy: two_factor/      policy: two_factor''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#session:/session:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  name: authelia_session/  name: authelia_session''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  domain: example.com/  domain: '"$fqdn"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  secret: insecure_session_secret/  secret: '"$auths"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  expiration: 1h/  expiration: 12h''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  inactivity: 5m/  inactivity: 1h''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  remember_me_duration: 1M/  remember_me_duration: 1M''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#regulation:/regulation:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  max_retries: 3/  max_retries: 3''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  find_time: 2m/  find_time: 2m''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  ban_time: 5m/  ban_time: 5m''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#storage:/storage:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \# encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/  encryption_key: '"$authec"'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \# local:/  local:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#   path: \/config\/db.sqlite3/    path: \/config\/db.sqlite3''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#notifier:/notifier:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#  disable_startup_check: false/  disable_startup_check: false''/2' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \# filesystem:/  filesystem:''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
-sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/notification.txt''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/configuration.yml
+echo "$ymlhdr
+  swag:
+    image: linuxserver/swag
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - URL=$fqdn
+      #
+      # Use of wildcard domains is no longer possible using http authentication for letsencrypt or zerossl
+      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
+      # 'Client with the currently selected authenticator does not support 
+      # any combination of challenges that will satisfy the CA. 
+      # You may need to use an authenticator plugin that can do challenges over DNS.'
+      #- SUBDOMAINS=wildcard
+      - SUBDOMAINS=$subdomains
+      #
+      # If CERTPROVIDER is left blank, letsencrypt will be used
+      #- CERTPROVIDER=zerossl
+      #
+      #- VALIDATION=duckdns
+      #- DNSPLUGIN=cloudfare #optional
+      #- PROPAGATION= #optional
+      #- DUCKDNSTOKEN=$ducktkn
+      #- EMAIL=$zspwd  # Zerossl password
+      - ONLY_SUBDOMAINS=false #optional
+      #- EXTRA_DOMAINS= #optional
+      - STAGING=false #optional
+    volumes:
+      - $rootdir/docker/swag:/config
+    ports:
+      - 443:443
+      - 80:80 
+      # You must leave port 80 open or you won't be able to get your ssl certificate via http
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
 
-# Yeah, that was exhausting...
-
-echo "
-Cleaning up and restarting the stack...
-"
-
-# You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
-docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-docker system prune
-docker-compose -f docker-compose.yml -p $stackname up -d 
+docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
-while [ -f "$(sudo docker ps | grep $stackname)" ];
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Perform some SWAG hardening:
+#    https://virtualize.link/secure/
+echo "
+#  Additional SWAG hardening - https://virtualize.link/secure/" >> $rootdir/docker/$swagloc/nginx/ssl.conf
+#  No more Google FLoC
+echo "add_header Permissions-Policy \"interest-cohort=()\";" >> $rootdir/docker/$swagloc/nginx/ssl.conf
+#  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
+echo "add_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> $rootdir/docker/$swagloc/nginx/ssl.conf
+#  Enable HTTP Strict Transport Security (HSTS) 
+echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> $rootdir/docker/$swagloc/nginx/ssl.conf
+
+##################################################################################################################################
+#  Authelia setup
+#  Create the docker-compose file
+containername=authelia
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: authelia/authelia:latest #4.32.0
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - $rootdir/docker/authelia:/config
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
  done
  
 # Make sure the stack started properly by checking for the existence of users_database.yml
-while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml ]
+while [ ! -f $rootdir/docker/authelia/users_database.yml ]
     do
       sleep 5
     done
 
 # Make a backup of the clean authelia configuration file if needed
-while [ ! -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak ]
+while [ ! -f $rootdir/docker/authelia/configuration.yml.bak ]
     do
-       cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml \
-          /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml.bak;
+      cp $rootdir/docker/authelia/configuration.yml \
+         $rootdir/docker/authelia/configuration.yml.bak;
     done
 
+#  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
+sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/authelia/configuration.yml
+
+#  Uncomment/modify the required lines in the /docker/authelia/configuration.yml.bak file
+sed -i 's/\#---/---''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#theme: light/theme: light''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#jwt_secret: a_very_important_secret/jwt_secret: '"$jwts"'''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#default_redirection_url: https:\/\/home.example.com\/default_redirection_url: https:\/\/"$fqdn"\//''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#server:/server:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  host: 0.0.0.0/  host: 0.0.0.0''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  port: 9091/  port: 9091''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  path: ""/  path: \"authelia\"''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  read_buffer_size: 4096/  read_buffer_size: 4096''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  write_buffer_size: 4096/  write_buffer_size: 4096''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#log:/log:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  level: debug/  level: debug''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#totp:/totp:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  algorithm: sha1/  algorithm: sha1''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  digits: 6/  digits: 6''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  period: 30/  period: 30''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  skew: 1/  skew: 1''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#authentication_backend:/authentication_backend:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  disable_reset_password: false/  disable_reset_password: false''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \# file:/  file:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#   path: \/config\/users_database.yml/    path: \/config\/users_database.yml''/g' $rootdir/docker/authelia/configuration.yml
+sed -i ':a;N;$!ba;s/\#  \#   password:/    password:''/1' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#     algorithm: argon2id/      algorithm: argon2id''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#     iterations: 1/      iterations: 1''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#     key_length: 32/      key_length: 32''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#     salt_length: 16/      salt_length: 16''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#     memory: 1024/      memory: 1024''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#     parallelism: 8/      parallelism: 8''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#access_control:/access_control:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  default_policy: deny/  default_policy: deny''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  rules:/  rules:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i ':a;N;$!ba;s/\#    - domain:/    - domain:''/3' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#        - secure.example.com/      - '"$fqdn"'''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#        - private.example.com/      - \"*.'"$fqdn"'\"''/g' $rootdir/docker/authelia/configuration.yml
+sed -i ':a;N;$!ba;s/\#      policy: two_factor/      policy: two_factor''/1' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#session:/session:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  name: authelia_session/  name: authelia_session''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  domain: example.com/  domain: '"$fqdn"'''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  secret: insecure_session_secret/  secret: '"$auths"'''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  expiration: 1h/  expiration: 12h''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  inactivity: 5m/  inactivity: 1h''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  remember_me_duration: 1M/  remember_me_duration: 1M''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#regulation:/regulation:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  max_retries: 3/  max_retries: 3''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  find_time: 2m/  find_time: 2m''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  ban_time: 5m/  ban_time: 5m''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#storage:/storage:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \# encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/  encryption_key: '"$authec"'''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \# local:/  local:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#   path: \/config\/db.sqlite3/    path: \/config\/db.sqlite3''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#notifier:/notifier:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i ':a;N;$!ba;s/\#  disable_startup_check: false/  disable_startup_check: false''/2' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \# filesystem:/  filesystem:''/g' $rootdir/docker/authelia/configuration.yml
+sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/notification.txt''/g' $rootdir/docker/authelia/configuration.yml
+
+# Yeah, that was exhausting...
+
 #  Comment out all the lines in the ~/docker/authelia/users_database.yml configuration file
-sed -e 's/^\([^#]\)/#\1/g' -i /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/authelia/users_database.yml
 
 # Generate the hashed password line to be added to users_database.yml.
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authpwd | awk '{print $3}')
@@ -783,52 +840,130 @@ users:
     password: \"$pwdhash\"
     email: authelia@authelia.com
     groups: []
-..." >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+..." >> $rootdir/docker/authelia/users_database.yml
 
-sed -i 's/\#---/---''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/authelia/users_database.yml
+sed -i 's/\#---/---''/g' $rootdir/docker/authelia/users_database.yml
 
 # Mind the $ signs and forward slashes / :(
 
-##################################################################################################################################
-#  Configure the swag proxy-confs files for specific services
+#  Configure the swag proxy-confs files
+# Update the swag nginx default landing page to redirect to Authelia authentication
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $rootdir/docker/$swagloc/nginx/site-confs/default
+sed -i 's/\    location \/ {/#    location \/ {''/g' $rootdir/docker/$swagloc/nginx/site-confs/default
+sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;/#        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;''/g' $rootdir/docker/$swagloc/nginx/site-confs/default
+sed -i ':a;N;$!ba;s/\    }/#    }''/1' $rootdir/docker/$swagloc/nginx/site-confs/default
 
-# Update the swag nginx default landing page to redirect to Authelia authentication and allow heimdall to work
-sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
-sed -i 's/\    location \/ {/#    location \/ {''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
-sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;/#        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
-sed -i ':a;N;$!ba;s/\    }/#    }''/1' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/site-confs/default
+echo "
+Cleaning up and restarting the stack...
+"
+docker-compose -f $ymlname -p $stackname down -d
+docker system prune
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 ##################################################################################################################################
 # Firefox - linuxserver.io
+#  Create the docker-compose file
+containername=firefox
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
 
-#  Prepare the firefox container - copy the calibre.subfolder.conf use it as a template.
-#  Be mindful of the line that says to add 'SUBFOLDER=/firefox/' to your docker compose
-#  file or you will get a an error that says 'Cannot GET /firefox/' displayed when you 
-#  navigate to the specified url (e.g. https://your-fqdn/firefox)
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
+rm $ymlname
+touch $ymlname
 
-sed -i 's/calibre/firefox''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
-sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/firefox.subfolder.conf
+echo "$ymlhdr
+  $containername:  # linuxserver.io firefox browser
+    image: lscr.io/linuxserver/firefox
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
+    volumes:
+      - $rootdir/docker/firefox:/config
+    #ports:
+      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    shm_size: \"1gb\"
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample $destconf
+sed -i 's/calibre/firefox''/g' $destconf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
 # Homer - https://github.com/bastienwirtz/homer
 #         https://github.com/bastienwirtz/homer/blob/main/docs/configuration.md
+#  Create the docker-compose file
+containername=firefox
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
 
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml.bak
+rm $ymlname
+touch $ymlname
 
-sed -i 's/title: \"Demo dashboard\"/title: \"Dashboard - '"$fqdn"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-sed -i 's/  - name: \"another page!\"/\#  - name: \"another page!\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
-sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+echo "$ymlhdr
+  $containername:
+    image: b4bz/homer
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/homer:/www/assets
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Create a backup of the config.yml file if needed
+while [ ! -f $rootdir/docker/homer/config.yml.bak ]
+    do
+      cp $rootdir/docker/homer/config.yml \
+         $rootdir/docker/homer/config.yml.bak;
+    done
+
+sed -i 's/title: \"Demo dashboard\"/title: \"Dashboard - '"$fqdn"'\"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'\"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/  - name: \"another page!\"/\#  - name: \"another page!\"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' $rootdir/docker/homer/config.yml
 
 # Throw everything over line 73
-sed -i '73,$ d' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+sed -i '73,$ d' $rootdir/docker/homer/config.yml
 
 #  Add the links to other services installed above
 echo "    items:
@@ -885,48 +1020,128 @@ echo "    items:
         type: \"PiHole\" # optional, loads a specific component that provides extra features. MUST MATCH a file name (without file extension) available in \"src/components/services\"
         target: \"_blank\" # optional html a tag target attribute
         # class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
-        # background: red # optional color for card to set color directly without custom stylesheet" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/homer/config.yml
+        # background: red # optional color for card to set color directly without custom stylesheet" >> $rootdir/docker/homer/config.yml
+
+#  Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+
+sed -i 's/syncthing/'$containername'''/g' $destconf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
+
+sed -i '3 i  
+' $destconf
+sed -i '4 i location / {' $destconf
+sed -i '5 i    return 301 $scheme://$host/homer/;' $destconf
+sed -i '6 i }' $destconf
+sed -i '7 i 
+' $destconf
 
 ##################################################################################################################################
 #  libretranslate - will not run on a subfolder!
+#  Create the docker-compose file
+containername=translate
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: libretranslate/libretranslate
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    #build: .
+#    Don't expose external ports to prevent access outside swag
+#    ports:
+#      - 5000:5000
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+    ## Uncomment below command and define your args if necessary
+    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
+    command: --ssl
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
-sed -i 's/syncthing/translate''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-sed -i 's/    server_name syncthing./    server_name '$ltsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/translate.subdomain.conf
-
-##################################################################################################################################
-#  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
-
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-
-sed -i 's/syncthing/homer''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-
-sed -i '3 i  
-' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-sed -i '4 i location / {' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-sed -i '5 i    return 301 $scheme://$host/homer/;' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-sed -i '6 i }' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
-sed -i '7 i 
-' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/homer.subfolder.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/translate''/g' $destconf
+sed -i 's/    server_name syncthing./    server_name '$ltsubdomain'.''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
 ##################################################################################################################################
 # Neko firefox browser
+#  Create the docker-compose file
+containername=neko
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:  # Neko firefox browser
+    image: m1k1o/neko:firefox
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52000-52100:52000-52100/udp
+    environment:
+      NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52000-52100
+      NEKO_ICELITE: 1
+#    volumes:
+#       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
+#       - $rootdir/docker/neko/firefox/home/neko:/home/neko
+    dns:
+#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
+#  If you are running pihole in a docker container, point neko to the pihole
+#  docker container ip address.  Probably best to set a static ip address for 
+#  the pihole in the configuration so that it will never change.
+       - 172.20.10.10
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
-sed -i 's/syncthing/neko''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/neko.subfolder.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/neko''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
 
 #  Unlock neko policies in /usr/lib/firefox/distribution/policies.json
 #docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
@@ -979,29 +1194,116 @@ EOF
 
 ##################################################################################################################################
 # Neko Tor browser
+#  Create the docker-compose file
+containername=tor
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:  # Neko tor browser
+    image: m1k1o/neko:tor-browser
+    shm_size: \"2gb\"
+    ports:
+      #- 8080:8080
+      - 52200-52300:52200-52300/udp
+    environment:
+      NEKO_SCREEN: 1440x900@60
+      NEKO_PASSWORD: $nupass
+      NEKO_PASSWORD_ADMIN: $napass
+      NEKO_EPR: 52200-52300
+      NEKO_ICELITE: 1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
-sed -i 's/syncthing/tor''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/tor.subfolder.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/tor''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
 
 ##################################################################################################################################
 # Pihole
+#  Create the docker-compose file
+containername=pihole
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+mkdir docker/$containername/etc-pihole;
+mkdir docker/$containername/etc-dnsmasq.d;
 
-#  Prepare the pihole container
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
+rm $ymlname
+touch $ymlname
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf
+echo "$ymlhdr
+  $containername:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
+           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+    image: pihole/pihole:latest
+    ports:
+      - 53:53/udp
+      - 53:53/tcp
+      - 67:67/tcp
+      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - WEBPASSWORD=$pipass
+      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
+    volumes:
+       - $rootdir/docker/$containername/etc-pihole:/etc/pihole
+       - $rootdir/docker/$containername/etc-dnsmasq.d:/etc/dnsmasq.d
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      #- no-internet  #  I think this one not needed...
+      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
+      internet:
+          ipv4_address: 172.20.10.10 
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Prepare the pihole proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample $destconf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 
 # Ensure ownership of the 'etc-pihole' folder is set properly.
-chown systemd-coredump:systemd-coredump /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihole
 #  This below step may not be needed.  Need to deploy to a server and check
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
-#chmod 777 /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole
+#chmod 777 $rootdir/docker/pihole/etc-pihole
 
 #  Route all traffic including localhost traffci through the pihole
 #  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
@@ -1009,66 +1311,302 @@ sed -i 's/nameserver 8.8.8.8/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '
 
 ##################################################################################################################################
 #  rss-proxy - will not run on a subfolder!
+#  Create the docker-compose file
+containername=rssproxy
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: damoeb/rss-proxy:js
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+#    volumes:
+#      - $rootdir/docker/$containername:/opt/rss-proxy
+#    ports:
+#      - 3000:3000
+    networks:
+      - internet
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
-sed -i 's/syncthing/rssproxy''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-sed -i 's/    server_name syncthing./    server_name '$rpsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/rssproxy.subdomain.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/rssproxy''/g' $destconf
+sed -i 's/    server_name syncthing./    server_name '$rpsubdomain'.''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
 # Syncthing
+#  Create the docker-compose file
+containername=syncthing
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: lscr.io/linuxserver/syncthing
+    #container_name: syncthing # Depricated
+    hostname: syncthing # Optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - $rootdir/docker/syncthing:/config
+      - $rootdir/docker:/config/Sync
+    ports:
+      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  Prepare the syncthing proxy-conf file
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 
 #  Add a cron job to reset the permissions of the pihole directory if any changes are made - checks once per minute
 #  Don't put ' around the commmand!  And, it must be run as root!
-(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/pihole/etc-pihole") | crontab -
+(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R $rootdir/docker/pihole/etc-pihole") | crontab -
 
 #  When you set up the syncs for pihole, ensure you check 'Ignore Permissions' under the 'Advanced' tab during folder setup.
 
 ##################################################################################################################################
-#  Wireguard gui - will not run on a subfolder!
-
-#  Prepare the wireguard gui (wgui) proxy-conf file using syncthing.subdomain.conf.sample as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-sed -i 's/syncthing/wgui''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-sed -i 's/    server_name syncthing./    server_name '$wgsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/wgui.subdomain.conf
-
-##################################################################################################################################
 #  Whoogle
+#  Create the docker-compose file
+containername=wwhoogle
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+#  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
+#  Install dependencies
+apt-get install -y -qq libcurl4-openssl-dev libssl-dev 
+git clone https://github.com/benbusby/whoogle-search.git 
+
+# Move the contents from directory whoogle-search to directory whoogle
+mv $rootdir/whoogle-search $rootdir/docker/whoogle
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: benbusby/whoogle-search
+    pids_limit: 50
+    mem_limit: 256mb
+    memswap_limit: 256mb
+    # user debian-tor from tor package
+#    user: '102'
+    security_opt:
+      - no-new-privileges
+    cap_drop:
+      - ALL
+#    tmpfs:
+#      - /config/:size=10M,uid=102,gid=102,mode=1700
+#      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
+#      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
+    environment: # Uncomment to configure environment variables
+      - PUID=1000
+      - PGID=1000
+      # Basic auth configuration, uncomment to enable
+      #- WHOOGLE_USER=<auth username>
+      #- WHOOGLE_PASS=<auth password>
+      # Proxy configuration, uncomment to enable
+      #- WHOOGLE_PROXY_USER=<proxy username>
+      #- WHOOGLE_PROXY_PASS=<proxy password>
+      #- WHOOGLE_PROXY_TYPE=<proxy type (http|https|socks4|socks5)
+      #- WHOOGLE_PROXY_LOC=<proxy host/ip>
+      #  See the subfolder /static/settings folder for .json files with options on country and language
+      - WHOOGLE_CONFIG_COUNTRY=US
+      - WHOOGLE_CONFIG_LANGUAGE=lang_en
+      - WHOOGLE_CONFIG_SEARCH_LANGUAGE=lang_en
+      - EXPOSE_PORT=5000
+      # Site alternative configurations, uncomment to enable
+      # Note: If not set, the feature will still be available
+      # with default values.
+      - WHOOGLE_ALT_TW=farside.link/nitter
+      - WHOOGLE_ALT_YT=farside.link/invidious
+      - WHOOGLE_ALT_IG=farside.link/bibliogram/u
+      - WHOOGLE_ALT_RD=farside.link/libreddit
+      - WHOOGLE_ALT_MD=farside.link/scribe
+      - WHOOGLE_ALT_TL=lingva.ml
+    #env_file: # Alternatively, load variables from whoogle.env
+      #- whoogle.env
+    #ports:
+      #- 5000:5000
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample \
+   $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/syncthing/whoogle''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/syncthing/whoogle''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
 
 ##################################################################################################################################
-#  Perform some SWAG hardening:
-#    https://virtualize.link/secure/
+#  Wireguard
+#  Create the docker-compose file
+containername=wireguard
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+mkdir docker/$containername/config;
+mkdir docker/$containername/modules;
 
-echo "
-#  Additional SWAG hardening - https://virtualize.link/secure/" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
-#  No more Google FLoC
-echo "add_header Permissions-Policy \"interest-cohort=()\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
-#  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
-echo "add_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
-#  Enable HTTP Strict Transport Security (HSTS) 
-echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/ssl.conf
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: ghcr.io/linuxserver/wireguard
+    #container_name: wireguard # Depricated
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - SERVERURL=$fqdn
+      - SERVERPORT=50220
+      - PEERS=3
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.18.18.0
+      - ALLOWEDIPS=0.0.0.0/0
+    volumes:
+      - $rootdir/docker/wireguard/config:/config
+      - $rootdir/docker/wireguard/modules:/lib/modules
+    ports:
+      - 50220:50220/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+##################################################################################################################################
+#  Wireguard gui - will not run on a subfolder!
+containername=wgui
+ymlname=$rootdir/$containername-compose.yml
+mkdir docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: ghcr.io/linuxserver/wireguard
+    #container_name: wireguard # Depricated
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - SERVERURL=$fqdn
+      - SERVERPORT=50220
+      - PEERS=3
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.18.18.0
+      - ALLOWEDIPS=0.0.0.0/0
+    volumes:
+      - $rootdir/docker/wireguard/config:/config
+      - $rootdir/docker/wireguard/modules:/lib/modules
+    ports:
+      - 50220:50220/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Prepare the wireguard gui (wgui) proxy-conf file using syncthing.subdomain.conf.sample as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/wgui''/g' $destconf
+sed -i 's/    server_name syncthing./    server_name '$wgsubdomain'.''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
+
 
 ##################################################################################################################################
 #  Seal a recently (Jan-2022) revealead vulnerabilty - https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
@@ -1090,25 +1628,25 @@ docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 ##################################################################################################################################
 #  Store non-persistent variables in .bashrc for later use across reboots
 echo "
-" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export authusr=$authusr" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export authpwd=$authpwd" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export rootdir=$rootdir" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export stackname=$stackname" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export swagloc=$swagloc" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export fqdn=$fqdn" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export nupass=$nupass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export napass=$napass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export pipass=$pipass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export wguid=$wguid" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export wgpass=$wgpass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export jwebsubdomain=$jwebsubdomain" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export wltsubdomain=$ltsubdomain" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export rpsubdomain=$rpsubdomain" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
-echo "export sspass=$sspass" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+" >> $rootdir/.bashrc
+echo "export authusr=$authusr" >> $rootdir/.bashrc
+echo "export authpwd=$authpwd" >> $rootdir/.bashrc
+echo "export rootdir=$rootdir" >> $rootdir/.bashrc
+echo "export stackname=$stackname" >> $rootdir/.bashrc
+echo "export swagloc=$swagloc" >> $rootdir/.bashrc
+echo "export fqdn=$fqdn" >> $rootdir/.bashrc
+echo "export nupass=$nupass" >> $rootdir/.bashrc
+echo "export napass=$napass" >> $rootdir/.bashrc
+echo "export pipass=$pipass" >> $rootdir/.bashrc
+echo "export wguid=$wguid" >> $rootdir/.bashrc
+echo "export wgpass=$wgpass" >> $rootdir/.bashrc
+echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
+echo "export wltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
+echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
+echo "export sspass=$sspass" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
-source /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/.bashrc
+source $rootdir/.bashrc
 
 echo "
 Keeps these in a safe place for future reference:
@@ -1162,79 +1700,79 @@ jcontdir=jitsi-meet
 jwebsubdomain=
 swagloc=swag
 
-echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
-echo /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir
+echo $rootdir/$extractdir
+echo $rootdir/docker/$jcontdir
 
 rm stable-6826.tar.gz
-rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir
-rm -r /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir
+rm -r $rootdir/$extractdir
+rm -r $rootdir/docker/$jcontdir
 
 wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
 tar -xzsf $jitsilatest.tar.gz
 
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/env.example /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+cp $rootdir/$extractdir/env.example $rootdir/$extractdir/.env
 
-/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/gen-passwords.sh
+$rootdir/$extractdir/gen-passwords.sh
 
-mkdir -p /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+mkdir -p $rootdir/docker/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 
-mypath="/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"
+mypath="$rootdir"
 mypath=${mypath//\//\\/}
 
-sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' $rootdir/$extractdir/.env
 
-sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$jwebsubdomain'.'$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' $rootdir/$extractdir/.env
+sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' $rootdir/$extractdir/.env
 
 #  If having any issues with nginx not picking up the letsencrypt certificate see:
 #  https://github.com/jitsi/docker-jitsi-meet/issues/92
-sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$jwebsubdomain'.'$fqdn'/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' $rootdir/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' $rootdir/$extractdir/.env
 
 # Use the staging server (for avoiding rate limits while testing)
 #LETSENCRYPT_USE_STAGING=1
 
-sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#ENABLE_GUESTS=1/ENABLE_GUESTS=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_GUESTS=1/ENABLE_GUESTS=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' $rootdir/$extractdir/.env
 
 # Enabling these will stop swag from picking up the container on port 80
-#sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-#sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+#sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' $rootdir/$extractdir/.env
+#sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' $rootdir/$extractdir/.env
 
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
-sed -i 's///g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
 
 # https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
 # Solution below:
 echo "
 
 # Added based on this - https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
-ENABLE_XMPP_WEBSOCKET=0" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/.env
+ENABLE_XMPP_WEBSOCKET=0" >> $rootdir/$extractdir/.env
 
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml.bak
+cp $rootdir/$extractdir/docker-compose.yml $rootdir/$extractdir/docker-compose.yml.bak
 
 # Rename the web gui docker container
-sed -i 's/    web:/    jitsiweb:/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+sed -i 's/    web:/    jitsiweb:/g' $rootdir/$extractdir/docker-compose.yml
 
 # Prevent guests from creating rooms or joining until a moderator has joined
-sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' $rootdir/$extractdir/docker-compose.yml
 
 # Add the required netowrks for compatability with other containers
-sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
-sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' $rootdir/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' $rootdir/$extractdir/docker-compose.yml
 echo "networks:
     no-internet:
       driver: bridge
@@ -1248,23 +1786,23 @@ echo "networks:
             gateway: 172.20.10.1
     meet.jitsi:
       driver: bridge
-      internal: true" >> /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+      internal: true" >> $rootdir/$extractdir/docker-compose.yml
 
 #  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
-sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' $rootdir/$extractdir/docker-compose.yml
 
 #  Prepare the jitsi-meet proxy-conf file using syncthing.subdomain.conf as a template
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
+   $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 
 # If you enable authelia, users will need additional credentials to log on, so, maybe don't do that :)
-#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/syncthing/jitsiweb''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/syncthing/jitsiweb''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 
 #  Up the docker containers
-docker-compose -f /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/$extractdir/docker-compose.yml -p $stackname up -d 
+docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d 
 
 # Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
 docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
@@ -1415,17 +1953,17 @@ networks:
 
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
-docker run -it --rm -v /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
 docker exec -it synapse register_new_matrix_user -u myuser -p mypw -a -c /data/homeserver.yaml
 
 #  https://github.com/matrix-org/synapse/issues/6783
 docker exec -it $(sudo docker ps | grep synapse | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u myuser -p mypw -a -c /data/homeserver.yaml
 sudo docker ps | grep synapse | awk '{ print$NF }'
 
-cp /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample \
-   /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample \
+   $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
 
-sed -i 's/matrix/'$sysubdomain'''/g' /home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+sed -i 's/matrix/'$sysubdomain'''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
 
 
 
@@ -1459,7 +1997,11 @@ sed -i 's/matrix/'$sysubdomain'''/g' /home/$(who | awk '{print $1}' | awk -v RS=
 
 
 
-
+# You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
+docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+docker system prune
+docker-compose -f docker-compose.yml -p $stackname up -d 
 
 
 
