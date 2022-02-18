@@ -1349,6 +1349,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 #  Create the docker-compose file
 containername=wireguard
 ymlname=$rootdir/$containername-compose.yml
+wgport=50220
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/config;
 mkdir -p $rootdir/docker/$containername/modules;
@@ -1368,7 +1369,7 @@ echo "$ymlhdr
       - PGID=1000
       - TZ=UTC
       - SERVERURL=$fqdn
-      - SERVERPORT=50220
+      - SERVERPORT=$wgport
       - PEERS=3
       - PEERDNS=auto
       - INTERNAL_SUBNET=10.18.18.0
@@ -1619,6 +1620,7 @@ Neko admin password:                $napass
 Pihole admin password:              $pipass
 Wireguard userid:                   $wguid
 Wireguard password:                 $wgpass
+Wireguasrd port:                    $wgport
 Jitsi-meet web:                     $jwebsubdomain.$fqdn
 Libretranslate:                     $ltsubdomain.$fqdn
 RSS-Proxy:                          $rpsubdomain.$fqdn
