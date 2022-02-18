@@ -163,10 +163,10 @@ done
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir -p docker/$containername;
 
-#rm $ymlname
-#touch $ymlname
+rm -f $ymlname
+touch $ymlname
 
 echo "$ymlhdr
   swag:
@@ -212,7 +212,7 @@ echo "$ymlhdr
        condition: on-failure
 $ymlftr" >> $ymlname
 
-#docker-compose -f $ymlname -p $stackname up -d
+docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -271,9 +271,9 @@ authec=$(openssl rand -hex 25)   # Authelia encryption key
 swagyml=$ymlname
 containername=authelia
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -455,14 +455,16 @@ tar -xzsf v0.1.0.tar.gz
 #  such as if you want to create your own federated list of servers to choose from
 #  in a less trusted model (e.g. yourserver.1, yourserver.2, yourserver.3...) ;)
 
+rm -f v0.1.0.tar.gz
+
 ##################################################################################################################################
 # Firefox - linuxserver.io
 #  Create the docker-compose file
 containername=firefox
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -507,9 +509,9 @@ sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' $destco
 #  Create the docker-compose file
 containername=homer
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir -p docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -700,13 +702,6 @@ sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' $rootdir/$extractdir/.env
 #sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' $rootdir/$extractdir/.env
 #sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' $rootdir/$extractdir/.env
 
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-
 # https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
 # Solution below:
 echo "
@@ -758,9 +753,9 @@ EOF
 #  Create the docker-compose file
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -828,9 +823,9 @@ done
 
 containername=neko
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -936,9 +931,9 @@ EOF
 #  Create the docker-compose file
 containername=tor
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -983,9 +978,9 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 #  Create the docker-compose file
 containername=rssproxy
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1017,12 +1012,13 @@ do
 done
 
 #  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
-destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
-sed -i 's/syncthing/rssproxy''/g' $destconf
-sed -i 's/    server_name syncthing./    server_name '$rpsubdomain'.''/g' $destconf
+#  Don't capture with Authelia or you won't be able to get your RSS feeds
+#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$rpsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
@@ -1041,9 +1037,9 @@ done
 #  Create the docker-compose file
 containername=shadowsocks
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1078,9 +1074,9 @@ done
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1156,9 +1152,9 @@ sed -i 's/matrix/'$sysubdomain'''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/
 #  Create the docker-compose file
 containername=syncthing
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1211,7 +1207,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Create the docker-compose file
 containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername;
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
@@ -1221,7 +1217,7 @@ git clone https://github.com/benbusby/whoogle-search.git
 # Move the contents from directory whoogle-search to directory whoogle
 mv $rootdir/whoogle-search $rootdir/docker/$containername
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1298,11 +1294,11 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 #  Create the docker-compose file
 containername=wireguard
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
-mkdir $rootdir/docker/$containername/config;
-mkdir $rootdir/docker/$containername/modules;
+mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername/config;
+mkdir -p $rootdir/docker/$containername/modules;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1370,11 +1366,11 @@ done
 
 containername=wgui
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
-mkdir $rootdir/docker/$containername/app;
-mkdir $rootdir/docker/$containername/etc;
+mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername/app;
+mkdir -p $rootdir/docker/$containername/etc;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1415,12 +1411,12 @@ do
 done
 
 #  Prepare the wireguard gui (wgui) proxy-conf file using syncthing.subdomain.conf.sample as a template
-destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
-sed -i 's/syncthing/wgui''/g' $destconf
-sed -i 's/    server_name syncthing./    server_name '$wgsubdomain'.''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$wgsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
 ##################################################################################################################################
@@ -1449,11 +1445,11 @@ done
 #  Create the docker-compose file
 containername=pihole
 ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
-mkdir $rootdir/docker/$containername/etc-pihole;
-mkdir $rootdir/docker/$containername/etc-dnsmasq.d;
+mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername/etc-pihole;
+mkdir -p $rootdir/docker/$containername/etc-dnsmasq.d;
 
-rm $ymlname
+rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
@@ -1553,9 +1549,9 @@ echo "export sspass=$sspass" >> $rootdir/.bashrc
 source $rootdir/.bashrc
 
 echo "
-Keeps these in a safe place for future reference:
+Keep these in a safe place for future reference:
 
-===============================================================================
+==========================================================================================================
 Fully qualified domain name (FQDN): $fqdn
 Subdomains:                         $subdomains
 Authelia userid:                    $authusr
@@ -1572,7 +1568,7 @@ Shadowsocks password:               $sspass
 Synapse (Matrix Server):
 E-Mail Server:
 User directory root:                $usrdirroot
-===============================================================================
+==========================================================================================================
 
 Now you may want to restart the box.  Either way navigate to your fqdn:
 
@@ -1589,5 +1585,4 @@ authentication url using these commands:
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
 ##################################################################################################################################
-
 
