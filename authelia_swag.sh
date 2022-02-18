@@ -23,6 +23,8 @@ fi
 stackname=authelia_swag  # Docker stack name
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+#  External IP address
+$myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
 services:"
@@ -1476,6 +1478,12 @@ sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$wgsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
+dest=$rootdir/docker/$containername/app/server
+#  Make a few alterations to the core config files
+sed -i 's/\"1.1.1.1\"/\"'$myip'\"/g' $dest/global_settings.json
+sed -i 's/\"mtu\": \"1450\"/\"mtu\": \"1500\"/g' $dest/global_settings.json
+sed -i 's/\"listen_port\": \"51820\"/\"listen_port\": \"'$wgport'\"/g' $dest/interfaces.json
+
 ##################################################################################################################################
 # Pihole - do this last or it may interrupt you installs due to blacklisting
 
@@ -1566,7 +1574,7 @@ chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihol
 
 #  Route all traffic including localhost traffic through the pihole
 #  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
-sed -i 's/nameserver 9.9.9.9/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)'/g' /etc/resolv.conf
+sed -i 's/nameserver 9.9.9.9/nameserver '$myip'/g' /etc/resolv.conf
 
 ##################################################################################################################################
 #  Seal a recently (Jan-2022) revealead vulnerabilty
