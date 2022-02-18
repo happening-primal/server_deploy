@@ -165,8 +165,8 @@ containername=swag
 ymlname=$rootdir/$containername-compose.yml
 mkdir docker/$containername;
 
-rm $ymlname
-touch $ymlname
+#rm $ymlname
+#touch $ymlname
 
 echo "$ymlhdr
   swag:
@@ -212,7 +212,7 @@ echo "$ymlhdr
        condition: on-failure
 $ymlftr" >> $ymlname
 
-docker-compose -f $ymlname -p $stackname up -d
+#docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -268,6 +268,7 @@ auths=$(openssl rand -hex 25)    # Authelia secret
 authec=$(openssl rand -hex 25)   # Authelia encryption key
 
 #  Create the docker-compose file
+swagyml=$ymlname
 containername=authelia
 ymlname=$rootdir/$containername-compose.yml
 mkdir $rootdir/docker/$containername;
@@ -297,29 +298,12 @@ do
  sleep 5
  done
 
-#  Restart Authelia so that it will generate the users_database.yml file
-docker-compose -f $ymlname -p $stackname down
-docker-compose -f $ymlname -p $stackname up -d
-
-#  First wait until the stack is first initialized...
-while [ -f "$(sudo docker ps | grep $containername)" ];
-do
- sleep 5
- done
-
-
 # Make sure the stack started properly by checking for the existence of users_database.yml
-while [ ! -f $rootdir/docker/$containername/users_database.yml ]
+while [ ! -f $rootdir/docker/$containername/configuration.yml ]
     do
       sleep 5
     done
 
-# Make a backup of the clean authelia configuration file if needed
-while [ ! -f $rootdir/docker/$containername/configuration.yml.bak ]
-    do
-      cp $rootdir/docker/$containername/configuration.yml \
-         $rootdir/docker/$containername/configuration.yml.bak;
-    done
 
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/configuration.yml
@@ -381,6 +365,29 @@ sed -i 's/\#  \# filesystem:/  filesystem:''/g' $rootdir/docker/$containername/c
 sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/notification.txt''/g' $rootdir/docker/$containername/configuration.yml
 # Yeah, that was exhausting...
 
+#  Restart Authelia so that it will generate the users_database.yml file
+docker-compose -f $ymlname -p $stackname down
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+ done
+
+# Make sure the stack started properly by checking for the existence of users_database.yml
+while [ ! -f $rootdir/docker/$containername/users_database.yml ]
+    do
+      sleep 5
+    done
+
+# Make a backup of the clean authelia configuration file if needed
+while [ ! -f $rootdir/docker/$containername/users_database.yml.bak ]
+    do
+      cp $rootdir/docker/$containername/users_database.yml \
+         $rootdir/docker/$containername/users_database.yml.bak;
+    done
+
 #  Comment out all the lines in the ~/docker/authelia/users_database.yml configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/users_database.yml
 
@@ -409,8 +416,8 @@ sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' $rootdir/docker/$swagloc/nginx/site-confs/default
 
 #  Restart the stack to get the configuration changes committed
-docker-compose -f $ymlname -p $stackname down
-docker-compose -f $ymlname -p $stackname up -d
+#docker-compose -f $ymlname -p $stackname down
+#docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -426,12 +433,12 @@ done
 #  wget https://download.redis.io/releases/redis-6.2.6.tar.gz
 #  Unpack the tarball
 #  tar -xzsf redis-6.2.6.tar.gz
-#  Install redis server
-apt install -y -qq redis-server
 #  Install elixer - https://elixir-lang.org/install.html
 wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
 rm erlang-solutions_2.0_all.deb
 apt-get -qq update
+#  Install redis server
+apt install -y -qq redis-server
 apt-get install -y -qq esl-erlang
 apt-get install -y -qq elixir
 #  Download farside
@@ -973,6 +980,16 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 ##################################################################################################################################
 # Pihole
 
+#  Needed if you are going to run pihole
+#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
+sudo systemctl stop systemd-resolved.service
+sudo systemctl disable systemd-resolved.service
+sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
+#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
+#  sudo apt-get install net-tools
+#  sudo netstat -tulpn | grep ":53 " - port 53
+
 while true; do
   read -rp "
 Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
@@ -1046,16 +1063,6 @@ chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihol
 #  This below step may not be needed.  Need to deploy to a server and check
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
 #chmod 777 $rootdir/docker/pihole/etc-pihole
-
-#  Needed if you are going to run pihole
-#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
-sudo systemctl stop systemd-resolved.service
-sudo systemctl disable systemd-resolved.service
-sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
-#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
-#  sudo apt-get install net-tools
-#  sudo netstat -tulpn | grep ":53 " - port 53
 
 #  Route all traffic including localhost traffic through the pihole
 #  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
@@ -1588,8 +1595,8 @@ authentication url using these commands:
 
 # You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-docker system prune
-docker-compose -f docker-compose.yml -p $stackname up -d
+#docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+#docker system prune
+#docker-compose -f docker-compose.yml -p $stackname up -d
 
 
