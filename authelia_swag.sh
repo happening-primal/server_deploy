@@ -129,8 +129,6 @@ How many random subdomains would you like to generate?: " rnddomain
   break
 done
 
-rnddomain=rnddomain+5 # Add a few extras just in case the user doesn't know what the right answer is :)
-
 # Domain and DNS setup section
 i=0
 while [ $i -ne $rnddomain ]
