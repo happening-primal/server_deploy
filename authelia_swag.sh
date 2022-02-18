@@ -7,6 +7,13 @@
 #  4.  Shadowsocks
 #  5.  ShadowVPN
 #  For these VPN options, see the following - https://github.com/vimagick/dockerfiles
+#https://hub.docker.com/r/hwdsl2/ipsec-vpn-server
+#https://hub.docker.com/r/adrum/wireguard-ui
+#https://github.com/EmbarkStudios/wg-ui
+#https://hub.docker.com/r/dockage/shadowsocks-server
+#openvpn
+#ptpp
+#onionshare
 
 echo "
  - Run this script as superuser.
@@ -24,7 +31,9 @@ stackname=authelia_swag  # Docker stack name
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
 #  External IP address
-$myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+#  Wireguard port
+wgport=50220
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
 services:"
@@ -463,7 +472,7 @@ elixir --erl "-detached" -S mix run --no-halt
 cd $rootdir
 rm -f v0.1.0.tar.gz
 
-#  Enable swag capture
+#  Enable swag capture of farside
 #  Prepare the farside proxy-conf file using using syncthing.subdomain.conf.sample as a template
 containername=farside
 
@@ -474,7 +483,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/ngi
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'''/g' $destconf
 #  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
-sed -i 's/        set $upstream_app farside;/        set $upstream_app '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)';''/g' $destconf
+sed -i 's/        set $upstream_app farside;/        set $upstream_app '$myip';''/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$fssubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destconf
 
@@ -520,6 +529,7 @@ done
 #  Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample $destconf
+
 sed -i 's/calibre/firefox''/g' $destconf
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' $destconf
@@ -573,7 +583,7 @@ while [ ! -f $rootdir/docker/homer/config.yml.bak ]
     done
 
 sed -i 's/title: \"Demo dashboard\"/title: \"Dashboard - '"$fqdn"'\"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)"'\"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$myip"'\"''/g' $rootdir/docker/homer/config.yml
 sed -i 's/  - name: \"another page!\"/\#  - name: \"another page!\"''/g' $rootdir/docker/homer/config.yml
 sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' $rootdir/docker/homer/config.yml
 sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' $rootdir/docker/homer/config.yml
@@ -670,10 +680,14 @@ jitsilatest=stable-6826
 extractdir=docker-jitsi-meet-$jitsilatest
 jcontdir=jitsi-meet
 containername=jitsi-meet
+jmoduser=userid
+jmodpass=password
 
 rm stable-6826.tar.gz
 rm -r $rootdir/$extractdir
 rm -r $rootdir/docker/$containername
+
+mkdir -p $rootdir/docker/$containername/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 
 wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
 
@@ -688,8 +702,6 @@ while [ ! -f $rootdir/$extractdir/.env ]
     done
 
 $rootdir/$extractdir/gen-passwords.sh
-
-mkdir -p $rootdir/docker/$containername/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 
 mypath="$rootdir"
 mypath=${mypath//\//\\/}
@@ -763,8 +775,6 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/
 docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d
 
 # Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
-jmoduser=userid
-jmodpass=password
 docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
 prosodyctl --config /config/prosody.cfg.lua register $jmoduser meet.jitsi $jmodpass
 EOF
@@ -1072,8 +1082,8 @@ echo "$ymlhdr
       - 58211:8388/udp
     environment:
       - METHOD=aes-256-gcm
-      - PASSWORD=password
-      - DNS_ADDRS=1.1.1.1,9.9.9.9
+      - PASSWORD=$sspass  #  Comma delimited
+      - DNS_ADDRS=$myip
     networks:
       - no-internet
       - internet
@@ -1093,7 +1103,6 @@ done
 ##################################################################################################################################
 #  Synapse matrix server
 #  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
-
 
 while true; do
   read -rp "
@@ -1173,14 +1182,6 @@ echo "$ymlhdr
     networks:
       no-internet:
 $ymlftr" >> $ymlname
-
-#https://hub.docker.com/r/hwdsl2/ipsec-vpn-server
-#https://hub.docker.com/r/adrum/wireguard-ui
-#https://github.com/EmbarkStudios/wg-ui
-#https://hub.docker.com/r/dockage/shadowsocks-server
-#openvpn
-#ptpp
-#onionshare
 
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
@@ -1351,7 +1352,6 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 #  Create the docker-compose file
 containername=wireguard
 ymlname=$rootdir/$containername-compose.yml
-wgport=50220
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/config;
 mkdir -p $rootdir/docker/$containername/modules;
@@ -1532,13 +1532,13 @@ echo "$ymlhdr
       - PGID=1000
       - TZ=Europe/London
       - WEBPASSWORD=$pipass
-      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+      - SERVERIP=$myip
     volumes:
        - $rootdir/docker/$containername/etc-pihole:/etc/pihole
        - $rootdir/docker/$containername/etc-dnsmasq.d:/etc/dnsmasq.d
     dns:
       - 127.0.0.1
-      - 1.1.1.1
+      - 9.9.9.9
     cap_add:
       - NET_ADMIN
     networks:
