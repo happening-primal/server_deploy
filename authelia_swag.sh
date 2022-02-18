@@ -294,81 +294,80 @@ do
  done
  
 # Make sure the stack started properly by checking for the existence of users_database.yml
-while [ ! -f $rootdir/docker/authelia/users_database.yml ]
+while [ ! -f $rootdir/docker/$containername/users_database.yml ]
     do
       sleep 5
     done
 
 # Make a backup of the clean authelia configuration file if needed
-while [ ! -f $rootdir/docker/authelia/configuration.yml.bak ]
+while [ ! -f $rootdir/docker/$containername/configuration.yml.bak ]
     do
-      cp $rootdir/docker/authelia/configuration.yml \
-         $rootdir/docker/authelia/configuration.yml.bak;
+      cp $rootdir/docker/$containername/configuration.yml \
+         $rootdir/docker/$containername/configuration.yml.bak;
     done
-
+    
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
-sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/authelia/configuration.yml
+sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/configuration.yml
 
 #  Uncomment/modify the required lines in the /docker/authelia/configuration.yml.bak file
-sed -i 's/\#---/---''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#theme: light/theme: light''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#jwt_secret: a_very_important_secret/jwt_secret: '"$jwts"'''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#default_redirection_url: https:\/\/home.example.com\/default_redirection_url: https:\/\/"$fqdn"\//''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#server:/server:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  host: 0.0.0.0/  host: 0.0.0.0''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  port: 9091/  port: 9091''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  path: ""/  path: \"authelia\"''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  read_buffer_size: 4096/  read_buffer_size: 4096''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  write_buffer_size: 4096/  write_buffer_size: 4096''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#log:/log:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  level: debug/  level: debug''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#totp:/totp:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  algorithm: sha1/  algorithm: sha1''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  digits: 6/  digits: 6''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  period: 30/  period: 30''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  skew: 1/  skew: 1''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#authentication_backend:/authentication_backend:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  disable_reset_password: false/  disable_reset_password: false''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \# file:/  file:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#   path: \/config\/users_database.yml/    path: \/config\/users_database.yml''/g' $rootdir/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#  \#   password:/    password:''/1' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#     algorithm: argon2id/      algorithm: argon2id''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#     iterations: 1/      iterations: 1''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#     key_length: 32/      key_length: 32''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#     salt_length: 16/      salt_length: 16''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#     memory: 1024/      memory: 1024''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#     parallelism: 8/      parallelism: 8''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#access_control:/access_control:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  default_policy: deny/  default_policy: deny''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  rules:/  rules:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#    - domain:/    - domain:''/3' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#        - secure.example.com/      - '"$fqdn"'''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#        - private.example.com/      - \"*.'"$fqdn"'\"''/g' $rootdir/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#      policy: two_factor/      policy: two_factor''/1' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#session:/session:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  name: authelia_session/  name: authelia_session''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  domain: example.com/  domain: '"$fqdn"'''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  secret: insecure_session_secret/  secret: '"$auths"'''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  expiration: 1h/  expiration: 12h''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  inactivity: 5m/  inactivity: 1h''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  remember_me_duration: 1M/  remember_me_duration: 1M''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#regulation:/regulation:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  max_retries: 3/  max_retries: 3''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  find_time: 2m/  find_time: 2m''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  ban_time: 5m/  ban_time: 5m''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#storage:/storage:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \# encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/  encryption_key: '"$authec"'''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \# local:/  local:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#   path: \/config\/db.sqlite3/    path: \/config\/db.sqlite3''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#notifier:/notifier:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i ':a;N;$!ba;s/\#  disable_startup_check: false/  disable_startup_check: false''/2' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \# filesystem:/  filesystem:''/g' $rootdir/docker/authelia/configuration.yml
-sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/notification.txt''/g' $rootdir/docker/authelia/configuration.yml
-
+sed -i 's/\#---/---''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#theme: light/theme: light''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#jwt_secret: a_very_important_secret/jwt_secret: '"$jwts"'''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#default_redirection_url: https:\/\/home.example.com\/default_redirection_url: https:\/\/"$fqdn"\//''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#server:/server:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  host: 0.0.0.0/  host: 0.0.0.0''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  port: 9091/  port: 9091''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  path: ""/  path: \"authelia\"''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  read_buffer_size: 4096/  read_buffer_size: 4096''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  write_buffer_size: 4096/  write_buffer_size: 4096''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#log:/log:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  level: debug/  level: debug''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#totp:/totp:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  algorithm: sha1/  algorithm: sha1''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  digits: 6/  digits: 6''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  period: 30/  period: 30''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  skew: 1/  skew: 1''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#authentication_backend:/authentication_backend:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  disable_reset_password: false/  disable_reset_password: false''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \# file:/  file:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#   path: \/config\/users_database.yml/    path: \/config\/users_database.yml''/g' $rootdir/docker/$containername/configuration.yml
+sed -i ':a;N;$!ba;s/\#  \#   password:/    password:''/1' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#     algorithm: argon2id/      algorithm: argon2id''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#     iterations: 1/      iterations: 1''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#     key_length: 32/      key_length: 32''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#     salt_length: 16/      salt_length: 16''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#     memory: 1024/      memory: 1024''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#     parallelism: 8/      parallelism: 8''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#access_control:/access_control:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  default_policy: deny/  default_policy: deny''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  rules:/  rules:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i ':a;N;$!ba;s/\#    - domain:/    - domain:''/3' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#        - secure.example.com/      - '"$fqdn"'''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#        - private.example.com/      - \"*.'"$fqdn"'\"''/g' $rootdir/docker/$containername/configuration.yml
+sed -i ':a;N;$!ba;s/\#      policy: two_factor/      policy: two_factor''/1' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#session:/session:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  name: authelia_session/  name: authelia_session''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  domain: example.com/  domain: '"$fqdn"'''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  secret: insecure_session_secret/  secret: '"$auths"'''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  expiration: 1h/  expiration: 12h''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  inactivity: 5m/  inactivity: 1h''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  remember_me_duration: 1M/  remember_me_duration: 1M''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#regulation:/regulation:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  max_retries: 3/  max_retries: 3''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  find_time: 2m/  find_time: 2m''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  ban_time: 5m/  ban_time: 5m''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#storage:/storage:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \# encryption_key: you_must_generate_a_random_string_of_more_than_twenty_chars_and_configure_this/  encryption_key: '"$authec"'''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \# local:/  local:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#   path: \/config\/db.sqlite3/    path: \/config\/db.sqlite3''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#notifier:/notifier:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i ':a;N;$!ba;s/\#  disable_startup_check: false/  disable_startup_check: false''/2' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \# filesystem:/  filesystem:''/g' $rootdir/docker/$containername/configuration.yml
+sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/notification.txt''/g' $rootdir/docker/$containername/configuration.yml
 # Yeah, that was exhausting...
 
 #  Comment out all the lines in the ~/docker/authelia/users_database.yml configuration file
-sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/authelia/users_database.yml
+sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/users_database.yml
 
 # Generate the hashed password line to be added to users_database.yml.
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authpwd | awk '{print $3}')
@@ -381,9 +380,9 @@ users:
     password: \"$pwdhash\"
     email: authelia@authelia.com
     groups: []
-..." >> $rootdir/docker/authelia/users_database.yml
+..." >> $rootdir/docker/$containername/users_database.yml
 
-sed -i 's/\#---/---''/g' $rootdir/docker/authelia/users_database.yml
+sed -i 's/\#---/---''/g' $rootdir/docker/$containername/users_database.yml
 
 # Mind the $ signs and forward slashes / :(
 
