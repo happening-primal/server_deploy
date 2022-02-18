@@ -45,15 +45,56 @@ ymlftr="networks:
           - subnet: 172.20.10.0/24
             gateway: 172.20.10.1"
 
-#  Generate some of the variables that will be used later but that the user does
-#  not need to keep track of
-#    https://linuxhint.com/generate-random-string-bash/
-# Authelia
-jwts=$(openssl rand -hex 25)     # Authelia JWT secret
-auths=$(openssl rand -hex 25)    # Authelia secret
-authec=$(openssl rand -hex 25)   # Authelia encryption key
+while true; do
+    read -p "
+Do you want to perform a completely fresh install (y/n)? " yn
+    case $yn in
+        [Yy]* ) # Stop the running docker containers
+                docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
+                #  Remove the docker containers associated with stackname
+                docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
+                #  Remove the networks associated with stackname...these are a bit persistent and need
+                #  to be removed so they don't cause a conflict with any revised configureations.
+                docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
+                #  Purge any dangling items...
+                docker system prune;
+                #  Remove the docker directory
+                rm -r docker;
+                #  Make a new, fresh docker directory
+                mkdir docker;
+                #chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
+                break;;
+        [Nn]* ) break;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
 
-# SWAG
+echo "
+"
+##################################################################################################################################
+
+Installation section
+
+##################################################################################################################################
+#  Secure Web Access Gateway (SWAG).  Set this one up first because all the other web services
+#  created later use it and it's configuration files.
+
+# Because of the limitation on setting wildcard domains using http we have to specify each domain,
+# one by one.  The following will automate the process for you by generating the specified
+# number of 8 digit random subdomain names.  Adds www by default.  See swag docker-compose.yml
+# output file for further infrormation.  Also adds required domains for subsequent services
+# that require a subdomain such as jitsi-meet, libretranslate, and rss-proxy.
+
+while true; do
+  read -rp "
+Enter your fully qualified domain name (FQDN) from your DNS provider - would look like 'example.com': " fqdn
+  if [[ -z "${fqdn}" ]]; then
+    echo "Enter your fully qualified domain name (FQDN) from your DNS provider or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 # Create domain string
 subdomains="www"
 #  Add a few specific use case subdomains
@@ -78,23 +119,6 @@ wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$wgsubdomain
 
-##################################################################################################################################
-
-while true; do
-  read -rp "
-Enter your fully qualified domain name (FQDN) from your DNS provider - would look like 'example.com': " fqdn
-  if [[ -z "${fqdn}" ]]; then
-    echo "Enter your fully qualified domain name (FQDN) from your DNS provider or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-# Because of the limitation on setting wildcard domains using http we have to specify each domain,
-# one by one.  The following will automate the process for you by generating the specified
-# number of 8 digit random subdomain names.  Adds www by default.  See swag docker-compose.yml
-# output file for further infrormation.  Also adds required domains for subsequent services
-# that require a subdomain such as jitsi-meet, libretranslate, and rss-proxy.
 while true; do
   read -rp "
 How many random subdomains would you like to generate?: " rnddomain
@@ -106,86 +130,6 @@ How many random subdomains would you like to generate?: " rnddomain
 done
 
 rnddomain=rnddomain+5 # Add a few extras just in case the user doesn't know what the right answer is :)
-
-while true; do
-  read -rp "
-Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
-  if [[ -z "${authusr}" ]]; then
-    echo "Enter your desired Authelia userid or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " authpwd
-  if [[ -z "${authpwd}" ]]; then
-    echo "Enter your desired Authelia password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
-  if [[ -z "${pipass}" ]]; then
-    echo "Enter your desired pihole webgui password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired neko user password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " nupass
-  if [[ -z "${nupass}" ]]; then
-    echo "Enter your desired neko user password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " napass
-  if [[ -z "${napass}" ]]; then
-    echo "Enter your desired neko admin password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired shadowsocks password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " sspass
-if [[ -z "${sspass}" ]]; then
-    echo "Enter your desired shadowsocks password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired wireguard ui userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " wguid
-if [[ -z "${wguid}" ]]; then
-    echo "Enter your desired wireguard ui userid or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-while true; do
-  read -rp "
-Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " wgpass
-  if [[ -z "${wgpass}" ]]; then
-    echo "Enter your desired wireguard ui password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
 
 # Domain and DNS setup section
 i=0
@@ -218,36 +162,6 @@ done
 #  break
 #done
 
-while true; do
-    read -p "
-Do you want to perform a completely fresh install (y/n)? " yn
-    case $yn in
-        [Yy]* ) # Stop the running docker containers
-                docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }');
-                #  Remove the docker containers associated with stackname
-                docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
-                #  Remove the networks associated with stackname...these are a bit persistent and need
-                #  to be removed so they don't cause a conflict with any revised configureations.
-                docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
-                #  Purge any dangling items...
-                docker system prune;
-                #  Remove the docker directory
-                rm -r docker;
-                #  Make a new, fresh docker directory
-                mkdir docker;
-                #chown $(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')":"$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root') -R docker;
-                break;;
-        [Nn]* ) break;;
-        * ) echo "Please answer yes or no.";;
-    esac
-done
-
-echo "
-"
-
-##################################################################################################################################
-#  Secure Web Access Gateway (SWAG).  Set this one up first because all the other web services
-#  created later use it and it's configuration files.
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
@@ -321,6 +235,34 @@ echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains
 
 ##################################################################################################################################
 #  Authelia setup
+
+while true; do
+  read -rp "
+Enter your desired Authelia userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " authusr
+  if [[ -z "${authusr}" ]]; then
+    echo "Enter your desired Authelia userid or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " authpwd
+  if [[ -z "${authpwd}" ]]; then
+    echo "Enter your desired Authelia password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+#  Generate some of the variables that will be used later but that the user does
+#  not need to keep track of
+#    https://linuxhint.com/generate-random-string-bash/
+jwts=$(openssl rand -hex 25)     # Authelia JWT secret
+auths=$(openssl rand -hex 25)    # Authelia secret
+authec=$(openssl rand -hex 25)   # Authelia encryption key
+
 #  Create the docker-compose file
 containername=authelia
 ymlname=$rootdir/$containername-compose.yml
@@ -663,7 +605,6 @@ sed -i '6 i }' $destconf
 sed -i '7 i 
 ' $destconf
 
-
 ##################################################################################################################################
 #  Jitsi meet server
 #  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
@@ -835,6 +776,27 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 ##################################################################################################################################
 # Neko firefox browser
 #  Create the docker-compose file
+
+while true; do
+  read -rp "
+Enter your desired neko user password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " nupass
+  if [[ -z "${nupass}" ]]; then
+    echo "Enter your desired neko user password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " napass
+  if [[ -z "${napass}" ]]; then
+    echo "Enter your desired neko admin password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 containername=neko
 ymlname=$rootdir/$containername-compose.yml
 mkdir $rootdir/docker/$containername;
@@ -986,6 +948,17 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 
 ##################################################################################################################################
 # Pihole
+
+while true; do
+  read -rp "
+Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
+  if [[ -z "${pipass}" ]]; then
+    echo "Enter your desired pihole webgui password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 #  Create the docker-compose file
 containername=pihole
 ymlname=$rootdir/$containername-compose.yml
@@ -1110,6 +1083,19 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 sed -i 's/syncthing/rssproxy''/g' $destconf
 sed -i 's/    server_name syncthing./    server_name '$rpsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
+
+##################################################################################################################################
+#  Shadowsocks proxy
+
+while true; do
+  read -rp "
+Enter your desired shadowsocks password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " sspass
+if [[ -z "${sspass}" ]]; then
+    echo "Enter your desired shadowsocks password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
 
 ##################################################################################################################################
 #  Synapse matrix server
@@ -1386,6 +1372,27 @@ done
 
 ##################################################################################################################################
 #  Wireguard gui - will not run on a subfolder!
+
+while true; do
+  read -rp "
+Enter your desired wireguard ui userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " wguid
+if [[ -z "${wguid}" ]]; then
+    echo "Enter your desired wireguard ui userid or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+while true; do
+  read -rp "
+Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " wgpass
+  if [[ -z "${wgpass}" ]]; then
+    echo "Enter your desired wireguard ui password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 containername=wgui
 ymlname=$rootdir/$containername-compose.yml
 mkdir $rootdir/docker/$containername;
