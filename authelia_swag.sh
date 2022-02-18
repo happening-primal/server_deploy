@@ -1091,6 +1091,29 @@ done
 ##################################################################################################################################
 #  Synapse matrix server
 #  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
+
+
+while true; do
+  read -rp "
+Enter your desired synapse userid - example - 'wWDmJTkPzx': " syusrid
+if [[ -z "${syusrid}" ]]; then
+    echo "Enter your desired synapse userid or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+
+while true; do
+  read -rp "
+Enter your desired synapse password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " sypass
+if [[ -z "${sypass}" ]]; then
+    echo "Enter your desired synapse password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
@@ -1156,16 +1179,23 @@ $ymlftr" >> $ymlname
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
 docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
-docker exec -it synapse register_new_matrix_user -u myuser -p mypw -a -c /data/homeserver.yaml
+docker exec -it synapse register_new_matrix_user -u $syusrid -p $sypass -a -c /data/homeserver.yaml
+
+#  Wait for the stack to fully deploy
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 #  https://github.com/matrix-org/synapse/issues/6783
-docker exec -it $(sudo docker ps | grep synapse | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u myuser -p mypw -a -c /data/homeserver.yaml
-sudo docker ps | grep synapse | awk '{ print$NF }'
+docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u $syusrid -p $sypass -a -c /data/homeserver.yaml
+$sudo docker ps | grep synapse | awk '{ print$NF }'
 
-cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample \
-   $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample $destconf
 
-sed -i 's/matrix/'$sysubdomain'''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+sed -i 's/matrix/'$sysubdomain'''/g' $destconf
 
 ##################################################################################################################################
 # Syncthing
