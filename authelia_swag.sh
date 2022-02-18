@@ -182,9 +182,9 @@ echo "$ymlhdr
       - URL=$fqdn
       #
       # Use of wildcard domains is no longer possible using http authentication for letsencrypt or zerossl
-      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
-      # 'Client with the currently selected authenticator does not support 
-      # any combination of challenges that will satisfy the CA. 
+      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00
+      # 'Client with the currently selected authenticator does not support
+      # any combination of challenges that will satisfy the CA.
       # You may need to use an authenticator plugin that can do challenges over DNS.'
       #- SUBDOMAINS=wildcard
       - SUBDOMAINS=$subdomains
@@ -204,7 +204,7 @@ echo "$ymlhdr
       - $rootdir/docker/swag:/config
     ports:
       - 443:443
-      - 80:80 
+      - 80:80
       # You must leave port 80 open or you won't be able to get your ssl certificates via http
     networks:
       - no-internet
@@ -221,6 +221,12 @@ while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
 done
+
+# Make sure the stack started properly by checking for the existence of ssl.conf
+while [ ! -f $rootdir/docker/$swagloc/nginx/ssl.conf ]
+    do
+      sleep 5
+    done
 
 #  Perform some SWAG hardening:
 #    https://virtualize.link/secure/
@@ -292,7 +298,7 @@ while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
  done
- 
+
 # Make sure the stack started properly by checking for the existence of users_database.yml
 while [ ! -f $rootdir/docker/$containername/users_database.yml ]
     do
@@ -305,7 +311,7 @@ while [ ! -f $rootdir/docker/$containername/configuration.yml.bak ]
       cp $rootdir/docker/$containername/configuration.yml \
          $rootdir/docker/$containername/configuration.yml.bak;
     done
-    
+
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/configuration.yml
 
@@ -371,7 +377,7 @@ sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/users_database.yml
 
 # Generate the hashed password line to be added to users_database.yml.
 pwdhash=$(docker run --rm authelia/authelia:latest authelia hash-password $authpwd | awk '{print $3}')
-    
+
 # Update the users database file with your username and hashed password.
 echo "
 users:
@@ -753,7 +759,7 @@ echo "$ymlhdr
       restart_policy:
        condition: on-failure
     ## Uncomment below command and define your args if necessary
-    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
+    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500
     command: --ssl
 $ymlftr" >> $ymlname
 
@@ -824,7 +830,7 @@ echo "$ymlhdr
     dns:
 #      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
 #  If you are running pihole in a docker container, point neko to the pihole
-#  docker container ip address.  Probably best to set a static ip address for 
+#  docker container ip address.  Probably best to set a static ip address for
 #  the pihole in the configuration so that it will never change.
        - 172.20.10.10
     networks:
@@ -985,7 +991,7 @@ echo "$ymlhdr
       - PGID=1000
       - TZ=Europe/London
       - WEBPASSWORD=$pipass
-      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
+      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
     volumes:
        - $rootdir/docker/$containername/etc-pihole:/etc/pihole
        - $rootdir/docker/$containername/etc-dnsmasq.d:/etc/dnsmasq.d
@@ -998,7 +1004,7 @@ echo "$ymlhdr
       #- no-internet  #  I think this one not needed...
       #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
       internet:
-          ipv4_address: 172.20.10.10 
+          ipv4_address: 172.20.10.10
     deploy:
       restart_policy:
        condition: on-failure
@@ -1188,7 +1194,7 @@ echo "$ymlhdr
     networks:
       no-internet:
 $ymlftr" >> $ymlname
-           
+
 #https://hub.docker.com/r/hwdsl2/ipsec-vpn-server
 #https://hub.docker.com/r/adrum/wireguard-ui
 #https://github.com/EmbarkStudios/wg-ui
@@ -1542,8 +1548,8 @@ Jitsi-meet web:                     $jwebsubdomain.$fqdn
 Libretranslate:                     $ltsubdomain.$fqdn
 RSS-Proxy:                          $rpsubdomain.$fqdn
 Shadowsocks password:               $sspass
-Synapse (Matrix Server):            
-E-Mail Server:                      
+Synapse (Matrix Server):
+E-Mail Server:
 User directory root:                $usrdirroot
 ===============================================================================
 
