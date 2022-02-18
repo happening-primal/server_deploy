@@ -408,19 +408,22 @@ done
 ##################################################################################################################################
 #  Farside rotating redirector written in elixer by ben busby
 #    https://github.com/benbusby/farside
+
 #  Download the latest copy of radis - https://redis.io/
 #  wget https://download.redis.io/releases/redis-6.2.6.tar.gz
 #  Unpack the tarball
 #  tar -xzsf redis-6.2.6.tar.gz
+#  Install redis server
+apt install -y -qq redis-server
 #  Install elixer - https://elixir-lang.org/install.html
-#  sudo apt install redis-server
-#  wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
-#  sudo apt-get update
-#  sudo apt-get install esl-erlang
-#  sudo apt-get install elixir
-#  wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
-#  tar -xzsf v0.1.0.tar.gz
-#  cd farside-0.1.0
+wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
+apt-get -qq update
+apt-get install -y -qq esl-erlang
+apt-get install -y -qq elixir
+#  Download farside
+wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
+tar -xzsf v0.1.0.tar.gz
+#cd farside-0.1.0
 #  Run the below from within the unpacked farside folder (farside-0.1.0)
 #  redis-server
 #  mix deps.get
