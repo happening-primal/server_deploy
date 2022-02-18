@@ -417,6 +417,7 @@ done
 apt install -y -qq redis-server
 #  Install elixer - https://elixir-lang.org/install.html
 wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
+rm erlang-solutions_2.0_all.deb
 apt-get -qq update
 apt-get install -y -qq esl-erlang
 apt-get install -y -qq elixir
