@@ -8,14 +8,27 @@
 #  5.  ShadowVPN
 #  For these VPN options, see the following - https://github.com/vimagick/dockerfiles
 
+echo "
+ - Run this script as superuser.
+"
+
+# Detect Root
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "This installer needs to be run with superuser privileges." >&2
+  exit 1
+fi
+
+##################################################################################################################################
 #  Variables
 stackname=authelia_swag  # Docker stack name
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+#  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
 services:"
-ymlftr="# For networking setup explaination, see this link:
-networks:
+#  Footer for docker-compose .yml files
+ymlftr="networks:
+# For networking setup explaination, see this link:
 #   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 # For ways to see how to set up specific networks for docker see:
 #   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
@@ -66,16 +79,6 @@ subdomains+=", "
 subdomains+=$wgsubdomain
 
 ##################################################################################################################################
-
-echo "
- - Run this script as superuser.
-"
-
-# Detect Root
-if [[ "${EUID}" -ne 0 ]]; then
-  echo "This installer needs to be run with superuser privileges." >&2
-  exit 1
-fi
 
 while true; do
   read -rp "
@@ -288,7 +291,7 @@ echo "$ymlhdr
     ports:
       - 443:443
       - 80:80 
-      # You must leave port 80 open or you won't be able to get your ssl certificate via http
+      # You must leave port 80 open or you won't be able to get your ssl certificates via http
     networks:
       - no-internet
       - internet
@@ -321,7 +324,7 @@ echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains
 #  Create the docker-compose file
 containername=authelia
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -332,7 +335,7 @@ echo "$ymlhdr
     environment:
       - TZ=America/New_York
     volumes:
-      - $rootdir/docker/authelia:/config
+      - $rootdir/docker/$containername:/config
     networks:
       - no-internet
     deploy:
@@ -463,11 +466,37 @@ do
 done
 
 ##################################################################################################################################
+#  Farside rotating redirector written in elixer by ben busby
+#    https://github.com/benbusby/farside
+#  Download the latest copy of radis - https://redis.io/
+#  wget https://download.redis.io/releases/redis-6.2.6.tar.gz
+#  Unpack the tarball
+#  tar -xzsf redis-6.2.6.tar.gz
+#  Install elixer - https://elixir-lang.org/install.html
+#  sudo apt install redis-server
+#  wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
+#  sudo apt-get update
+#  sudo apt-get install esl-erlang
+#  sudo apt-get install elixir
+#  wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
+#  tar -xzsf v0.1.0.tar.gz
+#  cd farside-0.1.0
+#  Run the below from within the unpacked farside folder (farside-0.1.0)
+#  redis-server
+#  mix deps.get
+#  mix run -e Farside.Instances.sync
+#  elixir --erl "-detached" -S mix run --no-halt
+#  Uses localhost:4001
+#  edit farside-0.1.0/services.json if you desire to control the instances of redirects
+#  such as if you want to create your own federated list of servers to choose from
+#  in a less trusted model (e.g. yourserver.1, yourserver.2, yourserver.3...) ;)
+
+##################################################################################################################################
 # Firefox - linuxserver.io
 #  Create the docker-compose file
 containername=firefox
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -481,7 +510,7 @@ echo "$ymlhdr
       - TZ=Europe/London
       - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
     volumes:
-      - $rootdir/docker/firefox:/config
+      - $rootdir/docker/$containername:/config
     #ports:
       #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
     shm_size: \"1gb\"
@@ -634,12 +663,132 @@ sed -i '6 i }' $destconf
 sed -i '7 i 
 ' $destconf
 
+
+##################################################################################################################################
+#  Jitsi meet server
+#  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
+#  https://github.com/jitsi/jitsi-meet-electron/releases
+#  https://scribe.rip/nginx-and-lets-encrypt-with-docker-in-less-than-5-minutes-b4b8a60d3a71
+
+#  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
+#  Install dependencies
+apt-get install -y -qq linux-image-extra-virtual
+
+jitsilatest=stable-6826
+extractdir=docker-jitsi-meet-$jitsilatest
+jcontdir=jitsi-meet
+containername=jitsi-meet
+
+rm stable-6826.tar.gz
+rm -r $rootdir/$extractdir
+rm -r $rootdir/docker/$containername
+
+wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
+tar -xzsf $jitsilatest.tar.gz
+rm stable-6826.tar.gz
+
+#  Copy env.example file to production (.env) if needed
+while [ ! -f $rootdir/$extractdir/.env ]
+    do
+      cp $rootdir/$extractdir/env.example \
+         $rootdir/$extractdir/.env;
+    done
+
+$rootdir/$extractdir/gen-passwords.sh
+
+mkdir -p $rootdir/docker/$containername/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
+
+mypath="$rootdir"
+mypath=${mypath//\//\\/}
+
+sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' $rootdir/$extractdir/.env
+
+sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' $rootdir/$extractdir/.env
+sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' $rootdir/$extractdir/.env
+
+#  If having any issues with nginx not picking up the letsencrypt certificate see:
+#  https://github.com/jitsi/docker-jitsi-meet/issues/92
+sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' $rootdir/$extractdir/.env
+sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' $rootdir/$extractdir/.env
+
+# Use the staging server (for avoiding rate limits while testing) - not for production environment
+#LETSENCRYPT_USE_STAGING=1
+
+sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_GUESTS=1/ENABLE_GUESTS=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' $rootdir/$extractdir/.env
+
+# Enabling these will stop swag from picking up the container on port 80
+#sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' $rootdir/$extractdir/.env
+#sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' $rootdir/$extractdir/.env
+
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+sed -i 's///g' $rootdir/$extractdir/.env
+
+# https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
+# Solution below:
+echo "
+
+# Added based on this - https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
+ENABLE_XMPP_WEBSOCKET=0" >> $rootdir/$extractdir/.env
+
+cp $rootdir/$extractdir/docker-compose.yml $rootdir/$extractdir/docker-compose.yml.bak
+
+# Rename the web gui docker container
+sed -i 's/    web:/    jitsiweb:/g' $rootdir/$extractdir/docker-compose.yml
+
+# Prevent guests from creating rooms or joining until a moderator has joined
+sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' $rootdir/$extractdir/docker-compose.yml
+
+# Add the required netowrks for compatability with other containers
+sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' $rootdir/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' $rootdir/$extractdir/docker-compose.yml
+echo "$ymlftr
+    meet.jitsi:
+      driver: bridge
+      internal: true" >> $rootdir/$extractdir/docker-compose.yml
+
+#  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
+sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' $rootdir/$extractdir/docker-compose.yml
+
+#  Prepare the jitsi-meet proxy-conf file using syncthing.subdomain.conf as a template
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
+   $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+
+# If you enable authelia, users will need additional credentials to log on, so, maybe don't do that :)
+#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
+sed -i 's/syncthing/jitsiweb''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
+
+#  Up the docker containers
+docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d 
+
+# Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
+jmoduser=userid
+jmodpass=password
+docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
+prosodyctl --config /config/prosody.cfg.lua register $jmoduser meet.jitsi $jmodpass
+EOF
+
 ##################################################################################################################################
 #  libretranslate - will not run on a subfolder!
 #  Create the docker-compose file
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -688,7 +837,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 #  Create the docker-compose file
 containername=neko
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -793,7 +942,7 @@ EOF
 #  Create the docker-compose file
 containername=tor
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -840,9 +989,9 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 #  Create the docker-compose file
 containername=pihole
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
-mkdir docker/$containername/etc-pihole;
-mkdir docker/$containername/etc-dnsmasq.d;
+mkdir $rootdir/docker/$containername;
+mkdir $rootdir/docker/$containername/etc-pihole;
+mkdir $rootdir/docker/$containername/etc-dnsmasq.d;
 
 rm $ymlname
 touch $ymlname
@@ -920,7 +1069,7 @@ sed -i 's/nameserver 9.9.9.9/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '
 #  Create the docker-compose file
 containername=rssproxy
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -934,6 +1083,7 @@ echo "$ymlhdr
       - TZ=Europe/London
 #    volumes:
 #      - $rootdir/docker/$containername:/opt/rss-proxy
+#    Don't expose external ports to prevent access outside swag
 #    ports:
 #      - 3000:3000
     networks:
@@ -962,11 +1112,90 @@ sed -i 's/    server_name syncthing./    server_name '$rpsubdomain'.''/g' $destc
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
+#  Synapse matrix server
+#  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
+#  Create the docker-compose file
+containername=synapse
+ymlname=$rootdir/$containername-compose.yml
+mkdir $rootdir/docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    container_name: $containername
+    hostname: ${MATRIX_HOSTNAME}
+    build:
+        context: ../..
+        dockerfile: docker/Dockerfile
+    image: docker.io/matrixdotorg/synapse:latest
+    restart: unless-stopped
+    environment:
+      - SYNAPSE_SERVER_NAME=${MATRIX_HOSTNAME}
+      - SYNAPSE_REPORT_STATS=yes
+      - SYNAPSE_NO_TLS=1
+      #- SYNAPSE_ENABLE_REGISTRATION=no
+      #- SYNAPSE_CONFIG_PATH=/config
+      # - SYNAPSE_LOG_LEVEL=DEBUG
+      - SYNAPSE_REGISTRATION_SHARED_SECRET=${REG_SHARED_SECRET}
+      - POSTGRES_DB=synapse
+      - POSTGRES_HOST=synapsedb
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - synapse-data:/data
+    depends_on:
+      - synapsedb
+    # In order to expose Synapse, remove one of the following, you might for
+    # instance expose the TLS port directly:
+    # ports:
+    #   - 8448:8448/tcp
+    networks:
+      no-internet:
+      internet:
+
+  synapsedb:
+    container_name: postgres
+    image: docker.io/postgres:10-alpine
+    environment:
+      - POSTGRES_DB=synapse
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      no-internet:
+$ymlftr" >> $ymlname
+           
+#https://hub.docker.com/r/hwdsl2/ipsec-vpn-server
+#https://hub.docker.com/r/adrum/wireguard-ui
+#https://github.com/EmbarkStudios/wg-ui
+#https://hub.docker.com/r/dockage/shadowsocks-server
+#openvpn
+#ptpp
+#onionshare
+
+#  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
+#  Run first to generate the homeserver.yaml file
+docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+docker exec -it synapse register_new_matrix_user -u myuser -p mypw -a -c /data/homeserver.yaml
+
+#  https://github.com/matrix-org/synapse/issues/6783
+docker exec -it $(sudo docker ps | grep synapse | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u myuser -p mypw -a -c /data/homeserver.yaml
+sudo docker ps | grep synapse | awk '{ print$NF }'
+
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample \
+   $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+
+sed -i 's/matrix/'$sysubdomain'''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
+
+##################################################################################################################################
 # Syncthing
 #  Create the docker-compose file
 containername=syncthing
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 rm $ymlname
 touch $ymlname
@@ -981,7 +1210,7 @@ echo "$ymlhdr
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - $rootdir/docker/syncthing:/config
+      - $rootdir/docker/$containername:/config
       - $rootdir/docker:/config/Sync
     ports:
       #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
@@ -1021,7 +1250,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Create the docker-compose file
 containername=wwhoogle
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
@@ -1108,9 +1337,9 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 #  Create the docker-compose file
 containername=wireguard
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
-mkdir docker/$containername/config;
-mkdir docker/$containername/modules;
+mkdir $rootdir/docker/$containername;
+mkdir $rootdir/docker/$containername/config;
+mkdir $rootdir/docker/$containername/modules;
 
 rm $ymlname
 touch $ymlname
@@ -1133,8 +1362,8 @@ echo "$ymlhdr
       - INTERNAL_SUBNET=10.18.18.0
       - ALLOWEDIPS=0.0.0.0/0
     volumes:
-      - $rootdir/docker/wireguard/config:/config
-      - $rootdir/docker/wireguard/modules:/lib/modules
+      - $rootdir/docker/$containername/config:/config
+      - $rootdir/docker/$containername/modules:/lib/modules
     ports:
       - 50220:50220/udp
     sysctls:
@@ -1159,35 +1388,34 @@ done
 #  Wireguard gui - will not run on a subfolder!
 containername=wgui
 ymlname=$rootdir/$containername-compose.yml
-mkdir docker/$containername;
+mkdir $rootdir/docker/$containername;
+mkdir $rootdir/docker/$containername/app;
+mkdir $rootdir/docker/$containername/etc;
 
 rm $ymlname
 touch $ymlname
 
 echo "$ymlhdr
   $containername:
-    image: ghcr.io/linuxserver/wireguard
-    #container_name: wireguard # Depricated
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
+    image: ngoduykhanh/wireguard-ui:latest
+    # Port 5000
+    #cap_add:
+    #  - NET_ADMIN
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=UTC
-      - SERVERURL=$fqdn
-      - SERVERPORT=50220
-      - PEERS=3
-      - PEERDNS=auto
-      - INTERNAL_SUBNET=10.18.18.0
-      - ALLOWEDIPS=0.0.0.0/0
+      #- SENDGRID_API_KEY
+      #- EMAIL_FROM_ADDRESS
+      #- EMAIL_FROM_NAME
+      - SESSION_SECRET=$(openssl rand -hex 30)
+      - WGUI_USERNAME=$wguid
+      - WGUI_PASSWORD=$wgpass
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
     volumes:
-      - $rootdir/docker/wireguard/config:/config
-      - $rootdir/docker/wireguard/modules:/lib/modules
-    ports:
-      - 50220:50220/udp
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
+      - $rootdir/docker/$containername/app:/app/db
+      - $rootdir/docker/$containername/etc:/etc/wireguard
+    #network_mode: host
     networks:
       - no-internet
       - internet
@@ -1292,321 +1520,6 @@ authentication url using these commands:
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
 ##################################################################################################################################
-#  Jitsi meet server
-#  https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
-#  https://github.com/jitsi/jitsi-meet-electron/releases
-#  https://scribe.rip/nginx-and-lets-encrypt-with-docker-in-less-than-5-minutes-b4b8a60d3a71
-
-#!/bin/bash
-
-#  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
-#  Install dependencies
-apt-get install -y -qq linux-image-extra-virtual
-
-jitsilatest=stable-6826
-extractdir=docker-jitsi-meet-$jitsilatest
-stackname=authelia_swag # Can remove later
-fqdn=      # Can remove later
-jcontdir=jitsi-meet
-jwebsubdomain=
-swagloc=swag
-
-echo $rootdir/$extractdir
-echo $rootdir/docker/$jcontdir
-
-rm stable-6826.tar.gz
-rm -r $rootdir/$extractdir
-rm -r $rootdir/docker/$jcontdir
-
-wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
-tar -xzsf $jitsilatest.tar.gz
-
-cp $rootdir/$extractdir/env.example $rootdir/$extractdir/.env
-
-$rootdir/$extractdir/gen-passwords.sh
-
-mkdir -p $rootdir/docker/$jcontdir/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
-
-mypath="$rootdir"
-mypath=${mypath//\//\\/}
-
-sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' $rootdir/$extractdir/.env
-
-sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' $rootdir/$extractdir/.env
-sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' $rootdir/$extractdir/.env
-
-#  If having any issues with nginx not picking up the letsencrypt certificate see:
-#  https://github.com/jitsi/docker-jitsi-meet/issues/92
-sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' $rootdir/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' $rootdir/$extractdir/.env
-
-# Use the staging server (for avoiding rate limits while testing)
-#LETSENCRYPT_USE_STAGING=1
-
-sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_GUESTS=1/ENABLE_GUESTS=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' $rootdir/$extractdir/.env
-
-# Enabling these will stop swag from picking up the container on port 80
-#sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' $rootdir/$extractdir/.env
-#sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' $rootdir/$extractdir/.env
-
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-sed -i 's///g' $rootdir/$extractdir/.env
-
-# https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
-# Solution below:
-echo "
-
-# Added based on this - https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
-ENABLE_XMPP_WEBSOCKET=0" >> $rootdir/$extractdir/.env
-
-cp $rootdir/$extractdir/docker-compose.yml $rootdir/$extractdir/docker-compose.yml.bak
-
-# Rename the web gui docker container
-sed -i 's/    web:/    jitsiweb:/g' $rootdir/$extractdir/docker-compose.yml
-
-# Prevent guests from creating rooms or joining until a moderator has joined
-sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' $rootdir/$extractdir/docker-compose.yml
-
-# Add the required netowrks for compatability with other containers
-sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' $rootdir/$extractdir/docker-compose.yml
-sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' $rootdir/$extractdir/docker-compose.yml
-echo "networks:
-    no-internet:
-      driver: bridge
-      internal: true
-    internet:
-      driver: bridge
-      ipam:
-        driver: default
-        config:
-          - subnet: 172.20.10.0/24
-            gateway: 172.20.10.1
-    meet.jitsi:
-      driver: bridge
-      internal: true" >> $rootdir/$extractdir/docker-compose.yml
-
-#  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
-sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' $rootdir/$extractdir/docker-compose.yml
-
-#  Prepare the jitsi-meet proxy-conf file using syncthing.subdomain.conf as a template
-cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
-   $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-
-# If you enable authelia, users will need additional credentials to log on, so, maybe don't do that :)
-#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/whoogle.subfolder.conf
-sed -i 's/syncthing/jitsiweb''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-
-#  Up the docker containers
-docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d 
-
-# Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
-docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
-prosodyctl --config /config/prosody.cfg.lua register userid meet.jitsi password
-EOF
-
-##################################################################################################################################
-#  rss-proxy - Will not run on a subfolder, need to use a subdomain
-
-version: "3.5"
-services:
-  rss-proxy:
-    image: damoeb/rss-proxy:js
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-#    volumes:
-#      - /home/folder/docker/rss-proxy:/opt/rss-proxy
-#    Don't expose external ports to prevent access outside swag
-#    ports:
-#      - 3000:3000
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-# For networking setup explaination, see this link:
-#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
-networks:
-   no-internet:
-     driver: bridge
-     internal: true
-   internet:
-     driver: bridge
-     ipam:
-       driver: default
-       config:
-         - subnet: "172.20.10.0/24"
-           gateway: 172.20.10.1
-
-##################################################################################################################################
-#  libretranslate - Will not run on a subfolder, need to use a subdomain
-
-version: "3.5"
-services:
-  translate:
-    image: libretranslate/libretranslate
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    #build: .
-#    Don't expose external ports to prevent access outside swag
-#    ports:
-#      - 5000:5000
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-    ## Uncomment below command and define your args if necessary
-    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
-    command: --ssl
-# For networking setup explaination, see this link:
-#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
-networks:
-   no-internet:
-     driver: bridge
-     internal: true
-   internet:
-     driver: bridge
-     ipam:
-       driver: default
-       config:
-         - subnet: "172.20.10.0/24"
-           gateway: 172.20.10.1
-
-##################################################################################################################################
-#  Synapse matrix server
-#  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
-version: '3'
-services:
-  synapse:
-    container_name: synapse
-    hostname: ${MATRIX_HOSTNAME}
-    build:
-        context: ../..
-        dockerfile: docker/Dockerfile
-    image: docker.io/matrixdotorg/synapse:latest
-    restart: unless-stopped
-    environment:
-      - SYNAPSE_SERVER_NAME=${MATRIX_HOSTNAME}
-      - SYNAPSE_REPORT_STATS=yes
-      - SYNAPSE_NO_TLS=1
-      #- SYNAPSE_ENABLE_REGISTRATION=no
-      #- SYNAPSE_CONFIG_PATH=/config
-      # - SYNAPSE_LOG_LEVEL=DEBUG
-      - SYNAPSE_REGISTRATION_SHARED_SECRET=${REG_SHARED_SECRET}
-      - POSTGRES_DB=synapse
-      - POSTGRES_HOST=synapsedb
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - synapse-data:/data
-    depends_on:
-      - synapsedb
-    # In order to expose Synapse, remove one of the following, you might for
-    # instance expose the TLS port directly:
-    # ports:
-    #   - 8448:8448/tcp
-    networks:
-      no-internet:
-      internet:
-
-  synapsedb:
-    container_name: postgres
-    image: docker.io/postgres:10-alpine
-    environment:
-      - POSTGRES_DB=synapse
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      no-internet:
-networks:
-   no-internet:
-     driver: bridge
-     internal: true
-   internet:
-     driver: bridge
-     ipam:
-       driver: default
-       config:
-         - subnet: "172.20.10.0/24"
-           gateway: 172.20.10.1
-           
-#https://hub.docker.com/r/hwdsl2/ipsec-vpn-server
-#https://hub.docker.com/r/adrum/wireguard-ui
-#https://github.com/EmbarkStudios/wg-ui
-#https://hub.docker.com/r/dockage/shadowsocks-server
-#openvpn
-#ptpp
-#onionshare
-
-#  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
-#  Run first to generate the homeserver.yaml file
-docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
-docker exec -it synapse register_new_matrix_user -u myuser -p mypw -a -c /data/homeserver.yaml
-
-#  https://github.com/matrix-org/synapse/issues/6783
-docker exec -it $(sudo docker ps | grep synapse | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u myuser -p mypw -a -c /data/homeserver.yaml
-sudo docker ps | grep synapse | awk '{ print$NF }'
-
-cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample \
-   $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
-
-sed -i 's/matrix/'$sysubdomain'''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf
-
-
-
-
-
-
-#  farside - https://github.com/benbusby/farside
-#  Download the latest copy of radis - https://redis.io/
-#  wget https://download.redis.io/releases/redis-6.2.6.tar.gz
-#  Unpack the tarball
-#  tar -xzsf redis-6.2.6.tar.gz
-#  Install elixer - https://elixir-lang.org/install.html
-#  sudo apt install redis-server
-#  wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
-#  sudo apt-get update
-#  sudo apt-get install esl-erlang
-#  sudo apt-get install elixir
-#  wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
-#  tar -xzsf v0.1.0.tar.gz
-#  cd farside-0.1.0
-#  Run the below from within the unpacked farside folder (farside-0.1.0)
-#  redis-server
-#  mix deps.get
-#  mix run -e Farside.Instances.sync
-#  elixir --erl "-detached" -S mix run --no-halt
-#  Uses localhost:4001
-#  edit farside-0.1.0/services.json if you desire to control the instances of redirects
-#  such as if you want to create your own federated list of servers to choose from
-#  in a less trusted model (e.g. yourserver.1, yourserver.2, yourserver.3...) ;)
-
-
-
 
 # You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
@@ -1615,392 +1528,3 @@ docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
 
 
-
-
-rm docker-compose.yml
-touch docker-compose.yml
-
-# Create the docker-compose.yml file for the initial base installation
-echo "version: \"3.1\"
-services:
-  authelia:
-    image: authelia/authelia:latest #4.32.0
-    #container_name: authelia # Depricated
-    environment:
-      - TZ=America/New_York
-    volumes:
-      - $rootdir/docker/authelia:/config
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  firefox:  # linuxserver.io firefox browser
-    image: lscr.io/linuxserver/firefox
-    #container_name: firefox # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate
-    volumes:
-      - $rootdir/docker/firefox:/config
-    #ports:
-      #- 3000:3000 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    shm_size: \"1gb\"
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  homer:
-    image: b4bz/homer
-    #container_name: homer # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/homer:/www/assets
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  translate:
-    image: libretranslate/libretranslate
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    #build: .
-#    Don't expose external ports to prevent access outside swag
-#    ports:
-#      - 5000:5000
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-    ## Uncomment below command and define your args if necessary
-    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500 
-    command: --ssl
-
-  neko:  # Neko firefox browser
-    image: m1k1o/neko:firefox
-    shm_size: \"2gb\"
-    ports:
-      #- 8080:8080
-      - 52000-52100:52000-52100/udp
-    environment:
-      NEKO_SCREEN: 1440x900@60
-      NEKO_PASSWORD: $nupass
-      NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52000-52100
-      NEKO_ICELITE: 1
-#    volumes:
-#       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
-#       - $rootdir/docker/neko/firefox/home/neko:/home/neko
-    dns:
-#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
-#  If you are running pihole in a docker container, point neko to the pihole
-#  docker container ip address.  Probably best to set a static ip address for 
-#  the pihole in the configuration so that it will never change.
-       - 172.20.10.10
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  tor:  # Neko tor browser
-    image: m1k1o/neko:tor-browser
-    shm_size: \"2gb\"
-    ports:
-      #- 8080:8080
-      - 52200-52300:52200-52300/udp
-    environment:
-      NEKO_SCREEN: 1440x900@60
-      NEKO_PASSWORD: $nupass
-      NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52200-52300
-      NEKO_ICELITE: 1
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  pihole:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
-           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-    #container_name: pihole # Depricated
-    image: pihole/pihole:latest
-    ports:
-      - 53:53/udp
-      - 53:53/tcp
-      - 67:67/tcp
-      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - WEBPASSWORD=$pipass
-      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1) 
-    volumes:
-       - $rootdir/docker/pihole/etc-pihole:/etc/pihole
-       - $rootdir/docker/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
-    dns:
-      - 127.0.0.1
-      - 1.1.1.1
-    cap_add:
-      - NET_ADMIN
-    networks:
-      #- no-internet  #  I think this one not needed...
-      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
-      internet:
-          ipv4_address: 172.20.10.10 
-    deploy:
-      restart_policy:
-       condition: on-failure
-  rssproxy:
-    image: damoeb/rss-proxy:js
-    #container_name: heimdall # Depricated
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-#    volumes:
-#      - /home/userid/docker/rss-proxy:/opt/rss-proxy
-#    ports:
-#      - 3000:3000
-    networks:
-      - internet
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  shadowsocks:
-    image: shadowsocks/shadowsocks-libev
-    ports:
-      - 58211:58211/tcp
-      - 58211:58211/udp
-      #  need to configure to use pihole dns on local machine
-      #  default is google servers 8.8.8.8 8.8.4.4 
-    environment:
-      - METHOD=aes-256-gcm
-      - PASSWORD=$sspass
-      - DNS_ADDRS=1.1.1.1,9.9.9.9 #comma delimited list
-
-  swag:
-    image: linuxserver/swag
-    #container_name: swag # Depricated
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-      - URL=$fqdn
-      #
-      # Use of wildcard domains is no longer possible using http authentication for letsencrypt or zerossl
-      # Linuxserver.io version:- 1.22.0-ls105 Build-date:- 2021-12-30T06:20:11+01:00      
-      # 'Client with the currently selected authenticator does not support 
-      # any combination of challenges that will satisfy the CA. 
-      # You may need to use an authenticator plugin that can do challenges over DNS.'
-      #- SUBDOMAINS=wildcard
-      - SUBDOMAINS=$subdomains
-      #
-      # If CERTPROVIDER is left blank, letsencrypt will be used
-      #- CERTPROVIDER=zerossl
-      #
-      #- VALIDATION=duckdns
-      #- DNSPLUGIN=cloudfare #optional
-      #- PROPAGATION= #optional
-      #- DUCKDNSTOKEN=$ducktkn
-      #- EMAIL=$zspwd  # Zerossl password
-      - ONLY_SUBDOMAINS=false #optional
-      #- EXTRA_DOMAINS= #optional
-      - STAGING=false #optional
-    volumes:
-      - $rootdir/docker/swag:/config
-    ports:
-      - 443:443
-      - 80:80 
-      # You must leave port 80 open or you won't be able to get your ssl certificate via http
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  syncthing:
-    image: lscr.io/linuxserver/syncthing
-    #container_name: syncthing # Depricated
-    hostname: syncthing # Optional
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    volumes:
-      - $rootdir/docker/syncthing:/config
-      - $rootdir/docker:/config/Sync
-    ports:
-      #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      - 22000:22000/tcp
-      - 22000:22000/udp
-      - 21027:21027/udp
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
-  wireguard:
-    image: ghcr.io/linuxserver/wireguard
-    #container_name: wireguard # Depricated
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=UTC
-      - SERVERURL=$fqdn
-      - SERVERPORT=50220
-      - PEERS=3
-      - PEERDNS=auto
-      - INTERNAL_SUBNET=10.18.18.0
-      - ALLOWEDIPS=0.0.0.0/0
-    volumes:
-      - $rootdir/docker/wireguard/config:/config
-      - $rootdir/docker/wireguard/modules:/lib/modules
-    ports:
-      - 50220:50220/udp
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
-  wgui:
-    image: ngoduykhanh/wireguard-ui:latest
-    #container_name: wgui # Depricated
-    # Port 5000
-    #cap_add:
-    #  - NET_ADMIN
-    environment:
-      #- SENDGRID_API_KEY
-      #- EMAIL_FROM_ADDRESS
-      #- EMAIL_FROM_NAME
-      - SESSION_SECRET=$(openssl rand -hex 30)
-      - WGUI_USERNAME=$wguid
-      - WGUI_PASSWORD=$wgpass
-    logging:
-      driver: json-file
-      options:
-        max-size: 50m
-    volumes:
-      - $rootdir/docker/wireguard/app:/app/db
-      - $rootdir/docker/wireguard/etc:/etc/wireguard
-    #network_mode: host
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
- 
-  whoogle:
-    image: benbusby/whoogle-search
-    pids_limit: 50
-    mem_limit: 256mb
-    memswap_limit: 256mb
-    # user debian-tor from tor package
-#    user: '102'
-    security_opt:
-      - no-new-privileges
-    cap_drop:
-      - ALL
-#    tmpfs:
-#      - /config/:size=10M,uid=102,gid=102,mode=1700
-#      - /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700
-#      - /run/tor/:size=1M,uid=102,gid=102,mode=1700
-    environment: # Uncomment to configure environment variables
-      - PUID=1000
-      - PGID=1000
-      # Basic auth configuration, uncomment to enable
-      #- WHOOGLE_USER=<auth username>
-      #- WHOOGLE_PASS=<auth password>
-      # Proxy configuration, uncomment to enable
-      #- WHOOGLE_PROXY_USER=<proxy username>
-      #- WHOOGLE_PROXY_PASS=<proxy password>
-      #- WHOOGLE_PROXY_TYPE=<proxy type (http|https|socks4|socks5)
-      #- WHOOGLE_PROXY_LOC=<proxy host/ip>
-      #  See the subfolder /static/settings folder for .json files with options on country and language
-      - WHOOGLE_CONFIG_COUNTRY=US
-      - WHOOGLE_CONFIG_LANGUAGE=lang_en
-      - WHOOGLE_CONFIG_SEARCH_LANGUAGE=lang_en
-      - EXPOSE_PORT=5000
-      # Site alternative configurations, uncomment to enable
-      # Note: If not set, the feature will still be available
-      # with default values.
-      - WHOOGLE_ALT_TW=farside.link/nitter
-      - WHOOGLE_ALT_YT=farside.link/invidious
-      - WHOOGLE_ALT_IG=farside.link/bibliogram/u
-      - WHOOGLE_ALT_RD=farside.link/libreddit
-      - WHOOGLE_ALT_MD=farside.link/scribe
-      - WHOOGLE_ALT_TL=lingva.ml
-    #env_file: # Alternatively, load variables from whoogle.env
-      #- whoogle.env
-    #ports:
-      #- 5000:5000
-    networks:
-      - no-internet
-      - internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-# For networking setup explaination, see this link:
-#   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
-# For ways to see how to set up specific networks for docker see:
-#   https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
-#   Note the requirement to remove existing newtorks using:
-#     docker network ls | grep authelia_swag | awk '{ print\$1 }' | docker network rm;
-networks:
-    no-internet:
-      driver: bridge
-      internal: true
-    internet:
-      driver: bridge
-      ipam:
-        driver: default
-        config:
-          - subnet: 172.20.10.0/24
-            gateway: 172.20.10.1" >> docker-compose.yml
-
-# Take the opportunity to clean up any old junk before running the stack and then run it
-docker system prune && docker-compose -f docker-compose.yml -p $stackname up -d 
-
-# Wait a bit for the stack to deploy
-while [ ! -f $rootdir/docker/authelia/configuration.yml ]
-    do
-      sleep 5;
-    done
-    
-echo "
-The stack started successfully..."
