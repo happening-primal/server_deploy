@@ -70,7 +70,7 @@ Do you want to perform a completely fresh install (y/n)? " yn
                 docker rm -vf $(sudo docker ps --filter status=exited | grep $stackname | awk '{ print$1 }');
                 #  Remove the networks associated with stackname...these are a bit persistent and need
                 #  to be removed so they don't cause a conflict with any revised configureations.
-                docker network ls | grep authelia_swag | awk '{ print$1 }' | docker network rm;
+                docker network ls | grep $stackname | awk '{ print$1 }' | docker network rm;
                 #  Purge any dangling items...
                 docker system prune;
                 #  Remove the docker directory
@@ -204,7 +204,7 @@ echo "$ymlhdr
       # 'Client with the currently selected authenticator does not support
       # any combination of challenges that will satisfy the CA.
       # You may need to use an authenticator plugin that can do challenges over DNS.'
-      #- SUBDOMAINS=wildcard
+      #- SUBDOMAINS=wildcard  #  Won't work with current letsencrypt policies as per the above
       - SUBDOMAINS=$subdomains
       #
       # If CERTPROVIDER is left blank, letsencrypt will be used
@@ -283,9 +283,9 @@ done
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
 #    https://linuxhint.com/generate-random-string-bash/
-jwts=$(openssl rand -hex 25)     # Authelia JWT secret
-auths=$(openssl rand -hex 25)    # Authelia secret
-authec=$(openssl rand -hex 25)   # Authelia encryption key
+jwts=$(openssl rand -hex 40)     # Authelia JWT secret
+auths=$(openssl rand -hex 40)    # Authelia secret
+authec=$(openssl rand -hex 40)   # Authelia encryption key
 
 #  Create the docker-compose file
 swagyml=$ymlname
@@ -574,28 +574,28 @@ do
 done
 
 # Make sure the stack started properly by checking for the existence of config.yml
-while [ ! -f $rootdir/docker/homer/config.yml ]
+while [ ! -f $rootdir/docker/$containername/config.yml ]
     do
       sleep 5
     done
 
 #  Create a backup of the config.yml file if needed
-while [ ! -f $rootdir/docker/homer/config.yml.bak ]
+while [ ! -f $rootdir/docker/$containername/config.yml.bak ]
     do
-      cp $rootdir/docker/homer/config.yml \
-         $rootdir/docker/homer/config.yml.bak;
+      cp $rootdir/docker/$containername/config.yml \
+         $rootdir/docker/$containername/config.yml.bak;
     done
 
-sed -i 's/title: \"Demo dashboard\"/title: \"Dashboard - '"$fqdn"'\"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$myip"'\"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/  - name: \"another page!\"/\#  - name: \"another page!\"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' $rootdir/docker/homer/config.yml
-sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' $rootdir/docker/homer/config.yml
+sed -i 's/title: \"Demo dashboard\"/title: \"Dashboard - '"$fqdn"'\"''/g' $rootdir/docker/$containername/config.yml
+sed -i 's/subtitle: \"Homer\"/subtitle: \"IP: '"$myip"'\"''/g' $rootdir/docker/$containername/config.yml
+sed -i 's/  - name: \"another page!\"/\#  - name: \"another page!\"''/g' $rootdir/docker/$containername/config.yml
+sed -i 's/      icon: \"fas fa-file-alt\"/#      icon: \"fas fa-file-alt\"''/g' $rootdir/docker/$containername/config.yml
+sed -i 's/          url: \"\#additionnal-page\"/#          url: \"\#additionnal-page\"''/g' $rootdir/docker/$containername/config.yml
+sed -i 's/    icon: "fas fa-file-alt"/#    icon: "fas fa-file-alt"''/g' $rootdir/docker/$containername/config.yml
+sed -i 's/    url: "#additionnal-page"/#    url: "#additionnal-page"''/g' $rootdir/docker/$containername/config.yml
 
 # Throw everything over line 73
-sed -i '73,$ d' $rootdir/docker/homer/config.yml
+sed -i '73,$ d' $rootdir/docker/$containername/config.yml
 
 #  Add the links to other services installed above
 echo "    items:
@@ -665,7 +665,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 sed -i '3 i  
 ' $destconf
 sed -i '4 i location / {' $destconf
-sed -i '5 i    return 301 $scheme://$host/homer/;' $destconf
+sed -i '5 i    return 301 $scheme://$host/'$containername'/;' $destconf
 sed -i '6 i }' $destconf
 sed -i '7 i 
 ' $destconf
@@ -705,9 +705,11 @@ while [ ! -f $rootdir/$extractdir/.env ]
          $rootdir/$extractdir/.env;
     done
 
+#  Generate some strong passwords in the .env file
 $rootdir/$extractdir/gen-passwords.sh
 
 mypath="$rootdir"
+#  Fix it up for substitutions using sed by adding backslashes to escaped charaters
 mypath=${mypath//\//\\/}
 
 sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' $rootdir/$extractdir/.env
@@ -829,7 +831,7 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $d
 
 sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
-sed -i 's/syncthing/translate''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$ltsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
@@ -907,7 +909,7 @@ destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.con
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
-sed -i 's/syncthing/neko''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
 
 #  Unlock neko policies in /usr/lib/firefox/distribution/policies.json
@@ -921,24 +923,24 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 sleep 5
 
 #  Remove the policy restrictions all together :)
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash <<EOF
 mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak
 EOF
 
 # Change some of the parameters in mozilla.cfg (about:config) - /usr/lib/firefox/mozilla.cfg
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.enabled\", false);/''/g' /usr/lib/firefox/mozilla.cfg
 EOF
 
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/''/g' /usr/lib/firefox/mozilla.cfg
 EOF
 
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash <<EOF
 echo "lockPref(\"identity.sync.tokenserver.uri\", \"https://aqj9z.mine.nu/f4c4hm/token/1.0/sync/1.5\");" >> /usr/lib/firefox/mozilla.cfg
 EOF
 
-docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
+docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash <<EOF
 sed -i 's/lockPref(/pref(''/g' /usr/lib/firefox/mozilla.cfg
 EOF
 
@@ -1006,7 +1008,7 @@ destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.con
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
-sed -i 's/syncthing/tor''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
 
 ###########################################################################################################################
@@ -1086,8 +1088,8 @@ echo "$ymlhdr
       - 58211:8388/udp
     environment:
       - METHOD=aes-256-gcm
-      - PASSWORD=$sspass  #  Comma delimited
-      - DNS_ADDRS=$myip
+      - PASSWORD=$sspass
+      - DNS_ADDRS=$myip # Comma delimited
     networks:
       - no-internet
       - internet
@@ -1269,7 +1271,8 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Create the docker-compose file
 containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
-mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername
+mylink=$fssubdomain'.'$fqdn
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
@@ -1317,11 +1320,11 @@ echo "$ymlhdr
       # Site alternative configurations, uncomment to enable
       # Note: If not set, the feature will still be available
       # with default values.
-      - WHOOGLE_ALT_TW=farside.link/nitter
-      - WHOOGLE_ALT_YT=farside.link/invidious
-      - WHOOGLE_ALT_IG=farside.link/bibliogram/u
-      - WHOOGLE_ALT_RD=farside.link/libreddit
-      - WHOOGLE_ALT_MD=farside.link/scribe
+      - WHOOGLE_ALT_TW=$mylink/nitter
+      - WHOOGLE_ALT_YT=$mylink/invidious
+      - WHOOGLE_ALT_IG=$mylink/bibliogram/u
+      - WHOOGLE_ALT_RD=$mylink/libreddit
+      - WHOOGLE_ALT_MD=$mylink/scribe
       - WHOOGLE_ALT_TL=lingva.ml
     #env_file: # Alternatively, load variables from whoogle.env
       #- whoogle.env
