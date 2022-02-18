@@ -792,9 +792,10 @@ done
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/translate''/g' $destconf
-sed -i 's/    server_name syncthing./    server_name '$ltsubdomain'.''/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$ltsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
 ##################################################################################################################################
@@ -1414,6 +1415,7 @@ done
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$wgsubdomain'.''/g' $destconf
@@ -1499,6 +1501,7 @@ destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.con
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample $destconf
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/\    return 301 \$scheme:\/\/$host\/pihole\/;/    return 301 \$scheme:\/\/$host\/pihole\/admin;''/g' $destconf
 
 # Ensure ownership of the 'etc-pihole' folder is set properly.
 chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihole
