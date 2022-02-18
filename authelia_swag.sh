@@ -30,13 +30,17 @@ fi
 stackname=authelia_swag  # Docker stack name
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+
 #  External IP address
 myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+
 #  Wireguard port
 wgport=50220
+
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
 services:"
+
 #  Footer for docker-compose .yml files
 ymlftr="networks:
 # For networking setup explaination, see this link:
