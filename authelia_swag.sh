@@ -1541,7 +1541,8 @@ echo "export pipass=$pipass" >> $rootdir/.bashrc
 echo "export wguid=$wguid" >> $rootdir/.bashrc
 echo "export wgpass=$wgpass" >> $rootdir/.bashrc
 echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
-echo "export wltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
+echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
+echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
 echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
 echo "export sspass=$sspass" >> $rootdir/.bashrc
 
