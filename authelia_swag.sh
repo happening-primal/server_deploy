@@ -1117,7 +1117,11 @@ done
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
-mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername
+
+REG_SHARED_SECRET=$(openssl rand -hex 40)
+POSTGRES_USER=$(openssl rand -hex 25)
+POSTGRES_PASSWORD=$(openssl rand -hex 25)
 
 rm -f $ymlname
 touch $ymlname
@@ -1132,17 +1136,17 @@ echo "$ymlhdr
     image: docker.io/matrixdotorg/synapse:latest
     restart: unless-stopped
     environment:
-      - SYNAPSE_SERVER_NAME=${MATRIX_HOSTNAME}
+      - SYNAPSE_SERVER_NAME=$containername
       - SYNAPSE_REPORT_STATS=yes
       - SYNAPSE_NO_TLS=1
       #- SYNAPSE_ENABLE_REGISTRATION=no
       #- SYNAPSE_CONFIG_PATH=/config
       # - SYNAPSE_LOG_LEVEL=DEBUG
-      - SYNAPSE_REGISTRATION_SHARED_SECRET=${REG_SHARED_SECRET}
+      - SYNAPSE_REGISTRATION_SHARED_SECRET=$REG_SHARED_SECRET
       - POSTGRES_DB=synapse
       - POSTGRES_HOST=synapsedb
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
     volumes:
       - synapse-data:/data
     depends_on:
@@ -1160,8 +1164,8 @@ echo "$ymlhdr
     image: docker.io/postgres:10-alpine
     environment:
       - POSTGRES_DB=synapse
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -1178,7 +1182,7 @@ $ymlftr" >> $ymlname
 
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
-docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=subdomain.domain.name -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=desiredportnumber -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=$sysubdomain -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=8008 -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
 docker exec -it synapse register_new_matrix_user -u $syusrid -p $sypass -a -c /data/homeserver.yaml
 
 #  Wait for the stack to fully deploy
@@ -1190,12 +1194,13 @@ done
 
 #  https://github.com/matrix-org/synapse/issues/6783
 docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u $syusrid -p $sypass -a -c /data/homeserver.yaml
-$sudo docker ps | grep synapse | awk '{ print$NF }'
+#sudo docker ps | grep synapse | awk '{ print$NF }'
 
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample $destconf
 
 sed -i 's/matrix/'$sysubdomain'''/g' $destconf
+sed -i 's/        set $upstream_app synapse;/        set $upstream_app '$containername';''/g' $destconf
 
 ##################################################################################################################################
 # Syncthing
