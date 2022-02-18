@@ -490,7 +490,7 @@ sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' $destco
 # Homer - https://github.com/bastienwirtz/homer
 #         https://github.com/bastienwirtz/homer/blob/main/docs/configuration.md
 #  Create the docker-compose file
-containername=firefox
+containername=homer
 ymlname=$rootdir/$containername-compose.yml
 mkdir docker/$containername;
 
@@ -520,6 +520,12 @@ while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
 done
+
+# Make sure the stack started properly by checking for the existence of config.yml
+while [ ! -f $rootdir/docker/homer/config.yml ]
+    do
+      sleep 5
+    done
 
 #  Create a backup of the config.yml file if needed
 while [ ! -f $rootdir/docker/homer/config.yml.bak ]
@@ -864,6 +870,9 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 
 #  Pihole may block this domain which will prevent n.eko from running - checkip.amazonaws.com
 
+#  Wait just a bit for the container to fully deploy
+sleep 5
+
 #  Remove the policy restrictions all together :)
 docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
 mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak
@@ -1035,7 +1044,7 @@ chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihol
 #    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
 sudo systemctl stop systemd-resolved.service
 sudo systemctl disable systemd-resolved.service
-sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9 \# Quad9''/g' /etc/resolv.conf # We will change this later after the pihole is set up
+sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
 #  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
 #  sudo apt-get install net-tools
 #  sudo netstat -tulpn | grep ":53 " - port 53
@@ -1285,7 +1294,7 @@ apt-get install -y -qq libcurl4-openssl-dev libssl-dev
 git clone https://github.com/benbusby/whoogle-search.git 
 
 # Move the contents from directory whoogle-search to directory whoogle
-mv $rootdir/whoogle-search $rootdir/docker/whoogle
+mv $rootdir/whoogle-search $rootdir/docker/$containername
 
 rm $ymlname
 touch $ymlname
