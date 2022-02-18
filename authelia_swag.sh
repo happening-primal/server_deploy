@@ -236,7 +236,7 @@ echo "
 echo "add_header Permissions-Policy \"interest-cohort=()\";" >> $rootdir/docker/$swagloc/nginx/ssl.conf
 #  X-Robots-Tag - prevent applications from appearing in results of search engines and web crawlers
 echo "add_header X-Robots-Tag \"noindex, nofollow, nosnippet, noarchive\";" >> $rootdir/docker/$swagloc/nginx/ssl.conf
-#  Enable HTTP Strict Transport Security (HSTS) 
+#  Enable HTTP Strict Transport Security (HSTS)
 echo "add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;" >> $rootdir/docker/$swagloc/nginx/ssl.conf
 
 ##################################################################################################################################
@@ -727,8 +727,8 @@ sed -i 's/syncthing/jitsiweb''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jit
 sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 
-#  Up the docker containers
-docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d 
+#  Bring up the docker containers
+docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d
 
 # Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
 jmoduser=userid
@@ -1290,8 +1290,8 @@ mkdir $rootdir/docker/$containername;
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
-apt-get install -y -qq libcurl4-openssl-dev libssl-dev 
-git clone https://github.com/benbusby/whoogle-search.git 
+apt-get install -y -qq libcurl4-openssl-dev libssl-dev
+git clone https://github.com/benbusby/whoogle-search.git
 
 # Move the contents from directory whoogle-search to directory whoogle
 mv $rootdir/whoogle-search $rootdir/docker/$containername
@@ -1514,7 +1514,7 @@ Cleaning up and restarting the stack for the final time...
 #  Need to restart the stack - will commit changes to swag *.conf files
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
-docker-compose -f docker-compose.yml -p $stackname up -d 
+docker-compose -f docker-compose.yml -p $stackname up -d
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 
 ##################################################################################################################################
@@ -1562,12 +1562,12 @@ E-Mail Server:
 User directory root:                $usrdirroot
 ===============================================================================
 
-Now you may want to restart the box.  Either way navigate to your fqdn: 
+Now you may want to restart the box.  Either way navigate to your fqdn:
 
      'https://$fqdn'
 
 Tell Authelia the secondary authentication you want, like TOTP and then
-after your first login attempt, use your ssh terminal to get the 
+after your first login attempt, use your ssh terminal to get the
 authentication url using these commands:
 
       'ssh "$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')"@"$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)" -p "$(cat /etc/ssh/sshd_config | grep Port | head -1 | awk '{print $2}')"'
@@ -1582,6 +1582,6 @@ authentication url using these commands:
 docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
-docker-compose -f docker-compose.yml -p $stackname up -d 
+docker-compose -f docker-compose.yml -p $stackname up -d
 
 
