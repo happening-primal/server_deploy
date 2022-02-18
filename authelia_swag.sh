@@ -297,6 +297,17 @@ do
  sleep 5
  done
 
+#  Restart Authelia so that it will generate the users_database.yml file
+docker-compose -f $ymlname -p $stackname down
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+ done
+
+
 # Make sure the stack started properly by checking for the existence of users_database.yml
 while [ ! -f $rootdir/docker/$containername/users_database.yml ]
     do
@@ -398,8 +409,7 @@ sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' $rootdir/docker/$swagloc/nginx/site-confs/default
 
 #  Restart the stack to get the configuration changes committed
-docker-compose -f $ymlname -p $stackname down -d
-docker system prune
+docker-compose -f $ymlname -p $stackname down
 docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
@@ -1282,7 +1292,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 ##################################################################################################################################
 #  Whoogle
 #  Create the docker-compose file
-containername=wwhoogle
+containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
 mkdir $rootdir/docker/$containername;
 
