@@ -68,7 +68,7 @@ done
 
 while true; do
   read -rp "
-  Enter your desired ssh port number (default is 22) or hit Enter to exit this script. " newport
+Enter your desired ssh port number (default is 22) or hit Enter to exit this script. " newport
   case $newport in
     "") newport=22 break ;;
     *) break ;;
