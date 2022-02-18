@@ -370,6 +370,7 @@ done
 
 echo "
 "
+rm setup.sh
 
 bleachbit --list | grep -E '[a-z0-9_\-]+\.[a-z0-9_\-]+' | xargs bleachbit --clean
 
