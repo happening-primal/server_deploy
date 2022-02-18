@@ -19,7 +19,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 ##################################################################################################################################
-#  Variables
+#  Global Variables
 stackname=authelia_swag  # Docker stack name
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
@@ -394,9 +394,7 @@ sed -i 's/\    location \/ {/#    location \/ {''/g' $rootdir/docker/$swagloc/ng
 sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;/#        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;''/g' $rootdir/docker/$swagloc/nginx/site-confs/default
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' $rootdir/docker/$swagloc/nginx/site-confs/default
 
-echo "
-Cleaning up and restarting the stack...
-"
+#  Restart the stack to get the configuration changes committed
 docker-compose -f $ymlname -p $stackname down -d
 docker system prune
 docker-compose -f $ymlname -p $stackname up -d
@@ -1097,6 +1095,40 @@ if [[ -z "${sspass}" ]]; then
   break
 done
 
+#  Create the docker-compose file
+containername=shadowsocks
+ymlname=$rootdir/$containername-compose.yml
+mkdir $rootdir/docker/$containername;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: shadowsocks/shadowsocks-libev
+    ports:
+      - 58211:8388/tcp
+      - 58211:8388/udp
+    environment:
+      - METHOD=aes-256-gcm
+      - PASSWORD=password
+      - DNS_ADDRS=1.1.1.1,9.9.9.9
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
 ##################################################################################################################################
 #  Synapse matrix server
 #  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
@@ -1461,7 +1493,7 @@ echo "
 Cleaning up and restarting the stack for the final time...
 "
 
-#  Need to restart the stack
+#  Need to restart the stack - will commit changes to swag *.conf files
 docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
 docker system prune
 docker-compose -f docker-compose.yml -p $stackname up -d 
