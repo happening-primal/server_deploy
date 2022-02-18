@@ -653,6 +653,7 @@ rm -r $rootdir/$extractdir
 rm -r $rootdir/docker/$containername
 
 wget https://github.com/jitsi/docker-jitsi-meet/archive/refs/tags/$jitsilatest.tar.gz
+
 tar -xzsf $jitsilatest.tar.gz
 rm stable-6826.tar.gz
 
@@ -977,98 +978,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 sed -i 's/syncthing/tor''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
 
-##################################################################################################################################
-# Pihole
-
-#  Needed if you are going to run pihole
-#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
-sudo systemctl stop systemd-resolved.service
-sudo systemctl disable systemd-resolved.service
-sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
-#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
-#  sudo apt-get install net-tools
-#  sudo netstat -tulpn | grep ":53 " - port 53
-
-while true; do
-  read -rp "
-Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
-  if [[ -z "${pipass}" ]]; then
-    echo "Enter your desired pihole webgui password or hit ctrl+C to exit."
-    continue
-  fi
-  break
-done
-
-#  Create the docker-compose file
-containername=pihole
-ymlname=$rootdir/$containername-compose.yml
-mkdir $rootdir/docker/$containername;
-mkdir $rootdir/docker/$containername/etc-pihole;
-mkdir $rootdir/docker/$containername/etc-dnsmasq.d;
-
-rm $ymlname
-touch $ymlname
-
-echo "$ymlhdr
-  $containername:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
-           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
-    image: pihole/pihole:latest
-    ports:
-      - 53:53/udp
-      - 53:53/tcp
-      - 67:67/tcp
-      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - WEBPASSWORD=$pipass
-      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
-    volumes:
-       - $rootdir/docker/$containername/etc-pihole:/etc/pihole
-       - $rootdir/docker/$containername/etc-dnsmasq.d:/etc/dnsmasq.d
-    dns:
-      - 127.0.0.1
-      - 1.1.1.1
-    cap_add:
-      - NET_ADMIN
-    networks:
-      #- no-internet  #  I think this one not needed...
-      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
-      internet:
-          ipv4_address: 172.20.10.10
-    deploy:
-      restart_policy:
-       condition: on-failure
-$ymlftr" >> $ymlname
-
-docker-compose -f $ymlname -p $stackname up -d
-
-#  First wait until the stack is first initialized...
-while [ -f "$(sudo docker ps | grep $containername)" ];
-do
- sleep 5
-done
-
-#  Prepare the pihole proxy-conf file using syncthing.subfolder.conf as a template
-destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
-cp $rootdir/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample $destconf
-
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
-
-# Ensure ownership of the 'etc-pihole' folder is set properly.
-chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihole
-#  This below step may not be needed.  Need to deploy to a server and check
-#  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
-#chmod 777 $rootdir/docker/pihole/etc-pihole
-
-#  Route all traffic including localhost traffic through the pihole
-#  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
-sed -i 's/nameserver 9.9.9.9/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)'/g' /etc/resolv.conf
-
-##################################################################################################################################
+###########################################################################################################################
 #  rss-proxy - will not run on a subfolder!
 #  Create the docker-compose file
 containername=rssproxy
@@ -1513,6 +1423,96 @@ sed -i 's/syncthing/wgui''/g' $destconf
 sed -i 's/    server_name syncthing./    server_name '$wgsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
+##################################################################################################################################
+# Pihole - do this last or it may interrupt you installs due to blacklisting
+
+#  Needed if you are going to run pihole
+#    Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+#    Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
+sudo systemctl stop systemd-resolved.service
+sudo systemctl disable systemd-resolved.service
+sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
+#  sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
+#  sudo apt-get install net-tools
+#  sudo netstat -tulpn | grep ":53 " - port 53
+
+while true; do
+  read -rp "
+Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " pipass
+  if [[ -z "${pipass}" ]]; then
+    echo "Enter your desired pihole webgui password or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+#  Create the docker-compose file
+containername=pihole
+ymlname=$rootdir/$containername-compose.yml
+mkdir $rootdir/docker/$containername;
+mkdir $rootdir/docker/$containername/etc-pihole;
+mkdir $rootdir/docker/$containername/etc-dnsmasq.d;
+
+rm $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
+           #      https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
+    image: pihole/pihole:latest
+    ports:
+      - 53:53/udp
+      - 53:53/tcp
+      - 67:67/tcp
+      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - WEBPASSWORD=$pipass
+      - SERVERIP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+    volumes:
+       - $rootdir/docker/$containername/etc-pihole:/etc/pihole
+       - $rootdir/docker/$containername/etc-dnsmasq.d:/etc/dnsmasq.d
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    cap_add:
+      - NET_ADMIN
+    networks:
+      #- no-internet  #  I think this one not needed...
+      #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
+      internet:
+          ipv4_address: 172.20.10.10
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Prepare the pihole proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample $destconf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+
+# Ensure ownership of the 'etc-pihole' folder is set properly.
+chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihole
+#  This below step may not be needed.  Need to deploy to a server and check
+#  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
+#chmod 777 $rootdir/docker/pihole/etc-pihole
+
+#  Route all traffic including localhost traffic through the pihole
+#  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
+sed -i 's/nameserver 9.9.9.9/nameserver '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)'/g' /etc/resolv.conf
 
 ##################################################################################################################################
 #  Seal a recently (Jan-2022) revealead vulnerabilty
@@ -1527,10 +1527,7 @@ Cleaning up and restarting the stack for the final time...
 "
 
 #  Need to restart the stack - will commit changes to swag *.conf files
-docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-docker system prune
-docker-compose -f docker-compose.yml -p $stackname up -d
-docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
+docker restart $(sudo docker ps -a | grep $stackname | awk '{ print$1 }')
 
 ##################################################################################################################################
 #  Store non-persistent variables in .bashrc for later use across reboots
@@ -1592,11 +1589,5 @@ authentication url using these commands:
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
 ##################################################################################################################################
-
-# You have to go through the startup twice because authelia starts, prints the configuration.yml file, then exits.
-docker restart $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-#docker stop $(sudo docker ps | grep $stackname | awk '{ print$1 }')
-#docker system prune
-#docker-compose -f docker-compose.yml -p $stackname up -d
 
 
