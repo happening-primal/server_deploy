@@ -71,6 +71,7 @@ done
 
 echo "
 "
+
 ##################################################################################################################################
 
 #  Installation section
@@ -98,6 +99,10 @@ done
 # Create domain string
 subdomains="www"
 #  Add a few specific use case subdomains
+#  farside
+fssubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$fssubdomain
 #  libretranslate
 ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
@@ -304,7 +309,6 @@ while [ ! -f $rootdir/docker/$containername/configuration.yml ]
       sleep 5
     done
 
-
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/configuration.yml
 
@@ -444,18 +448,33 @@ apt-get install -y -qq elixir
 #  Download farside
 wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
 tar -xzsf v0.1.0.tar.gz
-#cd farside-0.1.0
+cd $rootdir/farside-0.1.0
 #  Run the below from within the unpacked farside folder (farside-0.1.0)
 #  redis-server
-#  mix deps.get
-#  mix run -e Farside.Instances.sync
-#  elixir --erl "-detached" -S mix run --no-halt
+mix.exs mix deps.get
+mix run -e Farside.Instances.sync
+elixir --erl "-detached" -S mix run --no-halt
 #  Uses localhost:4001
 #  edit farside-0.1.0/services.json if you desire to control the instances of redirects
 #  such as if you want to create your own federated list of servers to choose from
 #  in a less trusted model (e.g. yourserver.1, yourserver.2, yourserver.3...) ;)
-
+cd $rootdir
 rm -f v0.1.0.tar.gz
+
+#  Enable swag capture
+#  Prepare the farside proxy-conf file using using syncthing.subdomain.conf.sample as a template
+containername=farside
+
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/'$containername'''/g' $destconf
+#  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
+sed -i 's/        set $upstream_app farside;/        set $upstream_app '$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)';''/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$fssubdomain'.''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destconf
 
 ##################################################################################################################################
 # Firefox - linuxserver.io
