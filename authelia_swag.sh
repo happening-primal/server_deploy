@@ -1393,7 +1393,7 @@ echo "$ymlhdr
       - $rootdir/docker/$containername/config:/config
       - $rootdir/docker/$containername/modules:/lib/modules
     ports:
-      - 50220:50220/udp
+      - 50220:51820/udp # Internal port must stay as 51820!
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
     networks:
@@ -1463,7 +1463,8 @@ echo "$ymlhdr
         max-size: 50m
     volumes:
       - $rootdir/docker/$containername/app:/app/db
-      - $rootdir/docker/$containername/etc:/etc/wireguard
+      - $rootdir/docker/$containername/config:/etc/wireguard
+      #- $rootdir/docker/$containername/etc:/etc/wireguard
     #network_mode: host
     networks:
       - no-internet
