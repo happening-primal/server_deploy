@@ -33,6 +33,9 @@ rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v
 
 #  External IP address
 myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+dockersubnet=172.20.10.0
+dockergateway=172.20.10.1
+piholeip=172.20.10.10
 
 #  Wireguard port
 wgport=50220
@@ -57,8 +60,8 @@ ymlftr="networks:
       ipam:
         driver: default
         config:
-          - subnet: 172.20.10.0/24
-            gateway: 172.20.10.1"
+          - subnet: $dockersubnet/24
+            gateway: $dockergateway"
 
 while true; do
     read -p "
@@ -889,7 +892,7 @@ echo "$ymlhdr
 #  If you are running pihole in a docker container, point neko to the pihole
 #  docker container ip address.  Probably best to set a static ip address for
 #  the pihole in the configuration so that it will never change.
-       - 172.20.10.10
+       - $piholeip
     networks:
       - no-internet
       - internet
@@ -1492,6 +1495,7 @@ dest=$rootdir/docker/$containername/app/server
 sed -i 's/\"1.1.1.1\"/\"'$myip'\"/g' $dest/global_settings.json
 sed -i 's/\"mtu\": \"1450\"/\"mtu\": \"1500\"/g' $dest/global_settings.json
 sed -i 's/\"listen_port\": \"51820\"/\"listen_port\": \"'$wgport'\"/g' $dest/interfaces.json
+sed -i 's/\"10.252.1.0/24\"/\"'$myip'\"/g' $dest/interfaces.json
 
 ##################################################################################################################################
 # Pihole - do this last or it may interrupt you installs due to blacklisting
@@ -1546,7 +1550,7 @@ echo "$ymlhdr
        - $rootdir/docker/$containername/etc-pihole:/etc/pihole
        - $rootdir/docker/$containername/etc-dnsmasq.d:/etc/dnsmasq.d
     dns:
-      - 127.0.0.1
+      #- 127.0.0.1
       - 9.9.9.9
     cap_add:
       - NET_ADMIN
@@ -1554,7 +1558,7 @@ echo "$ymlhdr
       #- no-internet  #  I think this one not needed...
       #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
       internet:
-          ipv4_address: 172.20.10.10
+          ipv4_address: $piholeip
     deploy:
       restart_policy:
        condition: on-failure
