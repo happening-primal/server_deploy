@@ -483,8 +483,10 @@ containername=farside
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
-sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+#  Enabling authelia capture will greatly reduce the effectiveness of farside but opens you up to
+#  access to anyone on the internet.  Tradeoff...
+#sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
+#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'''/g' $destconf
 #  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
 sed -i 's/        set $upstream_app farside;/        set $upstream_app '$myip';''/g' $destconf
