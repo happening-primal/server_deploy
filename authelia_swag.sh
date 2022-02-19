@@ -1095,7 +1095,7 @@ echo "$ymlhdr
     environment:
       - METHOD=aes-256-gcm
       - PASSWORD=$sspass
-      - DNS_ADDRS=$myip # Comma delimited
+      - DNS_ADDRS=$piholeip # Comma delimited, need to use external to this vps or internal to docker 
     networks:
       - no-internet
       - internet
@@ -1386,7 +1386,7 @@ echo "$ymlhdr
       - SERVERURL=$fqdn
       - SERVERPORT=$wgport
       - PEERS=3
-      - PEERDNS=auto
+      - PEERDNS=$piholeip  #  Need to use external to this vps or internal docker dns (pihole)
       - INTERNAL_SUBNET=$wireguardip
       - ALLOWEDIPS=0.0.0.0/0
     volumes:
