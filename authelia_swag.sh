@@ -36,6 +36,7 @@ myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 dockersubnet=172.20.10.0
 dockergateway=172.20.10.1
 piholeip=172.20.10.10
+wireguardip=172.20.10.20
 
 #  Wireguard port
 wgport=50220
@@ -1386,7 +1387,7 @@ echo "$ymlhdr
       - SERVERPORT=$wgport
       - PEERS=3
       - PEERDNS=auto
-      - INTERNAL_SUBNET=10.18.18.0
+      - INTERNAL_SUBNET=$wireguardip
       - ALLOWEDIPS=0.0.0.0/0
     volumes:
       - $rootdir/docker/$containername/config:/config
@@ -1495,7 +1496,7 @@ dest=$rootdir/docker/$containername/app/server
 sed -i 's/\"1.1.1.1\"/\"'$myip'\"/g' $dest/global_settings.json
 sed -i 's/\"mtu\": \"1450\"/\"mtu\": \"1500\"/g' $dest/global_settings.json
 sed -i 's/\"listen_port\": \"51820\"/\"listen_port\": \"'$wgport'\"/g' $dest/interfaces.json
-sed -i 's/\"10.252.1.0/24\"/\"'$myip'\"/g' $dest/interfaces.json
+sed -i 's/\"10.252.1.0/24\"/\"'$wireguardip'\"/g' $dest/interfaces.json
 
 ##################################################################################################################################
 # Pihole - do this last or it may interrupt you installs due to blacklisting
