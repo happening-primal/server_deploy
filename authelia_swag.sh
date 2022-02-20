@@ -1229,6 +1229,54 @@ sed -i 's/        set $upstream_app synapse;/        set $upstream_app '$contain
 sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapseport';''/g' $destconf
 
 ##################################################################################################################################
+#  Synapse UI
+#  https://hub.docker.com/r/awesometechnologies/synapse-admin
+
+#  Install some depndencies
+apt install -y -qq git yarn nodejs
+
+#  Download the repository
+#git clone https://github.com/Awesome-Technologies/synapse-admin.git
+
+#cd synapse-admin
+#yarn install
+#yarn start
+#cd $rootdir
+
+#  Create the docker-compose file
+containername=synapseui
+ymlname=$rootdir/$containername-compose.yml
+
+rm -f $ymlname
+touch $ymlname
+
+#docker run awesometechnologies/synapse-admin
+
+echo "$ymlhdr
+  $containername:
+    container_name: $containername
+#    hostname: synapse-admin
+    image: awesometechnologies/synapse-admin
+ #   ports:
+ #     - "8080:80"
+    restart: unless-stopped
+    networks:
+      no-internet:
+      #internet:
+$ymlftr" >> $ymlname
+
+#  Launch the 'normal' way using the yml file
+docker-compose -f $ymlname -p $stackname up -d
+
+#  Set up swag
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $destconf
+
+##################################################################################################################################
 # Syncthing
 #  Create the docker-compose file
 containername=syncthing
