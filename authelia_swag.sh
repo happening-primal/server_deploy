@@ -1140,7 +1140,12 @@ done
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
+synapseport=8008
 mkdir -p $rootdir/docker/$containername
+mkdir -p $rootdir/docker/$containername/data
+mkdir -p $rootdir/docker/postgresql
+mkdir -p $rootdir/docker/postgresql/data
+
 
 REG_SHARED_SECRET=$(openssl rand -hex 40)
 POSTGRES_USER=$(openssl rand -hex 25)
@@ -1152,10 +1157,10 @@ touch $ymlname
 echo "$ymlhdr
   $containername:
     container_name: $containername
-    hostname: ${MATRIX_HOSTNAME}
-    build:
-        context: ../..
-        dockerfile: docker/Dockerfile
+#    hostname: ${MATRIX_HOSTNAME}
+#    build:
+#        context: ../..
+#        dockerfile: docker/Dockerfile
     image: docker.io/matrixdotorg/synapse:latest
     restart: unless-stopped
     environment:
@@ -1171,13 +1176,13 @@ echo "$ymlhdr
       - POSTGRES_USER=$POSTGRES_USER
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
     volumes:
-      - synapse-data:/data
+      - $rootdir/docker/$containername/data:/data
     depends_on:
       - synapsedb
     # In order to expose Synapse, remove one of the following, you might for
     # instance expose the TLS port directly:
     # ports:
-    #   - 8448:8448/tcp
+    #   - $synapseport:$synapseport/tcp
     networks:
       no-internet:
       internet:
@@ -1190,32 +1195,38 @@ echo "$ymlhdr
       - POSTGRES_USER=$POSTGRES_USER
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - $rootdir/docker/postgresql/data:/var/lib/postgresql/data
     networks:
       no-internet:
 $ymlftr" >> $ymlname
 
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
-docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=$sysubdomain -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=8008 -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
-docker exec -it synapse register_new_matrix_user -u $syusrid -p $sypass -a -c /data/homeserver.yaml
+docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=$sysubdomain -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=$synapseport -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+
+#  Launch the 'normal' way using the yml file
+docker-compose -f $ymlname -p $stackname up -d
 
 #  Wait for the stack to fully deploy
-#  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
 done
 
-#  https://github.com/matrix-org/synapse/issues/6783
-docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user http://localhost:8008 -u $syusrid -p $sypass -a -c /data/homeserver.yaml
+#  Add the administrative user
+#  If you are using a port other than 8448, it may fail unless to tell it where to look.  This command assumes it is on port 8448
+#  docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user -u $syusrid -p $sypass -a -c /data/homeserver.yaml
+#  See this for a solution https://github.com/matrix-org/synapse/issues/6783
+docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user http://localhost:$synapseport -u $syusrid -p $sypass -a -c /data/homeserver.yaml
 #sudo docker ps | grep synapse | awk '{ print$NF }'
 
-destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+#  Set up swag
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample $destconf
 
-sed -i 's/matrix/'$sysubdomain'''/g' $destconf
+sed -i 's/    server_name matrix./    server_name '$sysubdomain'./g' $destconf
 sed -i 's/        set $upstream_app synapse;/        set $upstream_app '$containername';''/g' $destconf
+sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapseport';''/g' $destconf
 
 ##################################################################################################################################
 # Syncthing
