@@ -184,6 +184,9 @@ done
 #  break
 #done
 
+##################################################################################################################################
+#  Secure Web Acceess Gateway (SWAG)
+
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
@@ -294,6 +297,8 @@ authec=$(openssl rand -hex 40)   # Authelia encryption key
 #  Create the docker-compose file
 swagyml=$ymlname
 containername=authelia
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+autheliasubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 
@@ -549,6 +554,8 @@ sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' $destco
 #         https://github.com/bastienwirtz/homer/blob/main/docs/configuration.md
 #  Create the docker-compose file
 containername=homer
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+homersubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p docker/$containername;
 
@@ -675,6 +682,15 @@ sed -i '5 i    return 301 $scheme://$host/'$containername'/;' $destconf
 sed -i '6 i }' $destconf
 sed -i '7 i 
 ' $destconf
+
+##################################################################################################################################
+#  JAMS Jami server application - https://jami.biz/jams-user-guide#Obtaining-JAMS
+#  https://git.jami.net/savoirfairelinux/jami-jams
+
+wget https://git.jami.net/savoirfairelinux/jami-jams
+
+docker run -p 80:8080 --rm jams:latest
+
 
 ##################################################################################################################################
 #  Jitsi meet server
@@ -866,6 +882,8 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
 done
 
 containername=neko
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+nekosubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 
@@ -974,6 +992,8 @@ EOF
 # Neko Tor browser
 #  Create the docker-compose file
 containername=tor
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+torsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 
@@ -1016,6 +1036,109 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $d
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
+
+###########################################################################################################################
+#  OpenVPN Access Server (Depricated) - https://hub.docker.com/r/linuxserver/openvpn-as
+
+containername=openvpnas
+ymlname=$rootdir/$containername-compose.yml
+mkdir -p $rootdir/docker/$containername;
+
+rm -f $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: ghcr.io/linuxserver/openvpn-as
+    #container_name: openvpn-as
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - INTERFACE=eth0 #optional
+    volumes:
+      - $rootdir/docker/$containername:/config
+    ports:
+      - 963:943
+      - 9643:9443
+      - 1694:1194/udp
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+# Admin interface available at https://DOCKER-HOST-IP:943/admin - 964 in the above - default user/password of admin/password
+
+###########################################################################################################################
+#  PolitePol - https://github.com/taroved/pol
+#  Create the docker-compose file
+
+git clone https://github.com/taroved/pol
+cd pol
+
+containername=politepol
+ymlname=$rootdir/pol/$containername-compose.yml
+mkdir -p $rootdir/docker/$containername;
+
+rm -f $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    build:
+      context: .
+    environment:
+      DB_NAME: 'politepol'
+      DB_USER: 'rooooooooooot'
+      DB_PASSWORD: 'toooooooooooor'
+      DB_HOST: 'dbpolitepol'
+      DB_PORT: '3306'
+      WEB_PORT: '8088'
+      TIME_ZONE: 'America\/Fortaleza'
+    image: politepol:latest
+    depends_on:
+      - 'dbpolitepol'
+    #command: [\"./wait-for-it.sh\", \"dbpolitepol:3306\", \"--\", \"/bin/bash\", \"./frontend/start.sh\"]
+    command: [\"./wait-for-it.sh\", \"dbpolitepol\", \"/bin/bash\", \"./frontend/start.sh\"]
+    container_name: politepol
+    restart: unless-stopped
+    networks:
+      - no-internet
+      - internet
+    ports:
+      - '8088:8088'
+
+  dbpolitepol:
+    image: mysql:5.7
+    container_name: dbpolitepol
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: 'politepol'
+      MYSQL_USER: 'rooooooooooot'
+      MYSQL_PASSWORD: 'toooooooooooor'
+      MYSQL_ROOT_PASSWORD: 'rootpass'
+    networks:
+      - no-internet
+    volumes:
+      - ./mysql:/var/lib/mysql
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#Access (port 8088)
+
+rm -r $rootdir/pol
+
+
+
+
+#  JAMS - https://git.jami.net/savoirfairelinux/jami-jams
+#  https://gitlab.com/stormking/feedropolis
+
+#  https://irosyadi.gitbook.io/irosyadi/app/rss-tool
+
+
 
 ###########################################################################################################################
 #  rss-proxy - will not run on a subfolder!
@@ -1080,6 +1203,8 @@ done
 
 #  Create the docker-compose file
 containername=shadowsocks
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+shadowsockssubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 
@@ -1245,6 +1370,8 @@ apt install -y -qq git yarn nodejs
 
 #  Create the docker-compose file
 containername=synapseui
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+synapseuisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 
 rm -f $ymlname
@@ -1280,6 +1407,8 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $destconf
 # Syncthing
 #  Create the docker-compose file
 containername=syncthing
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+syncthingsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 
@@ -1495,6 +1624,8 @@ Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBb
 done
 
 containername=wgui
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+wguisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/app;
