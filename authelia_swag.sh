@@ -253,6 +253,17 @@ while [ ! -f $rootdir/docker/$swagloc/nginx/ssl.conf ]
       sleep 5
     done
 
+#  Firewall rules
+iptables -t filter -A OUTPUT -p tcp --dport 80 -j ACCEPT
+iptables -t filter -A INPUT -p tcp --dport 80 -j ACCEPT
+iptables -t filter -A OUTPUT -p udp --dport 80 -j ACCEPT
+iptables -t filter -A INPUT -p udp --dport 80 -j ACCEPT
+
+iptables -t filter -A OUTPUT -p tcp --dport 443 -j ACCEPT
+iptables -t filter -A INPUT -p tcp --dport 443 -j ACCEPT
+iptables -t filter -A OUTPUT -p udp --dport 443 -j ACCEPT
+iptables -t filter -A INPUT -p udp --dport 443 -j ACCEPT
+
 #  Perform some SWAG hardening:
 #    https://virtualize.link/secure/
 echo "
@@ -485,6 +496,12 @@ elixir --erl "-detached" -S mix run --no-halt
 cd $rootdir
 rm -f v0.1.0.tar.gz
 
+#  Firewall rules
+iptables -t filter -A OUTPUT -p tcp --dport 4001 -j ACCEPT
+iptables -t filter -A INPUT -p tcp --dport 4001 -j ACCEPT
+iptables -t filter -A OUTPUT -p udp --dport 4001 -j ACCEPT
+iptables -t filter -A INPUT -p udp --dport 4001 -j ACCEPT
+
 #  Enable swag capture of farside
 #  Prepare the farside proxy-conf file using using syncthing.subdomain.conf.sample as a template
 containername=farside
@@ -572,7 +589,7 @@ echo "$ymlhdr
     volumes:
       - $rootdir/docker/homer:/www/assets
     networks:
-      - no-internet
+      - no-internet  #  Only talks to lan, no internet required
     deploy:
       restart_policy:
        condition: on-failure
@@ -928,6 +945,9 @@ do
  sleep 5
 done
 
+#  Firewall rules
+iptables -A INPUT -p udp --dport 52000:52100 -j ACCEPT
+
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
@@ -1029,6 +1049,9 @@ do
  sleep 5
 done
 
+#  Firewall rules
+iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
+
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
@@ -1067,6 +1090,9 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
 
 # Admin interface available at https://DOCKER-HOST-IP:943/admin - 964 in the above - default user/password of admin/password
 
@@ -1108,7 +1134,6 @@ echo "$ymlhdr
       - internet
     ports:
       - '8088:8088'
-
   dbpolitepol:
     image: mysql:5.7
     container_name: dbpolitepol
@@ -1125,6 +1150,9 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
 
 #Access (port 8088)
 
@@ -1230,6 +1258,12 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 58211 -j ACCEPT
+iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 58211 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 58211 -j ACCEPT
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1429,9 +1463,9 @@ echo "$ymlhdr
       - $rootdir/docker:/config/Sync
     ports:
       #- 8384:8384 # WebApp port, don't publish this to the outside world - only proxy through swag/authelia
+      - 21027:21027/udp
       - 22000:22000/tcp
       - 22000:22000/udp
-      - 21027:21027/udp
     networks:
       - no-internet
       - internet
@@ -1441,6 +1475,14 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 21027 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 21027 -j ACCEPT
+iptables -A INPUT -p tcp --dport 22000 -j ACCEPT
+iptables -A INPUT -p udp --dport 22000 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 22000 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 22000 -j ACCEPT
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1593,6 +1635,12 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p tcp --dport $wgport -j ACCEPT
+iptables -A OUTPUT -p tcp --dport $wgport -j ACCEPT
+iptables -A INPUT -p udp --dport $wgport -j ACCEPT
+iptables -A OUTPUT -p udp --dport $wgport -j ACCEPT
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1758,6 +1806,19 @@ $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
 
+# Allow dns requests and other ports for pihole - https://docs.pi-hole.net/main/prerequisites/
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 67 -j ACCEPT
+iptables -A INPUT -p tcp --dport 67 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 67 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 67 -j ACCEPT
+iptables -I INPUT 1 -p udp --dport 67:68 --sport 67:68 -j ACCEPT
+iptables -I INPUT 1 -p tcp -m tcp --dport 4711 -i lo -j ACCEPT
+iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
 do
@@ -1786,6 +1847,10 @@ sed -i 's/nameserver 9.9.9.9/nameserver '$myip'/g' /etc/resolv.conf
 #    https://arstechnica.com/information-technology/2022/01/a-bug-lurking-for-12-years-gives-attackers-root-on-every-major-linux-distro/
 
 chmod 0755 /usr/bin/pkexec
+
+##################################################################################################################################
+# Save firewall changes
+iptables-save
 
 ##################################################################################################################################
 
