@@ -1083,6 +1083,8 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destco
 
 ###########################################################################################################################
 #  OpenVPN Access Server - https://openvpn.net/vpn-software-packages/ubuntu/#install-from-repository
+#  https://openvpn.net/vpn-server-resources/advanced-option-settings-on-the-command-line/
+#  https://askubuntu.com/questions/1133903/where-is-openvpns-sacli - /usr/local/openvpn_as/scripts/sacli
 
 #  Install some dependencies
 apt update && apt -y install -qq ca-certificates wget net-tools gnupg
@@ -1093,21 +1095,57 @@ echo "deb http://as-repository.openvpn.net/as/debian focal main">/etc/apt/source
 apt update && apt -y install -qq openvpn-as
 
 containername=openvpnas
+sacliloc=/usr/local/openvpn_as/scripts/sacli
+ovpntcpport=26111
+ovpnudpport=21894
+ovpnuser=$(echo $RANDOM | md5sum | head -c 8)
+ovpnpass=$(echo $RANDOM | md5sum | head -c 25)
+ovpngroup=$(echo $RANDOM | md5sum | head -c 8)
 
 #  Prepare the openvpn-as proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
 sed -i 's/syncthing/'$containername'/g' $destconf
-#  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
-sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';''/g' $destconf
+#  Set the $upstream_app parameter to the localhost address (127.0.0.1) so it can be accessed from docker (swag)
+sed -i 's/        set $upstream_app '$containername';/        set $upstream_app 127.0.0.1;''/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$ovpnsubdomain'.''/g' $destconf
 sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    include \/config\/nginx\/authelia-server.conf;/g' $destconf
 sed -i 's/        \#include \/config\/nginx\/authelia-location.conf;/        include \/config\/nginx\/authelia-location.conf;/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 943;''/g' $destconf
 sed -i 's/        set $upstream_proto http;/        set $upstream_proto https;/g' $destconf
 
-#  Need to block access via ip address to port 943
+#  Need to block access via external ip address to port 943
+#  Firewall rules
+#  Block access to port 943 from the outside - traffic must go thhrough SWAG
+#  Blackhole outside connection attempts to port 943
+iptables -t nat -A PREROUTING -i eth0 ! -s 127.0.0.1 -p tcp --dport 943 -j REDIRECT --to-port 0
+
+#  Set the openvpn tcp/upd ports - https://openvpn.net/vpn-server-resources/managing-user-and-group-properties-from-command-line/
+$sacliloc  --key "vpn.server.daemon.tcp.port" --value $ovpntcpport ConfigPut
+$sacliloc  --key "vpn.server.daemon.udp.port" --value $ovpnudpport ConfigPut
+
+#  Create a new user and set the password for the user - https://openvpn.net/vpn-server-resources/managing-user-and-group-properties-from-command-line/
+$sacliloc --user $ovpnuser --key "type" --value "user_connect" UserPropPut
+$sacliloc --user $ovpnuser --new_pass=$ovpnpass SetLocalPassword
+
+#  Create a group for the new user - not stricktly needed
+#$sacliloc --user $ovpngroup --key "type" --value "group" UserPropPut
+#$sacliloc --user $ovpngroup --key "group_declare" --value "true" UserPropPut
+#$sacliloc --user $ovpnuser --key "conn_group" --value "$ovpngroup" UserPropPut
+
+#  Make it admin
+$sacliloc --user $ovpnuser --key "prop_superuser" --value "true" UserPropPut
+
+#  Remove the defualt user (openvpn)
+$sacliloc --user openvpn --key "conn_group" UserPropDel
+$sacliloc --user openvpn UserPropDelAll
+
+#  Set up a cron job to purge any logs that d get created
+(crontab -l 2>/dev/null || true; echo "0 4 * * * /bin/rm /var/log/openvpnas.log.{15..1000} >/dev/null 2>&1") | crontab -
+
+#  Restart the server
+$sacliloc start
 
 ###########################################################################################################################
 #  PolitePol - https://github.com/taroved/pol
