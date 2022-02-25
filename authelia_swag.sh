@@ -493,6 +493,18 @@ cd $rootdir/farside-0.1.0
 mix.exs mix deps.get
 mix run -e Farside.Instances.sync
 elixir --erl "-detached" -S mix run --no-halt
+
+rm -f run.sh
+touch run.sh
+
+#  Must use single quotes for !
+echo '#!/bin/bash
+elixir --erl \"-detached\" -S mix run --no-halt' >> run.sh
+
+#  Set up a cron job to start the server once a minute so that it never goes down
+(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R $rootdir/farside-0.1.0/run.sh") | crontab -
+
+
 #  Uses localhost:4001
 #  edit farside-0.1.0/services.json if you desire to control the instances of redirects
 #  such as if you want to create your own federated list of servers to choose from
@@ -505,6 +517,9 @@ iptables -t filter -A OUTPUT -p tcp --dport 4001 -j ACCEPT
 iptables -t filter -A INPUT -p tcp --dport 4001 -j ACCEPT
 iptables -t filter -A OUTPUT -p udp --dport 4001 -j ACCEPT
 iptables -t filter -A INPUT -p udp --dport 4001 -j ACCEPT
+#  Block access to port 943 from the outside - traffic must go thhrough SWAG
+#  Blackhole outside connection attempts to port 943
+#iptables -t nat -A PREROUTING -i eth0 ! -s 127.0.0.1 -p tcp --dport 4001 -j REDIRECT --to-port 0
 
 #  Enable swag capture of farside
 #  Prepare the farside proxy-conf file using using syncthing.subdomain.conf.sample as a template
@@ -519,7 +534,7 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $d
 #sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'''/g' $destconf
 #  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
-sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';''/g' $destconf
+sed -i 's/        set $upstream_app '$containername';/        set $upstream_app 127.0.0.1;''/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$fssubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destconf
 
@@ -1546,10 +1561,6 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $d
 
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 
-#  Add a cron job to reset the permissions of the pihole directory if any changes are made - checks once per minute
-#  Don't put ' around the commmand!  And, it must be run as root!
-(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R $rootdir/docker/pihole/etc-pihole") | crontab -
-
 #  When you set up the syncs for pihole, ensure you check 'Ignore Permissions' under the 'Advanced' tab during folder setup.
 
 ##################################################################################################################################
@@ -1894,6 +1905,10 @@ chown systemd-coredump:systemd-coredump $rootdir/docker/$containername/etc-pihol
 #  This below step may not be needed.  Need to deploy to a server and check
 #  Allow syncthing to write to the 'etc-pihole' directory so it can sync properly
 #chmod 777 $rootdir/docker/pihole/etc-pihole
+
+#  Add a cron job to reset the permissions of the pihole directory if any changes are made - checks once per minute
+#  Don't put ' around the commmand!  And, it must be run as root!
+(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R $rootdir/docker/pihole/etc-pihole") | crontab -
 
 #  Route all traffic including localhost traffic through the pihole
 #  https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
