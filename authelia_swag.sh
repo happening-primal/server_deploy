@@ -30,39 +30,22 @@ fi
 
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
 
-#  Prepare for persistence
-echo "
-" >> $rootdir/.bashrc
-#  Commit the variable(s) to bashrc
-echo "export rootdir=$rootdir" >> $rootdir/.bashrc
-
 stackname=authelia_swag  # Docker stack name
-echo "export stackname=$stackname" >> $rootdir/.bashrc
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
-echo "export swagloc=$swagloc" >> $rootdir/.bashrc
-
-
 
 #  External IP address
 myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
-echo "export myip=$myip" >> $rootdir/.bashrc
 dockersubnet=172.20.10.0
-echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
 dockergateway=172.20.10.1
-echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
 piholeip=172.20.10.10
-echo "export piholeip=$piholeip" >> $rootdir/.bashrc
 wireguardip=172.20.10.20
-echo "export wireguardip=$wireguardip" >> $rootdir/.bashrc
 
 #  Wireguard port
 wgport=50220
-echo "export wgport=$wgport" >> $rootdir/.bashrc
 
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
 services:"
-echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
 
 #  Footer for docker-compose .yml files
 ymlftr="networks:
@@ -82,6 +65,21 @@ ymlftr="networks:
         config:
           - subnet: $dockersubnet/24
             gateway: $dockergateway"
+
+#Prepare for persistence
+echo "
+#  Global Variables" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export rootdir=$rootdir" >> $rootdir/.bashrc
+echo "export stackname=$stackname" >> $rootdir/.bashrc
+echo "export swagloc=$swagloc" >> $rootdir/.bashrc
+echo "export myip=$myip" >> $rootdir/.bashrc
+echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
+echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
+echo "export piholeip=$piholeip" >> $rootdir/.bashrc
+echo "export wireguardip=$wireguardip" >> $rootdir/.bashrc
+echo "export wgport=$wgport" >> $rootdir/.bashrc
+echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
 echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
@@ -138,8 +136,6 @@ Enter your fully qualified domain name (FQDN) from your DNS provider - would loo
   break
 done
 
-echo "export fqdn=$fqdn" >> $rootdir/.bashrc
-
 # Create domain string
 subdomains="www"
 #  Add a few specific use case subdomains
@@ -147,32 +143,26 @@ subdomains="www"
 fssubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$fssubdomain
-echo "export fssubdomain=$fssubdomain" >> $rootdir/.bashrc
 #  libretranslate
 ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$ltsubdomain
-echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
 #  jitsiweb
 jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$jwebsubdomain
-echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
 #  openvpn access server
 ovpnsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$ovpnsubdomain
-echo "export ovpnsubdomain=$ovpnsubdomain" >> $rootdir/.bashrc
 #  rss-proxy
 rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$rpsubdomain
-echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
 #  synapse
 sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$sysubdomain
-echo "export sysubdomain=$sysubdomain" >> $rootdir/.bashrc
 #  wireguard gui
 wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
@@ -198,6 +188,16 @@ do
         subdomains+=$(echo $RANDOM | md5sum | head -c 8)
 done
 
+echo "
+#  Secure Web Access Gateway (SWAG)" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export fqdn=$fqdn" >> $rootdir/.bashrc
+echo "export fssubdomain=$fssubdomain" >> $rootdir/.bashrc
+echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
+echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
+echo "export ovpnsubdomain=$ovpnsubdomain" >> $rootdir/.bashrc
+echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
+echo "export sysubdomain=$sysubdomain" >> $rootdir/.bashrc
 echo "export subdomains=$subdomains" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
@@ -336,6 +336,9 @@ Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDY
   break
 done
 
+echo "
+#  Authelia" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
 #  Commit the variable(s) to bashrc
 echo "export authusr=$authusr" >> $rootdir/.bashrc
 echo "export authpwd=$authpwd" >> $rootdir/.bashrc
@@ -795,6 +798,8 @@ containername=jitsi-meet
 jmoduser=userid
 jmodpass=password
 
+echo "
+#  Jitsi Meet" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export jitsilatest=$jitsilatest" >> $rootdir/.bashrc
 echo "export jextractdir=$jextractdir" >> $rootdir/.bashrc
@@ -987,6 +992,8 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
   break
 done
 
+echo "
+#  Neko" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export nupass=$nupass" >> $rootdir/.bashrc
 echo "export napass=$napass" >> $rootdir/.bashrc
@@ -1178,6 +1185,8 @@ ovpnuser=$(echo $RANDOM | md5sum | head -c 8)
 ovpnpass=$(echo $RANDOM | md5sum | head -c 25)
 ovpngroup=$(echo $RANDOM | md5sum | head -c 8)
 
+echo "
+#  OpenVPN Access Server" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export sacliloc=$sacliloc" >> $rootdir/.bashrc
 echo "export ovpntcpport=$ovpntcpport" >> $rootdir/.bashrc
@@ -1426,6 +1435,8 @@ if [[ -z "${sypass}" ]]; then
   break
 done
 
+echo "
+#  Synapse (Matrix)" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export syusrid=$syusrid" >> $rootdir/.bashrc
 echo "export sypass=$sypass" >> $rootdir/.bashrc
@@ -1649,7 +1660,6 @@ ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername
 mylink=$fssubdomain'.'$fqdn
 
-
 #  Commit the variable(s) to bashrc
 echo "export mylink=$mylink" >> $rootdir/.bashrc
 
@@ -1820,6 +1830,8 @@ Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBb
   break
 done
 
+echo "
+#  Wireguard UI" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export wguid=$wguid" >> $rootdir/.bashrc
 echo "export wgpass=$wgpass" >> $rootdir/.bashrc
@@ -1919,6 +1931,8 @@ Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyB
   break
 done
 
+echo "
+#  Pihole Admin" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export pipass=$pipass" >> $rootdir/.bashrc
 
@@ -2032,28 +2046,7 @@ Cleaning up and restarting the stack for the final time...
 docker restart $(sudo docker ps -a | grep $stackname | awk '{ print$1 }')
 
 ##################################################################################################################################
-#  Store non-persistent variables in .bashrc for later use across reboots
-#echo "
-#" >> $rootdir/.bashrc
-#echo "export authusr=$authusr" >> $rootdir/.bashrc
-#echo "export authpwd=$authpwd" >> $rootdir/.bashrc
-#echo "export rootdir=$rootdir" >> $rootdir/.bashrc
-#echo "export stackname=$stackname" >> $rootdir/.bashrc
-#echo "export swagloc=$swagloc" >> $rootdir/.bashrc
-#echo "export fqdn=$fqdn" >> $rootdir/.bashrc
-#echo "export nupass=$nupass" >> $rootdir/.bashrc
-#echo "export napass=$napass" >> $rootdir/.bashrc
-#echo "export pipass=$pipass" >> $rootdir/.bashrc
-#echo "export wguid=$wguid" >> $rootdir/.bashrc
-#echo "export wgpass=$wgpass" >> $rootdir/.bashrc
-#echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
-#echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
-#echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
-#echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
-#echo "export sspass=$sspass" >> $rootdir/.bashrc
-
-# Commit the .bashrc changes
-#source $rootdir/.bashrc
+#  Closeout
 
 echo "
 Keep these in a safe place for future reference:
