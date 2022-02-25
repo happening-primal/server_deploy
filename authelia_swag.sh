@@ -27,23 +27,42 @@ fi
 
 ##################################################################################################################################
 #  Global Variables
-stackname=authelia_swag  # Docker stack name
-swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
+
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
+
+#  Prepare for persistence
+echo "
+" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export rootdir=$rootdir" >> $rootdir/.bashrc
+
+stackname=authelia_swag  # Docker stack name
+echo "export stackname=$stackname" >> $rootdir/.bashrc
+swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
+echo "export swagloc=$swagloc" >> $rootdir/.bashrc
+
+
 
 #  External IP address
 myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+echo "export myip=$myip" >> $rootdir/.bashrc
 dockersubnet=172.20.10.0
+echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
 dockergateway=172.20.10.1
+echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
 piholeip=172.20.10.10
+echo "export piholeip=$piholeip" >> $rootdir/.bashrc
 wireguardip=172.20.10.20
+echo "export wireguardip=$wireguardip" >> $rootdir/.bashrc
 
 #  Wireguard port
 wgport=50220
+echo "export wgport=$wgport" >> $rootdir/.bashrc
 
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
 services:"
+echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
 
 #  Footer for docker-compose .yml files
 ymlftr="networks:
@@ -63,6 +82,10 @@ ymlftr="networks:
         config:
           - subnet: $dockersubnet/24
             gateway: $dockergateway"
+echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 while true; do
     read -p "
@@ -115,6 +138,8 @@ Enter your fully qualified domain name (FQDN) from your DNS provider - would loo
   break
 done
 
+echo "export fqdn=$fqdn" >> $rootdir/.bashrc
+
 # Create domain string
 subdomains="www"
 #  Add a few specific use case subdomains
@@ -122,30 +147,37 @@ subdomains="www"
 fssubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$fssubdomain
+echo "export fssubdomain=$fssubdomain" >> $rootdir/.bashrc
 #  libretranslate
 ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$ltsubdomain
+echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
 #  jitsiweb
 jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$jwebsubdomain
+echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
 #  openvpn access server
 ovpnsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$ovpnsubdomain
+echo "export ovpnsubdomain=$ovpnsubdomain" >> $rootdir/.bashrc
 #  rss-proxy
 rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$rpsubdomain
+echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
 #  synapse
 sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$sysubdomain
+echo "export sysubdomain=$sysubdomain" >> $rootdir/.bashrc
 #  wireguard gui
 wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$wgsubdomain
+echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
 
 while true; do
   read -rp "
@@ -165,6 +197,11 @@ do
         subdomains+=", "
         subdomains+=$(echo $RANDOM | md5sum | head -c 8)
 done
+
+echo "export subdomains=$subdomains" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 # If using duckdns
 #while true; do
@@ -298,6 +335,13 @@ Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDY
   fi
   break
 done
+
+#  Commit the variable(s) to bashrc
+echo "export authusr=$authusr" >> $rootdir/.bashrc
+echo "export authpwd=$authpwd" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
@@ -745,14 +789,24 @@ docker run -p 80:8080 --rm jams:latest
 apt-get install -y -qq linux-image-extra-virtual
 
 jitsilatest=stable-6826
-extractdir=docker-jitsi-meet-$jitsilatest
+jextractdir=docker-jitsi-meet-$jitsilatest
 jcontdir=jitsi-meet
 containername=jitsi-meet
 jmoduser=userid
 jmodpass=password
 
+#  Commit the variable(s) to bashrc
+echo "export jitsilatest=$jitsilatest" >> $rootdir/.bashrc
+echo "export jextractdir=$jextractdir" >> $rootdir/.bashrc
+echo "export jcontdir=$jcontdir" >> $rootdir/.bashrc
+echo "export jmoduser=$jmoduser" >> $rootdir/.bashrc
+echo "export jmodpass=$jmodpass" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 rm stable-6826.tar.gz
-rm -r $rootdir/$extractdir
+rm -r $rootdir/$jextractdir
 rm -r $rootdir/docker/$containername
 
 mkdir -p $rootdir/docker/$containername/{web/crontabs,web/letsencrypt,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
@@ -763,76 +817,76 @@ tar -xzsf $jitsilatest.tar.gz
 rm stable-6826.tar.gz
 
 #  Copy env.example file to production (.env) if needed
-while [ ! -f $rootdir/$extractdir/.env ]
+while [ ! -f $rootdir/$jextractdir/.env ]
     do
-      cp $rootdir/$extractdir/env.example \
-         $rootdir/$extractdir/.env;
+      cp $rootdir/$jextractdir/env.example \
+         $rootdir/$jextractdir/.env;
     done
 
 #  Generate some strong passwords in the .env file
-$rootdir/$extractdir/gen-passwords.sh
+$rootdir/$jextractdir/gen-passwords.sh
 
 mypath="$rootdir"
 #  Fix it up for substitutions using sed by adding backslashes to escaped charaters
 mypath=${mypath//\//\\/}
 
-sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' $rootdir/$extractdir/.env
+sed -i 's/CONFIG=~\/.jitsi-meet-cfg/CONFIG='$mypath'\/docker\/'$jcontdir'/g' $rootdir/$jextractdir/.env
 
-sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' $rootdir/$extractdir/.env
-sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' $rootdir/$extractdir/.env
+sed -i 's/HTTP_PORT=8000/HTTP_PORT=8181/g' $rootdir/$jextractdir/.env
+sed -i 's/\#PUBLIC_URL=https:\/\/meet.example.com/PUBLIC_URL=https:\/\/'$jwebsubdomain'.'$fqdn'/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_LOBBY=1/ENABLE_LOBBY=1/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_AV_MODERATION=1/ENABLE_AV_MODERATION=1/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_PREJOIN_PAGE=0/ENABLE_PREJOIN_PAGE=0/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_WELCOME_PAGE=1/ENABLE_WELCOME_PAGE=1/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_CLOSE_PAGE=0/ENABLE_CLOSE_PAGE=0/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_NOISY_MIC_DETECTION=1/ENABLE_NOISY_MIC_DETECTION=1/g' $rootdir/$jextractdir/.env
 
 #  If having any issues with nginx not picking up the letsencrypt certificate see:
 #  https://github.com/jitsi/docker-jitsi-meet/issues/92
-sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$jwebsubdomain'.'$fqdn'/g' $rootdir/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' $rootdir/$extractdir/.env
-sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_LETSENCRYPT=1/\#ENABLE_LETSENCRYPT=1/g' $rootdir/$jextractdir/.env
+sed -i 's/\#LETSENCRYPT_DOMAIN=meet.example.com/LETSENCRYPT_DOMAIN='$jwebsubdomain'.'$fqdn'/g' $rootdir/$jextractdir/.env
+sed -i 's/\#LETSENCRYPT_EMAIL=alice@atlanta.net/LETSENCRYPT_EMAIL='$(openssl rand -hex 25)'@'$(openssl rand -hex 25)'.net/g' $rootdir/$jextractdir/.env
+sed -i 's/\#LETSENCRYPT_USE_STAGING=1/\#LETSENCRYPT_USE_STAGING=1/g' $rootdir/$jextractdir/.env
 
 # Use the staging server (for avoiding rate limits while testing) - not for production environment
 #LETSENCRYPT_USE_STAGING=1
 
-sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#ENABLE_GUESTS=1/ENABLE_GUESTS=1/g' $rootdir/$extractdir/.env
-sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' $rootdir/$extractdir/.env
+sed -i 's/\#ENABLE_AUTH=1/ENABLE_AUTH=1/g' $rootdir/$jextractdir/.env
+sed -i 's/\#ENABLE_GUESTS=1/ENABLE_GUESTS=1/g' $rootdir/$jextractdir/.env
+sed -i 's/\#AUTH_TYPE=internal/AUTH_TYPE=internal/g' $rootdir/$jextractdir/.env
 
 # Enabling these will stop swag from picking up the container on port 80
-#sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' $rootdir/$extractdir/.env
-#sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' $rootdir/$extractdir/.env
+#sed -i 's/\#ENABLE_HTTP_REDIRECT=1/ENABLE_HTTP_REDIRECT=1/g' $rootdir/$jextractdir/.env
+#sed -i 's/\# ENABLE_HSTS=1/ENABLE_HSTS=1/g' $rootdir/$jextractdir/.env
 
 # https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
 # Solution below:
 echo "
 
 # Added based on this - https://community.jitsi.org/t/you-have-been-disconnected-on-fresh-docker-installation/89121/10
-ENABLE_XMPP_WEBSOCKET=0" >> $rootdir/$extractdir/.env
+ENABLE_XMPP_WEBSOCKET=0" >> $rootdir/$jextractdir/.env
 
-cp $rootdir/$extractdir/docker-compose.yml $rootdir/$extractdir/docker-compose.yml.bak
+cp $rootdir/$jextractdir/docker-compose.yml $rootdir/$jextractdir/docker-compose.yml.bak
 
 # Rename the web gui docker container
-sed -i 's/    web:/    jitsiweb:/g' $rootdir/$extractdir/docker-compose.yml
+sed -i 's/    web:/    jitsiweb:/g' $rootdir/$jextractdir/docker-compose.yml
 
 # Prevent guests from creating rooms or joining until a moderator has joined
-sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' $rootdir/$extractdir/docker-compose.yml
+sed -i 's/            - ENABLE_AUTO_LOGIN/            #- ENABLE_AUTO_LOGIN/g' $rootdir/$jextractdir/docker-compose.yml
 
 # Add the required netowrks for compatability with other containers
-sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' $rootdir/$extractdir/docker-compose.yml
-sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' $rootdir/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/        networks:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            meet.jitsi:\n/g' $rootdir/$jextractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/networks:\n    meet.jitsi:\n//g' $rootdir/$jextractdir/docker-compose.yml
 echo "$ymlftr
     meet.jitsi:
       driver: bridge
-      internal: true" >> $rootdir/$extractdir/docker-compose.yml
+      internal: true" >> $rootdir/$jextractdir/docker-compose.yml
 
 #  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
-sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' $rootdir/$extractdir/docker-compose.yml
+sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' $rootdir/$jextractdir/docker-compose.yml
 
 #  Bring up the docker containers
-docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d
+docker-compose -f $rootdir/$jextractdir/docker-compose.yml -p $stackname up -d
 
 #  Firewall rules
 #  Jitsi video bridge
@@ -932,6 +986,13 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
   fi
   break
 done
+
+#  Commit the variable(s) to bashrc
+echo "export nupass=$nupass" >> $rootdir/.bashrc
+echo "export napass=$napass" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 containername=neko
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
@@ -1116,6 +1177,16 @@ ovpnudpport=21894
 ovpnuser=$(echo $RANDOM | md5sum | head -c 8)
 ovpnpass=$(echo $RANDOM | md5sum | head -c 25)
 ovpngroup=$(echo $RANDOM | md5sum | head -c 8)
+
+#  Commit the variable(s) to bashrc
+echo "export sacliloc=$sacliloc" >> $rootdir/.bashrc
+echo "export ovpntcpport=$ovpntcpport" >> $rootdir/.bashrc
+echo "export ovpnudpport=$ovpnudpport" >> $rootdir/.bashrc
+echo "export novpnuser=$ovpnuser" >> $rootdir/.bashrc
+echo "export ovpngroup=$ovpngroup" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 #  Prepare the openvpn-as proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
@@ -1355,6 +1426,13 @@ if [[ -z "${sypass}" ]]; then
   break
 done
 
+#  Commit the variable(s) to bashrc
+echo "export syusrid=$syusrid" >> $rootdir/.bashrc
+echo "export sypass=$sypass" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
@@ -1571,6 +1649,13 @@ ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername
 mylink=$fssubdomain'.'$fqdn
 
+
+#  Commit the variable(s) to bashrc
+echo "export mylink=$mylink" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
 apt-get install -y -qq libcurl4-openssl-dev libssl-dev
@@ -1735,6 +1820,13 @@ Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBb
   break
 done
 
+#  Commit the variable(s) to bashrc
+echo "export wguid=$wguid" >> $rootdir/.bashrc
+echo "export wgpass=$wgpass" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 containername=wgui
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 wguisubdirectory=$rndsubfolder
@@ -1826,6 +1918,12 @@ Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyB
   fi
   break
 done
+
+#  Commit the variable(s) to bashrc
+echo "export pipass=$pipass" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 #  Create the docker-compose file
 containername=pihole
@@ -1935,27 +2033,27 @@ docker restart $(sudo docker ps -a | grep $stackname | awk '{ print$1 }')
 
 ##################################################################################################################################
 #  Store non-persistent variables in .bashrc for later use across reboots
-echo "
-" >> $rootdir/.bashrc
-echo "export authusr=$authusr" >> $rootdir/.bashrc
-echo "export authpwd=$authpwd" >> $rootdir/.bashrc
-echo "export rootdir=$rootdir" >> $rootdir/.bashrc
-echo "export stackname=$stackname" >> $rootdir/.bashrc
-echo "export swagloc=$swagloc" >> $rootdir/.bashrc
-echo "export fqdn=$fqdn" >> $rootdir/.bashrc
-echo "export nupass=$nupass" >> $rootdir/.bashrc
-echo "export napass=$napass" >> $rootdir/.bashrc
-echo "export pipass=$pipass" >> $rootdir/.bashrc
-echo "export wguid=$wguid" >> $rootdir/.bashrc
-echo "export wgpass=$wgpass" >> $rootdir/.bashrc
-echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
-echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
-echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
-echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
-echo "export sspass=$sspass" >> $rootdir/.bashrc
+#echo "
+#" >> $rootdir/.bashrc
+#echo "export authusr=$authusr" >> $rootdir/.bashrc
+#echo "export authpwd=$authpwd" >> $rootdir/.bashrc
+#echo "export rootdir=$rootdir" >> $rootdir/.bashrc
+#echo "export stackname=$stackname" >> $rootdir/.bashrc
+#echo "export swagloc=$swagloc" >> $rootdir/.bashrc
+#echo "export fqdn=$fqdn" >> $rootdir/.bashrc
+#echo "export nupass=$nupass" >> $rootdir/.bashrc
+#echo "export napass=$napass" >> $rootdir/.bashrc
+#echo "export pipass=$pipass" >> $rootdir/.bashrc
+#echo "export wguid=$wguid" >> $rootdir/.bashrc
+#echo "export wgpass=$wgpass" >> $rootdir/.bashrc
+#echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
+#echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
+#echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
+#echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
+#echo "export sspass=$sspass" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
-source $rootdir/.bashrc
+#source $rootdir/.bashrc
 
 echo "
 Keep these in a safe place for future reference:
