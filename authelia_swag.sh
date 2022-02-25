@@ -184,9 +184,6 @@ done
 #  break
 #done
 
-##################################################################################################################################
-#  Secure Web Acceess Gateway (SWAG)
-
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
@@ -343,6 +340,9 @@ while [ ! -f $rootdir/docker/$containername/configuration.yml ]
     do
       sleep 5
     done
+
+#  Firewall rules
+#    None required
 
 #  Comment out all the lines in the ~/docker/authelia/configuration.yml.bak configuration file
 sed -e 's/^\([^#]\)/#\1/g' -i $rootdir/docker/$containername/configuration.yml
@@ -558,6 +558,9 @@ do
  sleep 5
 done
 
+#  Firewall rules
+#    None required
+
 #  Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample $destconf
@@ -602,6 +605,9 @@ while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
 done
+
+#  Firewall rules
+#    None required
 
 # Make sure the stack started properly by checking for the existence of config.yml
 while [ ! -f $rootdir/docker/$containername/config.yml ]
@@ -703,11 +709,11 @@ sed -i '7 i
 ##################################################################################################################################
 #  JAMS Jami server application - https://jami.biz/jams-user-guide#Obtaining-JAMS
 #  https://git.jami.net/savoirfairelinux/jami-jams
+#  JAMS - https://git.jami.net/savoirfairelinux/jami-jams
 
 wget https://git.jami.net/savoirfairelinux/jami-jams
 
 docker run -p 80:8080 --rm jams:latest
-
 
 ##################################################################################################################################
 #  Jitsi meet server
@@ -806,6 +812,21 @@ echo "$ymlftr
 #  Jitsi video bridge (jvb) container needs access to the internet for video and audio to work (4th instance)
 sed -i ':a;N;$!ba;s/        networks:\n            no-internet:\n            meet.jitsi:\n/        networks:\n            no-internet:\n            internet:\n            meet.jitsi:\n/4' $rootdir/$extractdir/docker-compose.yml
 
+#  Bring up the docker containers
+docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d
+
+#  Firewall rules
+#  Jitsi video bridge
+iptables -t filter -A OUTPUT -p udp --dport 4443 -j ACCEPT
+iptables -t filter -A INPUT -p udp --dport 4443 -j ACCEPT
+iptables -t filter -A OUTPUT -p tcp --dport 10000 -j ACCEPT
+iptables -t filter -A INPUT -p tcp --dport 10000 -j ACCEPT
+
+# Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
+docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
+prosodyctl --config /config/prosody.cfg.lua register $jmoduser meet.jitsi $jmodpass
+EOF
+
 #  Prepare the jitsi-meet proxy-conf file using syncthing.subdomain.conf as a template
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
    $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
@@ -815,14 +836,6 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample \
 sed -i 's/syncthing/jitsiweb''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 sed -i 's/server_name jitsiweb./server_name '$jwebsubdomain'.''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/docker/$swagloc/nginx/proxy-confs/jitsiweb.subdomain.conf
-
-#  Bring up the docker containers
-docker-compose -f $rootdir/$extractdir/docker-compose.yml -p $stackname up -d
-
-# Add a moderator user.  Change 'userid' and 'password' to something secure like 'UjcvJ4jb' and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
-docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash <<EOF
-prosodyctl --config /config/prosody.cfg.lua register $jmoduser meet.jitsi $jmodpass
-EOF
 
 ##################################################################################################################################
 #  libretranslate - will not run on a subfolder!
@@ -857,6 +870,9 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+#  None needed
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -923,11 +939,12 @@ echo "$ymlhdr
 #    volumes:
 #       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
 #       - $rootdir/docker/neko/firefox/home/neko:/home/neko
-    dns:
-#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
+
 #  If you are running pihole in a docker container, point neko to the pihole
 #  docker container ip address.  Probably best to set a static ip address for
 #  the pihole in the configuration so that it will never change.
+dns:
+#      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
        - $piholeip
     networks:
       - no-internet
@@ -1098,6 +1115,8 @@ iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
 
 ###########################################################################################################################
 #  PolitePol - https://github.com/taroved/pol
+#  https://irosyadi.gitbook.io/irosyadi/app/rss-tool
+#  https://gitlab.com/stormking/feedropolis
 #  Create the docker-compose file
 
 git clone https://github.com/taroved/pol
@@ -1152,21 +1171,11 @@ $ymlftr" >> $ymlname
 docker-compose -f $ymlname -p $stackname up -d
 
 #  Firewall rules
-iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8088 -j ACCEPT
 
 #Access (port 8088)
 
 rm -r $rootdir/pol
-
-
-
-
-#  JAMS - https://git.jami.net/savoirfairelinux/jami-jams
-#  https://gitlab.com/stormking/feedropolis
-
-#  https://irosyadi.gitbook.io/irosyadi/app/rss-tool
-
-
 
 ###########################################################################################################################
 #  rss-proxy - will not run on a subfolder!
@@ -1199,6 +1208,9 @@ echo "$ymlhdr
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+#  None needed
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1262,8 +1274,6 @@ docker-compose -f $ymlname -p $stackname up -d
 #  Firewall rules
 iptables -A INPUT -p udp --dport 58211 -j ACCEPT
 iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
-iptables -A OUTPUT -p udp --dport 58211 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 58211 -j ACCEPT
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1372,6 +1382,9 @@ do
  sleep 5
 done
 
+#  Firewall rules
+iptables -A INPUT -p tcp --dport $synapseport -j ACCEPT
+
 #  Add the administrative user
 #  If you are using a port other than 8448, it may fail unless to tell it where to look.  This command assumes it is on port 8448
 #  docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user -u $syusrid -p $sypass -a -c /data/homeserver.yaml
@@ -1428,6 +1441,9 @@ $ymlftr" >> $ymlname
 
 #  Launch the 'normal' way using the yml file
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+#  None needed
 
 #  Set up swag
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
@@ -1582,6 +1598,9 @@ do
  sleep 5
 done
 
+#  Firewall rules
+#  None needed
+
 #  Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
@@ -1714,6 +1733,9 @@ $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
 
+#  Firewall rules
+#  None needed
+
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
 do
@@ -1806,6 +1828,13 @@ $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
 
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Firewall rules
 # Allow dns requests and other ports for pihole - https://docs.pi-hole.net/main/prerequisites/
 iptables -A INPUT -p udp --dport 53 -j ACCEPT
 iptables -A INPUT -p tcp --dport 53 -j ACCEPT
@@ -1818,12 +1847,6 @@ iptables -A OUTPUT -p tcp --dport 67 -j ACCEPT
 iptables -I INPUT 1 -p udp --dport 67:68 --sport 67:68 -j ACCEPT
 iptables -I INPUT 1 -p tcp -m tcp --dport 4711 -i lo -j ACCEPT
 iptables -I INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-
-#  First wait until the stack is first initialized...
-while [ -f "$(sudo docker ps | grep $containername)" ];
-do
- sleep 5
-done
 
 #  Prepare the pihole proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
