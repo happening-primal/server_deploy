@@ -29,7 +29,6 @@ fi
 #  Global Variables
 
 rootdir=/home/$(who | awk '{print $1}' | awk -v RS="[ \n]+" '!n[$0]++' | grep -v 'root')
-
 stackname=authelia_swag  # Docker stack name
 swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 
@@ -544,9 +543,14 @@ elixir --erl "-detached" -S mix run --no-halt
 rm -f run.sh
 touch run.sh
 
+#  Check for running process and fire if not running
 #  Must use single quotes for !
 echo '#!/bin/bash
-elixir --erl \"-detached\" -S mix run --no-halt' >> run.sh
+while [ -z "$(sudo lsof -i -P -n | grep LISTEN | grep 4001)" ];
+do
+ elixir --erl "-detached" -S mix run --no-halt
+ sleep 10
+done' >> run.sh
 
 #  Set up a cron job to start the server once a minute so that it never goes down
 (crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R $rootdir/farside-0.1.0/run.sh") | crontab -
@@ -1210,11 +1214,12 @@ sed -i 's/        \#include \/config\/nginx\/authelia-location.conf;/        inc
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 943;''/g' $destconf
 sed -i 's/        set $upstream_proto http;/        set $upstream_proto https;/g' $destconf
 
-#  Need to block access via external ip address to port 943
 #  Firewall rules
 #  Block access to port 943 from the outside - traffic must go thhrough SWAG
 #  Blackhole outside connection attempts to port 943
 iptables -t nat -A PREROUTING -i eth0 ! -s 127.0.0.1 -p tcp --dport 943 -j REDIRECT --to-port 0
+iptables -A INPUT -p udp --dport $ovpntcpport -j ACCEPT
+iptables -A INPUT -p udp --dport $ovpnudpport -j ACCEPT
 
 #  Set the openvpn tcp/upd ports - https://openvpn.net/vpn-server-resources/managing-user-and-group-properties-from-command-line/
 $sacliloc  --key "vpn.server.daemon.tcp.port" --value $ovpntcpport ConfigPut
@@ -1252,8 +1257,17 @@ git clone https://github.com/taroved/pol
 cd pol
 
 containername=politepol
+pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
-mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername
+
+echo "
+#  Politepol - rss feed generator" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export pport=$pport" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 rm -f $ymlname
 touch $ymlname
@@ -1268,7 +1282,7 @@ echo "$ymlhdr
       DB_PASSWORD: 'toooooooooooor'
       DB_HOST: 'dbpolitepol'
       DB_PORT: '3306'
-      WEB_PORT: '8088'
+      WEB_PORT: '$pport'
       TIME_ZONE: 'America\/Fortaleza'
     image: politepol:latest
     depends_on:
@@ -1280,8 +1294,8 @@ echo "$ymlhdr
     networks:
       - no-internet
       - internet
-    ports:
-      - '8088:8088'
+    #ports:
+      #- $pport:$pport
   dbpolitepol:
     image: mysql:5.7
     container_name: dbpolitepol
@@ -1300,11 +1314,11 @@ $ymlftr" >> $ymlname
 docker-compose -f $ymlname -p $stackname up -d
 
 #  Firewall rules
-iptables -A INPUT -p tcp --dport 8088 -j ACCEPT
-
-#Access (port 8088)
+iptables -A INPUT -p tcp --dport $pport -j ACCEPT
 
 rm -r $rootdir/pol
+
+#  Need to add the swag configuration
 
 ###########################################################################################################################
 #  rss-proxy - will not run on a subfolder!
@@ -1660,6 +1674,8 @@ ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername
 mylink=$fssubdomain'.'$fqdn
 
+echo "
+#  Whoogle" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export mylink=$mylink" >> $rootdir/.bashrc
 
