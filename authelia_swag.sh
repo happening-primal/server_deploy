@@ -543,6 +543,7 @@ elixir --erl "-detached" -S mix run --no-halt
 rm -f run.sh
 touch run.sh
 
+#  Make a script to launch the app
 #  Check for running process and fire if not running
 #  Must use single quotes for !
 echo '#!/bin/bash
@@ -552,9 +553,9 @@ do
  sleep 10
 done' >> run.sh
 
-#  Set up a cron job to start the server once a minute so that it never goes down
-(crontab -l 2>/dev/null || true; echo "* * * * * chmod 777 -R $rootdir/farside-0.1.0/run.sh") | crontab -
-
+#  Set up a cron job to start the server once a minute if it isn't running
+#  so that it is always available
+(crontab -l 2>/dev/null || true; echo "* * * * * cd $rootdir/farside-0.1.0 && $rootdir/farside-0.1.0/run.sh") | crontab -
 
 #  Uses localhost:4001
 #  edit farside-0.1.0/services.json if you desire to control the instances of redirects
