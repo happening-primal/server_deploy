@@ -113,9 +113,9 @@ echo "
 "
 
 ##################################################################################################################################
-
+#
 #  Installation section
-
+#
 ##################################################################################################################################
 #  Secure Web Access Gateway (SWAG).  Set this one up first because all the other web services
 #  created later use it and it's configuration files.
@@ -167,7 +167,6 @@ subdomains+=$sysubdomain
 wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$wgsubdomain
-echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
 
 while true; do
   read -rp "
@@ -198,6 +197,7 @@ echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
 echo "export ovpnsubdomain=$ovpnsubdomain" >> $rootdir/.bashrc
 echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
 echo "export sysubdomain=$sysubdomain" >> $rootdir/.bashrc
+echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
 echo "export subdomains=$subdomains" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
