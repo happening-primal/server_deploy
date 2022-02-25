@@ -130,6 +130,10 @@ subdomains+=$ltsubdomain
 jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$jwebsubdomain
+#  openvpn access server
+ovpnsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$ovpnsubdomain
 #  rss-proxy
 rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
@@ -515,7 +519,7 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $d
 #sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'''/g' $destconf
 #  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
-sed -i 's/        set $upstream_app farside;/        set $upstream_app '$myip';''/g' $destconf
+sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';''/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$fssubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destconf
 
@@ -1078,40 +1082,32 @@ sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;''/g' $destconf
 
 ###########################################################################################################################
-#  OpenVPN Access Server (Depricated) - https://hub.docker.com/r/linuxserver/openvpn-as
+#  OpenVPN Access Server - https://openvpn.net/vpn-software-packages/ubuntu/#install-from-repository
+
+#  Install some dependencies
+apt update && apt -y install -qq ca-certificates wget net-tools gnupg
+wget -qO - https://as-repository.openvpn.net/as-repo-public.gpg | apt-key add -
+echo "deb http://as-repository.openvpn.net/as/debian focal main">/etc/apt/sources.list.d/openvpn-as-repo.list
+
+#  Install OpenVPN Access Server
+apt update && apt -y install -qq openvpn-as
 
 containername=openvpnas
-ymlname=$rootdir/$containername-compose.yml
-mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+#  Prepare the openvpn-as proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
-echo "$ymlhdr
-  $containername:
-    image: ghcr.io/linuxserver/openvpn-as
-    #container_name: openvpn-as
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - INTERFACE=eth0 #optional
-    volumes:
-      - $rootdir/docker/$containername:/config
-    ports:
-      - 963:943
-      - 9643:9443
-      - 1694:1194/udp
-$ymlftr" >> $ymlname
+sed -i 's/syncthing/'$containername'/g' $destconf
+#  Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
+sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';''/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$ovpnsubdomain'.''/g' $destconf
+sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    include \/config\/nginx\/authelia-server.conf;/g' $destconf
+sed -i 's/        \#include \/config\/nginx\/authelia-location.conf;/        include \/config\/nginx\/authelia-location.conf;/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 943;''/g' $destconf
+sed -i 's/        set $upstream_proto http;/        set $upstream_proto https;/g' $destconf
 
-docker-compose -f $ymlname -p $stackname up -d
-
-#  Firewall rules
-iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
-
-# Admin interface available at https://DOCKER-HOST-IP:943/admin - 964 in the above - default user/password of admin/password
+#  Need to block access via ip address to port 943
 
 ###########################################################################################################################
 #  PolitePol - https://github.com/taroved/pol
