@@ -34,13 +34,12 @@ swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 
 #  External IP address
 myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
-dockersubnet=172.20.10.0
-dockergateway=172.20.10.1
-piholeip=172.20.10.10
-wireguardip=172.20.10.20
-
-#  Wireguard port
-wgport=50220
+subnet=172.20.10
+dockersubnet=$subnet.0
+dockergateway=$subnet.1
+ipend=10
+piholeip=1$subnet.$ipend
+ipedn=$(($ipend+10))
 
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
@@ -76,8 +75,6 @@ echo "export myip=$myip" >> $rootdir/.bashrc
 echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
 echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
 echo "export piholeip=$piholeip" >> $rootdir/.bashrc
-echo "export wireguardip=$wireguardip" >> $rootdir/.bashrc
-echo "export wgport=$wgport" >> $rootdir/.bashrc
 echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
 echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
 
@@ -227,6 +224,8 @@ source $rootdir/.bashrc
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p docker/$containername;
 
 rm -f $ymlname
@@ -270,7 +269,8 @@ echo "$ymlhdr
       # You must leave port 80 open or you won't be able to get your ssl certificates via http
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -595,6 +595,8 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destco
 #  Create the docker-compose file
 containername=firefox
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -615,7 +617,8 @@ echo "$ymlhdr
     shm_size: \"1gb\"
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -802,6 +805,8 @@ jcontdir=jitsi-meet
 containername=jitsi-meet
 jmoduser=userid
 jmodpass=password
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 
 echo "
 #  Jitsi Meet" >> $rootdir/.bashrc
@@ -925,6 +930,8 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/
 #  Create the docker-compose file
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -943,7 +950,8 @@ echo "$ymlhdr
 #      - 5000:5000
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1010,6 +1018,9 @@ containername=neko
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 nekosubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -1040,7 +1051,8 @@ dns:
        - $piholeip
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1124,6 +1136,8 @@ containername=tor
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 torsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -1144,7 +1158,8 @@ echo "$ymlhdr
       NEKO_ICELITE: 1
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1260,6 +1275,8 @@ cd pol
 containername=politepol
 pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername
 
 echo "
@@ -1294,7 +1311,8 @@ echo "$ymlhdr
     restart: unless-stopped
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     #ports:
       #- $pport:$pport
   dbpolitepol:
@@ -1326,6 +1344,8 @@ rm -r $rootdir/pol
 #  Create the docker-compose file
 containername=rssproxy
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -1344,8 +1364,9 @@ echo "$ymlhdr
 #    ports:
 #      - 3000:3000
     networks:
-      - internet
       - no-internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1390,6 +1411,8 @@ containername=shadowsocks
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 shadowsockssubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -1407,7 +1430,8 @@ echo "$ymlhdr
       - DNS_ADDRS=$piholeip # Comma delimited, need to use external to this vps or internal to docker 
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1462,6 +1486,8 @@ source $rootdir/.bashrc
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 synapseport=8008
 mkdir -p $rootdir/docker/$containername
 mkdir -p $rootdir/docker/$containername/data
@@ -1508,6 +1534,7 @@ echo "$ymlhdr
     networks:
       no-internet:
       internet:
+        ipv4_address: $ipaddress
 
   synapsedb:
     container_name: postgres
@@ -1588,8 +1615,7 @@ echo "$ymlhdr
  #     - "8080:80"
     restart: unless-stopped
     networks:
-      no-internet:
-      #internet:
+      - no-internet
 $ymlftr" >> $ymlname
 
 #  Launch the 'normal' way using the yml file
@@ -1613,6 +1639,8 @@ containername=syncthing
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 syncthingsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname
@@ -1637,7 +1665,8 @@ echo "$ymlhdr
       - 22000:22000/udp
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1672,6 +1701,8 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Create the docker-compose file
 containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername
 mylink=$fssubdomain'.'$fqdn
 
@@ -1741,7 +1772,8 @@ echo "$ymlhdr
       #- 5000:5000
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1769,8 +1801,17 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 ##################################################################################################################################
 #  Wireguard
 #  Create the docker-compose file
+
+wgport=50220
+echo "export mwgport=$wgport" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 containername=wireguard
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/config;
 mkdir -p $rootdir/docker/$containername/modules;
@@ -1793,7 +1834,7 @@ echo "$ymlhdr
       - SERVERPORT=$wgport
       - PEERS=3
       - PEERDNS=$piholeip  #  Need to use external to this vps or internal docker dns (pihole)
-      - INTERNAL_SUBNET=$wireguardip
+      - INTERNAL_SUBNET=$ipaddress
       - ALLOWEDIPS=0.0.0.0/0
     volumes:
       - $rootdir/docker/$containername/config:/config
@@ -1804,7 +1845,8 @@ echo "$ymlhdr
       - net.ipv4.conf.all.src_valid_mark=1
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
@@ -1860,6 +1902,8 @@ containername=wgui
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 wguisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+10))
+ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/app;
 mkdir -p $rootdir/docker/$containername/etc;
@@ -1891,7 +1935,8 @@ echo "$ymlhdr
     #network_mode: host
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     deploy:
       restart_policy:
        condition: on-failure
