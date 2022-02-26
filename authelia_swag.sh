@@ -37,9 +37,12 @@ myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 subnet=172.20.10
 dockersubnet=$subnet.0
 dockergateway=$subnet.1
+#  Starting IP subnet (for pihole)
 ipend=10
+#  Amount to increment the starting IP subnet (10, 15, 20, 25...)
+ipincr=5
 piholeip=1$subnet.$ipend
-ipedn=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 
 #  Header for docker-compose .yml files
 ymlhdr="version: \"3.1\"
@@ -224,7 +227,7 @@ source $rootdir/.bashrc
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p docker/$containername;
 
@@ -596,7 +599,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destco
 #  Create the docker-compose file
 containername=firefox
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
@@ -806,7 +809,7 @@ jcontdir=jitsi-meet
 containername=jitsi-meet
 jmoduser=userid
 jmodpass=password
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 
 echo "
@@ -931,7 +934,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/
 #  Create the docker-compose file
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
@@ -1019,7 +1022,7 @@ containername=neko
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 nekosubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 
 mkdir -p $rootdir/docker/$containername;
@@ -1137,7 +1140,7 @@ containername=tor
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 torsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
@@ -1276,7 +1279,7 @@ cd pol
 containername=politepol
 pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername
 
@@ -1345,7 +1348,7 @@ rm -r $rootdir/pol
 #  Create the docker-compose file
 containername=rssproxy
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
@@ -1412,7 +1415,7 @@ containername=shadowsocks
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 shadowsockssubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
@@ -1487,7 +1490,7 @@ source $rootdir/.bashrc
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 synapseport=8008
 mkdir -p $rootdir/docker/$containername
@@ -1640,7 +1643,7 @@ containername=syncthing
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 syncthingsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
@@ -1702,7 +1705,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Create the docker-compose file
 containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername
 mylink=$fssubdomain'.'$fqdn
@@ -1811,7 +1814,7 @@ source $rootdir/.bashrc
 
 containername=wireguard
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/config;
@@ -1903,7 +1906,7 @@ containername=wgui
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 wguisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+10))
+ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/app;
@@ -2149,4 +2152,3 @@ authentication url using these commands:
 #  This last part about cat'ing out the url is there beacuase I was unable to get email authentication working
 
 ##################################################################################################################################
-
