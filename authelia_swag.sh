@@ -547,10 +547,11 @@ touch run.sh
 #  Check for running process and fire if not running
 #  Must use single quotes for !
 echo '#!/bin/bash
-while [ -z "$(sudo lsof -i -P -n | grep LISTEN | grep 4001)" ];
+cd $rootdir/farside-0.1.0
+while [ -z "$(ps aux | grep -w no-halt | grep elixir)" ];
 do
  elixir --erl "-detached" -S mix run --no-halt
- sleep 10
+ sleep 30
 done' >> run.sh
 
 #  Set up a cron job to start the server once a minute if it isn't running
