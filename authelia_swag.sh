@@ -34,6 +34,8 @@ swagloc=swag # Directory for Secure Web Access Gateway (SWAG)
 
 #  External IP address
 myip=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+
+#  Docker external facing IP address management
 subnet=172.20.10
 dockersubnet=$subnet.0
 dockergateway=$subnet.1
@@ -559,7 +561,7 @@ done' >> run.sh
 
 #  Set up a cron job to start the server once a minute if it isn't running
 #  so that it is always available
-(crontab -l 2>/dev/null || true; echo "* * * * * cd $rootdir/farside-0.1.0 && $rootdir/farside-0.1.0/run.sh") | crontab -
+(crontab -l 2>/dev/null || true; echo "* * * * * $rootdir/farside-0.1.0/run.sh") | crontab -
 
 #  Uses localhost:4001
 #  edit farside-0.1.0/services.json if you desire to control the instances of redirects
@@ -1021,6 +1023,8 @@ source $rootdir/.bashrc
 containername=neko
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 nekosubdirectory=$rndsubfolder
+nekoportrange1=52000
+nekoportrange2=52100
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
@@ -1036,12 +1040,12 @@ echo "$ymlhdr
     shm_size: \"2gb\"
     ports:
       #- 8080:8080
-      - 52000-52100:52000-52100/udp
+      - $nekoportrange1-$nekoportrange2:$nekoportrange1-n$ekoportrange2/udp
     environment:
       NEKO_SCREEN: 1440x900@60
       NEKO_PASSWORD: $nupass
       NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52000-52100
+      NEKO_EPR: $nekoportrange1-$nekoportrange2
       NEKO_ICELITE: 1
 #    volumes:
 #       - $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox
@@ -1050,6 +1054,7 @@ echo "$ymlhdr
 #  If you are running pihole in a docker container, point neko to the pihole
 #  docker container ip address.  Probably best to set a static ip address for
 #  the pihole in the configuration so that it will never change.
+
 dns:
 #      - xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)
        - $piholeip
@@ -1071,7 +1076,7 @@ do
 done
 
 #  Firewall rules
-iptables -A INPUT -p udp --dport 52000:52100 -j ACCEPT
+iptables -A INPUT -p udp --dport $nekoportrange1:$nekoportrange2 -j ACCEPT
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
@@ -1139,6 +1144,8 @@ EOF
 containername=tor
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 torsubdirectory=$rndsubfolder
+torportrange1=52200
+torportrange2=52300
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
@@ -1153,12 +1160,12 @@ echo "$ymlhdr
     shm_size: \"2gb\"
     ports:
       #- 8080:8080
-      - 52200-52300:52200-52300/udp
+      - $torportrange1-$torportrange2:$torportrange1-$torportrange2/udp
     environment:
       NEKO_SCREEN: 1440x900@60
       NEKO_PASSWORD: $nupass
       NEKO_PASSWORD_ADMIN: $napass
-      NEKO_EPR: 52200-52300
+      NEKO_EPR: $torportrange1-$torportrange2
       NEKO_ICELITE: 1
     networks:
       - no-internet
@@ -1178,7 +1185,7 @@ do
 done
 
 #  Firewall rules
-iptables -A INPUT -p udp --dport 52200:52300 -j ACCEPT
+iptables -A INPUT -p udp --dport $torportrange1:$torportrange2 -j ACCEPT
 
 #  Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
@@ -1236,8 +1243,9 @@ sed -i 's/        set $upstream_proto http;/        set $upstream_proto https;/g
 
 #  Firewall rules
 #  Block access to port 943 from the outside - traffic must go thhrough SWAG
-#  Blackhole outside connection attempts to port 943
+#  Blackhole outside connection attempts to port 943 web interface
 iptables -t nat -A PREROUTING -i eth0 ! -s 127.0.0.1 -p tcp --dport 943 -j REDIRECT --to-port 0
+#  Open VPN ports
 iptables -A INPUT -p udp --dport $ovpntcpport -j ACCEPT
 iptables -A INPUT -p udp --dport $ovpnudpport -j ACCEPT
 
@@ -1261,7 +1269,7 @@ $sacliloc --user $ovpnuser --key "prop_superuser" --value "true" UserPropPut
 $sacliloc --user openvpn --key "conn_group" UserPropDel
 $sacliloc --user openvpn UserPropDelAll
 
-#  Set up a cron job to purge any logs that d get created
+#  Set up a cron job to purge any logs that get created
 (crontab -l 2>/dev/null || true; echo "0 4 * * * /bin/rm /var/log/openvpnas.log.{15..1000} >/dev/null 2>&1") | crontab -
 
 #  Restart the server
@@ -1277,6 +1285,8 @@ git clone https://github.com/taroved/pol
 cd pol
 
 containername=politepol
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+ppolsubdirectory=$rndsubfolder
 pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
@@ -1339,9 +1349,16 @@ docker-compose -f $ymlname -p $stackname up -d
 #  Firewall rules
 iptables -A INPUT -p tcp --dport $pport -j ACCEPT
 
-rm -r $rootdir/pol
+#  Prepare the politepol proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
-#  Need to add the swag configuration
+#sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$pport';''/g' $destconf
+
+#  Clean up
+rm -r $rootdir/pol
 
 ###########################################################################################################################
 #  rss-proxy - will not run on a subfolder!
