@@ -47,11 +47,11 @@ piholeip=1$subnet.$ipend
 ipend=$(($ipend+$ipincr))
 
 #  Header for docker-compose .yml files
-ymlhdr="version: \"3.1\"
-services:"
+ymlhdr='version: "3.1"
+services:'
 
 #  Footer for docker-compose .yml files
-ymlftr="networks:
+ymlftr="  networks:
 # For networking setup explaination, see this link:
 #   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 # For ways to see how to set up specific networks for docker see:
@@ -77,11 +77,12 @@ echo "export rootdir=$rootdir" >> $rootdir/.bashrc
 echo "export stackname=$stackname" >> $rootdir/.bashrc
 echo "export swagloc=$swagloc" >> $rootdir/.bashrc
 echo "export myip=$myip" >> $rootdir/.bashrc
+echo "export subnet=$subnet" >> $rootdir/.bashrc
 echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
 echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
 echo "export piholeip=$piholeip" >> $rootdir/.bashrc
-echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
-echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
+#echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
+#echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
@@ -144,14 +145,14 @@ subdomains="www"
 fssubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$fssubdomain
-#  libretranslate
-ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$ltsubdomain
 #  jitsiweb
 jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$jwebsubdomain
+#  libretranslate
+ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$ltsubdomain
 #  lingva
 lvsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
@@ -995,36 +996,25 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 ##################################################################################################################################
 #  lingva - will not run on a subfolder!
 #  Create the docker-compose file
-containername=translate
+containername=lingva
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
-mkdir -p $rootdir/docker/$containername;
+mkdir -p $rootdir/docker/$containername
 
 rm -f $ymlname
 touch $ymlname
 
 echo "$ymlhdr
   $containername:
-    image: libretranslate/libretranslate
+    container_name: $containername
+    image: thedaviddelta/lingva-translate:latest
+    restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-    #build: .
-#    Don't expose external ports to prevent access outside swag
-#    ports:
-#      - 5000:5000
-    networks:
-      - no-internet
-      internet:
-        ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
-    ## Uncomment below command and define your args if necessary
-    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500
-    command: --ssl
+      - site_domain=$lvsubdomain.$fqdn
+      - dark_theme=true
+    #ports:
+    #  - 3000:3000
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1045,7 +1035,7 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $d
 sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'/g' $destconf
-sed -i 's/    server_name '$containername'./    server_name '$ltsubdomain'.''/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$lvsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
 
 ##################################################################################################################################
