@@ -51,7 +51,8 @@ ymlhdr='version: "3.1"
 services:'
 
 #  Footer for docker-compose .yml files
-ymlftr="networks:
+ymlftr="
+networks:
 # For networking setup explaination, see this link:
 #   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 # For ways to see how to set up specific networks for docker see:
@@ -145,6 +146,10 @@ subdomains="www"
 fssubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$fssubdomain
+#  huginn
+hgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$hgsubdomain
 #  jitsiweb
 jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
@@ -198,6 +203,7 @@ echo "
 echo "export fqdn=$fqdn  # Fully qualified domain name (FQDN)" >> $rootdir/.bashrc
 echo "#  SWAG subdomains" >> $rootdir/.bashrc
 echo "export fssubdomain=$fssubdomain  # Farside" >> $rootdir/.bashrc
+echo "export hgsubdomain=$hgsubdomain  # Huginn" >> $rootdir/.bashrc
 echo "export jwebsubdomain=$jwebsubdomain  # JitsiWeb" >> $rootdir/.bashrc
 echo "export ltsubdomain=$ltsubdomain  # Libretranslate" >> $rootdir/.bashrc
 echo "export lvsubdomain=$lvsubdomain  # Lingva translate" >> $rootdir/.bashrc
@@ -565,9 +571,9 @@ do
  sleep 30
 done' >> run.sh
 
-#  Set up a cron job to start the server once a minute if it isn't running
-#  so that it is always available
-(crontab -l 2>/dev/null || true; echo "* * * * * $rootdir/farside-0.1.0/run.sh") | crontab -
+#  Set up a cron job to start the server once every five minutes if it isn't running
+#  so that it is always available.
+(crontab -l 2>/dev/null || true; echo "*/5 * * * * $rootdir/farside-0.1.0/run.sh") | crontab -
 
 #  Uses localhost:4001
 #  edit farside-0.1.0/services.json if you desire to control the instances of redirects
@@ -1466,8 +1472,8 @@ done
 
 #  Add the crontab job to kill off already used rss-proxy feeds as this does
 #  not seem to be done automatically and leads to overloaded CPU and memory
-#  after repeted requests for feed update(s)
-(crontab -l 2>/dev/null || true; echo "* * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
+#  after repeted requests for feed update(s).  Run every five minutes
+(crontab -l 2>/dev/null || true; echo "*/5 * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
 
 #  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
@@ -1580,7 +1586,6 @@ mkdir -p $rootdir/docker/$containername/data
 mkdir -p $rootdir/docker/postgresql
 mkdir -p $rootdir/docker/postgresql/data
 
-
 REG_SHARED_SECRET=$(openssl rand -hex 40)
 POSTGRES_USER=$(openssl rand -hex 25)
 POSTGRES_PASSWORD=$(openssl rand -hex 25)
@@ -1667,36 +1672,77 @@ sed -i 's/        set $upstream_app synapse;/        set $upstream_app '$contain
 sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapseport';''/g' $destconf
 
 ##################################################################################################################################
-# Huginn - https://github.com/huginn/huginn/tree/master/docker/multi-process
+# Huginn - will not run on a subfolder
+# https://github.com/huginn/huginn/tree/master/docker/multi-process
 # Build after synapse so you can use the same postgres container
+# Send a text message through email - https://www.digitaltrends.com/mobile/how-to-send-a-text-from-your-email-account/
 
 #  Create the docker-compose file
 containername=huginn
+dbname=$containername
+dbname+="_postgres"
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+invitationcode=$(echo $RANDOM | md5sum | head -c 15)
 huginnsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p docker/$containername
 
+echo "
+#  Huginn" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export invitationcode=$invitationcode  # Invitation code" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 rm -f $ymlname
 touch $ymlname
 
-echo "$ymlhdr
+# Info on environmental variables
+# https://github.com/huginn/huginn/blob/master/.env.example
+
+echo "$ymlhdr     
+  $dbname:
+    container_name: $dbname
+    image: postgres
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - POSTGRES_DB=$containername
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+    restart: unless-stopped
+    networks:
+      - no-internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+
   $containername:
     image: huginn/huginn
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/London
-      - HUGINN_DATABASE_USERNAME=$POSTGRES_USER
+      - DO_NOT_SEED=true
+      - HUGINN_DATABASE_NAME=$containername
+      #- HUGINN_DATABASE_USERNAME=$POSTGRES_USER
       - HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD
       - HUGINN_DATABASE_ADAPTER=postgresql
+      - INVITATION_CODE=$invitationcode
+      - REQUIRE_CONFIRMED_EMAIL=false
+      - SEED_USERNAME=huginnuserid
+      - SEED_PASSWORD=huginnuserpassword
     #volumes:
     #  - $rootdir/docker/homer:/www/assets
-    ports:
-      - 3000:3000
+    #ports:
+    #  - 3000:3000
     restart: unless-stopped
     depends_on:
-      - postgres:postgres
+      - $dbname
+    links:
+      - $dbname:postgres
     networks:
       - no-internet
       - internet
@@ -1707,9 +1753,47 @@ $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
 
+nointernet=$(docker network ls | grep no-internet | awk '{print $2}')
+internet=$(docker network ls | grep _internet | awk '{print $2}')
+
+docker run --name $dbname \
+    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    -e POSTGRES_USER=$POSTGRES_USER -d postgres \
+    --network=$nointernet
+
+docker run --rm -d --name $containername \
+    --link $dbname:postgres \
+    -e HUGINN_DATABASE_USERNAME=$containername \
+    -e HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD \
+    -e HUGINN_DATABASE_ADAPTER=postgresql \
+    -e SKIP_INVITATION_CODE=true \
+    -e REQUIRE_CONFIRMED_EMAIL=false \
+    --network=$nointernet \
+    huginn/huginn
+
+docker network connect $internet $containername
+
 docker run --name huginn_postgres \
     -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
     -e POSTGRES_USER=$POSTGRES_USER -d postgres
+
+docker run --name huginn_postgres \
+    -e POSTGRES_PASSWORD=mysecretpassword \
+    -e POSTGRES_USER=huginn -d postgres
+
+#  Neede to add a bridge network for it to work (login page)?
+    
+docker run --rm -d --name huginn \
+    --link huginn_postgres:postgres \
+    -p 3000:3000 \
+    -e HUGINN_DATABASE_USERNAME=huginn \
+    -e HUGINN_DATABASE_PASSWORD=mysecretpassword \
+    -e HUGINN_DATABASE_ADAPTER=postgresql \
+    -e SKIP_INVITATION_CODE=true \
+    -e REQUIRE_CONFIRMED_EMAIL=false \
+    huginn/huginn
+    
+
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1733,12 +1817,15 @@ while [ ! -f $rootdir/docker/$containername/config.yml.bak ]
          $rootdir/docker/$containername/config.yml.bak;
     done
 
-#  Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
-destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
-cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+#  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
-sed -i 's/syncthing/'$containername'''/g' $destconf
+#  Don't capture with Authelia or you won't be able to get your RSS feeds
+sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    #include \/config\/nginx\/authelia-server.conf;/g' $destconf
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$hgsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
