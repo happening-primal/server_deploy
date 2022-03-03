@@ -51,7 +51,7 @@ ymlhdr='version: "3.1"
 services:'
 
 #  Footer for docker-compose .yml files
-ymlftr="  networks:
+ymlftr="networks:
 # For networking setup explaination, see this link:
 #   https://stackoverflow.com/questions/39913757/restrict-internet-access-docker-container
 # For ways to see how to set up specific networks for docker see:
@@ -1013,6 +1013,9 @@ echo "$ymlhdr
     environment:
       - site_domain=$lvsubdomain.$fqdn
       - dark_theme=true
+    networks:
+      - no-internet
+      - internet
     #ports:
     #  - 3000:3000
 $ymlftr" >> $ymlname
@@ -1036,7 +1039,7 @@ sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/ngi
 sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
 sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$lvsubdomain'.''/g' $destconf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
 # Neko firefox browser
@@ -1414,6 +1417,12 @@ rm -r $rootdir/pol
 ###########################################################################################################################
 #  rss-proxy - will not run on a subfolder!
 #  Create the docker-compose file
+#  rss-proxy has some type of memory leak that leads it to spawn
+#  multiple running process every time you try to get an update to
+#  a given rss feed.  I chose to solve this by adding a cron job
+#  running once per minute that kills all running rss-proxy processes
+#  * * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill
+
 containername=rssproxy
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
@@ -1454,6 +1463,11 @@ while [ -f "$(sudo docker ps | grep $containername)" ];
 do
  sleep 5
 done
+
+#  Add the crontab job to kill off already used rss-proxy feeds as this does
+#  not seem to be done automatically and leads to overloaded CPU and memory
+#  after repeted requests for feed update(s)
+(crontab -l 2>/dev/null || true; echo "* * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
 
 #  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
@@ -1585,7 +1599,7 @@ echo "$ymlhdr
     restart: unless-stopped
     environment:
       - SYNAPSE_SERVER_NAME=$containername
-      - SYNAPSE_REPORT_STATS=yes
+      - SYNAPSE_REPORT_STATS=no # Privacy
       - SYNAPSE_NO_TLS=1
       #- SYNAPSE_ENABLE_REGISTRATION=no
       #- SYNAPSE_CONFIG_PATH=/config
@@ -1653,6 +1667,81 @@ sed -i 's/        set $upstream_app synapse;/        set $upstream_app '$contain
 sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapseport';''/g' $destconf
 
 ##################################################################################################################################
+# Huginn - https://github.com/huginn/huginn/tree/master/docker/multi-process
+# Build after synapse so you can use the same postgres container
+
+#  Create the docker-compose file
+containername=huginn
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+huginnsubdirectory=$rndsubfolder
+ymlname=$rootdir/$containername-compose.yml
+mkdir -p docker/$containername
+
+rm -f $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: huginn/huginn
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - HUGINN_DATABASE_USERNAME=$POSTGRES_USER
+      - HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD
+      - HUGINN_DATABASE_ADAPTER=postgresql
+    #volumes:
+    #  - $rootdir/docker/homer:/www/assets
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    depends_on:
+      - postgres:postgres
+    networks:
+      - no-internet
+      - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+docker run --name huginn_postgres \
+    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    -e POSTGRES_USER=$POSTGRES_USER -d postgres
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Firewall rules
+#    None required
+
+# Make sure the stack started properly by checking for the existence of config.yml
+while [ ! -f $rootdir/docker/$containername/config.yml ]
+    do
+      sleep 5
+    done
+
+#  Create a backup of the config.yml file if needed
+while [ ! -f $rootdir/docker/$containername/config.yml.bak ]
+    do
+      cp $rootdir/docker/$containername/config.yml \
+         $rootdir/docker/$containername/config.yml.bak;
+    done
+
+#  Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+
+sed -i 's/syncthing/'$containername'''/g' $destconf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
+
+##################################################################################################################################
 #  Synapse UI
 #  https://hub.docker.com/r/awesometechnologies/synapse-admin
 
@@ -1684,7 +1773,7 @@ echo "$ymlhdr
 #    hostname: synapse-admin
     image: awesometechnologies/synapse-admin
  #   ports:
- #     - "8080:80"
+ #     - 8080:80
     restart: unless-stopped
     networks:
       - no-internet
