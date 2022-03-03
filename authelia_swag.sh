@@ -152,6 +152,10 @@ subdomains+=$ltsubdomain
 jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
 subdomains+=$jwebsubdomain
+#  lingva
+lvsubdomain=$(echo $RANDOM | md5sum | head -c 8)
+subdomains+=", "
+subdomains+=$lvsubdomain
 #  openvpn access server
 ovpnsubdomain=$(echo $RANDOM | md5sum | head -c 8)
 subdomains+=", "
@@ -190,16 +194,17 @@ done
 
 echo "
 #  Secure Web Access Gateway (SWAG)" >> $rootdir/.bashrc
-#  Commit the variable(s) to bashrc
-echo "export fqdn=$fqdn" >> $rootdir/.bashrc
-echo "export fssubdomain=$fssubdomain" >> $rootdir/.bashrc
-echo "export ltsubdomain=$ltsubdomain" >> $rootdir/.bashrc
-echo "export jwebsubdomain=$jwebsubdomain" >> $rootdir/.bashrc
-echo "export ovpnsubdomain=$ovpnsubdomain" >> $rootdir/.bashrc
-echo "export rpsubdomain=$rpsubdomain" >> $rootdir/.bashrc
-echo "export sysubdomain=$sysubdomain" >> $rootdir/.bashrc
-echo "export wgsubdomain=$wgsubdomain" >> $rootdir/.bashrc
-echo "export subdomains=$subdomains" >> $rootdir/.bashrc
+echo "export fqdn=$fqdn  # Fully qualified domain name (FQDN)" >> $rootdir/.bashrc
+echo "#  SWAG subdomains" >> $rootdir/.bashrc
+echo "export fssubdomain=$fssubdomain  # Farside" >> $rootdir/.bashrc
+echo "export jwebsubdomain=$jwebsubdomain  # JitsiWeb" >> $rootdir/.bashrc
+echo "export ltsubdomain=$ltsubdomain  # Libretranslate" >> $rootdir/.bashrc
+echo "export lvsubdomain=$lvsubdomain  # Lingva translate" >> $rootdir/.bashrc
+echo "export ovpnsubdomain=$ovpnsubdomain  # OpenVPN Access Server" >> $rootdir/.bashrc
+echo "export rpsubdomain=$rpsubdomain  #  RSS-Proxy" >> $rootdir/.bashrc
+echo "export sysubdomain=$sysubdomain  #  Synapse (Matrix)" >> $rootdir/.bashrc
+echo "export wgsubdomain=$wgsubdomain  # Wireguard GUI" >> $rootdir/.bashrc
+echo "export subdomains=$subdomains  # Full subdomain string" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
@@ -933,6 +938,62 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/
 
 ##################################################################################################################################
 #  libretranslate - will not run on a subfolder!
+#  Create the docker-compose file
+containername=translate
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr))
+ipaddress=$subnet.$ipend
+mkdir -p $rootdir/docker/$containername;
+
+rm -f $ymlname
+touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: libretranslate/libretranslate
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    #build: .
+#    Don't expose external ports to prevent access outside swag
+#    ports:
+#      - 5000:5000
+    networks:
+      - no-internet
+      internet:
+        ipv4_address: $ipaddress
+    deploy:
+      restart_policy:
+       condition: on-failure
+    ## Uncomment below command and define your args if necessary
+    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500
+    command: --ssl
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+#  None needed
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+#  Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;''/g' $destconf
+sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+sed -i 's/syncthing/'$containername'/g' $destconf
+sed -i 's/    server_name '$containername'./    server_name '$ltsubdomain'.''/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destconf
+
+##################################################################################################################################
+#  lingva - will not run on a subfolder!
 #  Create the docker-compose file
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
