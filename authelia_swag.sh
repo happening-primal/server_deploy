@@ -1680,17 +1680,25 @@ sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapsep
 #  Create the docker-compose file
 containername=huginn
 dbname=$containername
-dbname+="_postgres"
+dbname+="_mysql"
+huginndbuser=$(echo $RANDOM | md5sum | head -c 15)
+huginndbpass=$(echo $RANDOM | md5sum | head -c 15)
+mysqlrootpass=$(echo $RANDOM | md5sum | head -c 15)
+      
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 invitationcode=$(echo $RANDOM | md5sum | head -c 15)
 huginnsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-mkdir -p docker/$containername
+mkdir -p $rootdir/docker/$containername
+mkdir -p $rootdir/docker/$containername/mysql
 
 echo "
 #  Huginn" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
-echo "export invitationcode=$invitationcode  # Invitation code" >> $rootdir/.bashrc
+echo "export huginndbuser=$huginndbuser  # Huginn database user" >> $rootdir/.bashrc
+echo "export uginndbpass=$uginndbpass  # Huginn database password" >> $rootdir/.bashrc
+echo "export mysqlrootpass=$mysqlrootpass  # MySQL root password" >> $rootdir/.bashrc
+echo "export invitationcode=$invitationcode  # Huginn invitation code" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
@@ -1701,9 +1709,103 @@ touch $ymlname
 # Info on environmental variables
 # https://github.com/huginn/huginn/blob/master/.env.example
 
-echo "$ymlhdr     
+echo "$ymlhdr
   $dbname:
-    container_name: $dbname
+    # https://hub.docker.com/_/mariadb/
+    # Specify 10.3 as we only want watchtower to apply minor updates
+    # (eg, 10.3.1) and not major updates (eg, 10.4).
+    image: mariadb:10.3
+    restart: unless-stopped
+    networks:
+      - no-internet
+    volumes:
+      # Ensure the database persists between restarts.
+      - $rootdir/docker/$containername/mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=$mysqlrootpass
+      - MYSQL_DATABASE=$dbname
+      - MYSQL_USER=$huginndbuser
+      - MYSQL_PASSWORD=$huginndbpass
+ 
+ # The main application, visble through Traefik.
+  $containername:
+    # https://hub.docker.com/hugin/hugin/
+    image: huginn/huginn
+    depends_on:
+      - $dbname
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    networks:
+      - no-internet
+      - internet
+    environment:
+      # Don't create the default "admin" user with password "password".
+      - DO_NOT_SEED=true
+      # Database configuration
+      - MYSQL_PORT_3306_TCP_ADDR=$dbname
+      - MYSQL_ROOT_PASSWORD=$mysqlrootpass
+      - HUGINN_DATABASE_NAME=$dbname
+      - HUGINN_DATABASE_USERNAME=$huginndbuser
+      - HUGINN_DATABASE_PASSWORD=$huginndbpass
+      - DATABASE_ENCODING=utf8mb4
+      # General Configuration
+      - INVITATION_CODE=$invitationcode
+      - TZ=Europe/London
+      - REQUIRE_CONFIRMED_EMAIL=false
+      - SEED_USERNAME=huginnuserid
+      - SEED_PASSWORD=huginnuserpassword
+$ymlftr" >> $ymlname
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+echo "$ymlhdr     
+  $containername:
+    image: huginn/huginn
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - DO_NOT_SEED=true
+      - HUGINN_DATABASE_NAME=$containername
+      - HUGINN_DATABASE_USERNAME=$POSTGRES_USER
+      - HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD
+      - HUGINN_DATABASE_ADAPTER=postgresql
+      - INVITATION_CODE=$invitationcode
+      - REQUIRE_CONFIRMED_EMAIL=false
+      - SEED_USERNAME=huginnuserid
+      - SEED_PASSWORD=huginnuserpassword
+    #volumes:
+    #  - $rootdir/docker/homer:/www/assets
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    depends_on:
+      - $dbname
+    links:
+      - $dbname:postgres
+    network_mode: bridge
+    #networks:
+    #  - no-internet
+    #  - internet
+    deploy:
+      restart_policy:
+       condition: on-failure
+  
+  $dbname:
+    #container_name: $dbname
     image: postgres
     environment:
       - PUID=1000
@@ -1713,39 +1815,9 @@ echo "$ymlhdr
       - POSTGRES_USER=$POSTGRES_USER
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
     restart: unless-stopped
-    networks:
-      - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
-
-  $containername:
-    image: huginn/huginn
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/London
-      - DO_NOT_SEED=true
-      - HUGINN_DATABASE_NAME=$containername
-      #- HUGINN_DATABASE_USERNAME=$POSTGRES_USER
-      - HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD
-      - HUGINN_DATABASE_ADAPTER=postgresql
-      - INVITATION_CODE=$invitationcode
-      - REQUIRE_CONFIRMED_EMAIL=false
-      - SEED_USERNAME=huginnuserid
-      - SEED_PASSWORD=huginnuserpassword
-    #volumes:
-    #  - $rootdir/docker/homer:/www/assets
-    #ports:
-    #  - 3000:3000
-    restart: unless-stopped
-    depends_on:
-      - $dbname
-    links:
-      - $dbname:postgres
-    networks:
-      - no-internet
-      - internet
+    network_mode: bridge
+    #networks:
+    #  - no-internet
     deploy:
       restart_policy:
        condition: on-failure
@@ -1758,31 +1830,75 @@ internet=$(docker network ls | grep _internet | awk '{print $2}')
 
 docker run --name $dbname \
     -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-    -e POSTGRES_USER=$POSTGRES_USER -d postgres \
-    --network=$nointernet
+    -e POSTGRES_USER=$POSTGRES_USER -d postgres
 
 docker run --rm -d --name $containername \
     --link $dbname:postgres \
-    -e HUGINN_DATABASE_USERNAME=$containername \
+    -e HUGINN_DATABASE_USERNAME=$POSTGRES_USER \
     -e HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD \
     -e HUGINN_DATABASE_ADAPTER=postgresql \
-    -e SKIP_INVITATION_CODE=true \
+    -e INVITATION_CODE=mystronginvitationcdoe \
     -e REQUIRE_CONFIRMED_EMAIL=false \
-    --network=$nointernet \
+    -e SEED_USERNAME=huginnuserid \
+    -e SEED_PASSWORD=huginnuserpassword \
     huginn/huginn
 
-docker network connect $internet $containername
+docker network connect $nointernet $containername
 
 docker run --name huginn_postgres \
     -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
     -e POSTGRES_USER=$POSTGRES_USER -d postgres
 
-docker run --name huginn_postgres \
-    -e POSTGRES_PASSWORD=mysecretpassword \
-    -e POSTGRES_USER=huginn -d postgres
 
-#  Neede to add a bridge network for it to work (login page)?
-    
+====================================================
+
+docker run --name huginn_mysql \
+    -e MYSQL_DATABASE=huginn \
+    -e MYSQL_USER=huginn \
+    -e MYSQL_PASSWORD=somethingsecret \
+    -e MYSQL_ROOT_PASSWORD=somethingevenmoresecret \
+    mysql
+
+docker run --rm --name huginn \
+    --link huginn_mysql:mysql \
+    -p 3000:3000 \
+    -e HUGINN_DATABASE_NAME=huginn \
+    -e HUGINN_DATABASE_USERNAME=huginn \
+    -e HUGINN_DATABASE_PASSWORD=somethingsecret \
+    huginn/huginn
+
+====================================================
+Experiment
+
+docker run --name $dbname \
+    -e POSTGRES_USER=$POSTGRES_USER \
+    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    -d postgres
+
+docker run --rm -d --name $containername \
+    --link $dbname:postgres \
+    -p 3000:3000 \
+    -e HUGINN_DATABASE_USERNAME=$POSTGRES_USER \
+    -e HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD \
+    -e HUGINN_DATABASE_ADAPTER=postgresql \
+    -e DATABASE_HOST=172.17.0.3 \
+    -e INVITATION_CODE=mystronginvitationcdoe \
+    -e SEED_USERNAME=huginnuserid \
+    -e SEED_PASSWORD=huginnuserpassword \
+    -e REQUIRE_CONFIRMED_EMAIL=false \
+    huginn/huginn
+
+containername=huginn && docker network connect $internet $containername && docker network connect $nointernet $containername && docker network disconnect bridge $containername
+containername=huginn_postgres && docker network connect $nointernet $containername && docker network disconnect bridge $containername
+
+====================================================
+Working
+
+docker run --name huginn_postgres \
+    -e POSTGRES_USER=huginn \
+    -e POSTGRES_PASSWORD=mysecretpassword \
+    -d postgres
+
 docker run --rm -d --name huginn \
     --link huginn_postgres:postgres \
     -p 3000:3000 \
