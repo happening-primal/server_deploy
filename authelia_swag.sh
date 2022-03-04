@@ -1674,6 +1674,7 @@ sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapsep
 ##################################################################################################################################
 # Huginn - will not run on a subfolder
 # https://github.com/huginn/huginn/tree/master/docker/multi-process
+# https://github.com/BytemarkHosting/configs-huginn-docker/blob/master/docker-compose.yml
 # Build after synapse so you can use the same postgres container
 # Send a text message through email - https://www.digitaltrends.com/mobile/how-to-send-a-text-from-your-email-account/
 
@@ -1681,12 +1682,15 @@ sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapsep
 containername=huginn
 dbname=$containername
 dbname+="_mysql"
-huginndbuser=$(echo $RANDOM | md5sum | head -c 15)
-huginndbpass=$(echo $RANDOM | md5sum | head -c 15)
-mysqlrootpass=$(echo $RANDOM | md5sum | head -c 15)
+huginndbuser=$(echo $RANDOM | md5sum | head -c 35)
+huginndbpass=$(echo $RANDOM | md5sum | head -c 35)
+mysqlrootpass=$(echo $RANDOM | md5sum | head -c 35)
       
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
-invitationcode=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 35)
+# Create a very strong invitation code so that it is almost impossible
+# for someone to sign up without prior knowledge
+invitationcode=$(echo $RANDOM | md5sum | head -c 35)
+invitationcode+=$(echo $RANDOM | md5sum | head -c 35)
 huginnsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername
@@ -1740,8 +1744,6 @@ echo "$ymlhdr
       - no-internet
       - internet
     environment:
-      # Don't create the default "admin" user with password "password".
-      - DO_NOT_SEED=true
       # Database configuration
       - MYSQL_PORT_3306_TCP_ADDR=$dbname
       - MYSQL_ROOT_PASSWORD=$mysqlrootpass
@@ -1753,8 +1755,11 @@ echo "$ymlhdr
       - INVITATION_CODE=$invitationcode
       - TZ=Europe/London
       - REQUIRE_CONFIRMED_EMAIL=false
+      # Don't create the default "admin" user with password "password".
+      # Instead, use the below SEED_USERNAME and SEED_PASSWORD
       - SEED_USERNAME=huginnuserid
       - SEED_PASSWORD=huginnuserpassword
+      - DO_NOT_SEED=false
 $ymlftr" >> $ymlname
 
 
