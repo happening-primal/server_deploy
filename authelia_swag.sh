@@ -46,11 +46,15 @@ ipincr=5
 piholeip=1$subnet.$ipend
 ipend=$(($ipend+$ipincr))
 
-#  Header for docker-compose .yml files
+# Header for the docker-compose .yml files
 ymlhdr='version: "3.1"
 services:'
-
-#  Footer for docker-compose .yml files
+# Restart policies for the docker-compose .yml files
+ymlrestart="    restart: unless-stopped
+    deploy:
+      restart_policy:
+       condition: on-failure"
+# Footer for the docker-compose .yml files
 ymlftr="
 networks:
 # For networking setup explaination, see this link:
@@ -288,9 +292,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -389,9 +391,7 @@ echo "$ymlhdr
       - $rootdir/docker/$containername:/config
     networks:
       - no-internet
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -637,9 +637,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -685,9 +683,7 @@ echo "$ymlhdr
       - $rootdir/docker/homer:/www/assets
     networks:
       - no-internet  #  Only talks to lan, no internet required
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -865,14 +861,12 @@ echo "$ymlhdr
       - MYSQL_DATABASE=$dbname
       - MYSQL_USER=$huginndbuser
       - MYSQL_PASSWORD=$huginndbpass
- 
  # The main application, visble through Traefik.
   $containername:
     # https://hub.docker.com/hugin/hugin/
     image: huginn/huginn
     depends_on:
       - $dbname
-    restart: unless-stopped
     ports:
       - 3000:3000
     networks:
@@ -895,6 +889,7 @@ echo "$ymlhdr
       - SEED_USERNAME=huginnuserid
       - SEED_PASSWORD=huginnuserpassword
       - DO_NOT_SEED=false
+$ymlrestart
 $ymlftr" >> $ymlname
 
 
@@ -1256,12 +1251,10 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
     ## Uncomment below command and define your args if necessary
     # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500
     command: --ssl
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1301,7 +1294,6 @@ echo "$ymlhdr
   $containername:
     container_name: $containername
     image: thedaviddelta/lingva-translate:latest
-    restart: unless-stopped
     environment:
       - site_domain=$lvsubdomain.$fqdn
       - dark_theme=true
@@ -1310,6 +1302,7 @@ echo "$ymlhdr
       - internet
     #ports:
     #  - 3000:3000
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1408,9 +1401,7 @@ dns:
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1517,9 +1508,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1668,7 +1657,6 @@ echo "$ymlhdr
     #command: [\"./wait-for-it.sh\", \"dbpolitepol:3306\", \"--\", \"/bin/bash\", \"./frontend/start.sh\"]
     command: [\"./wait-for-it.sh\", \"dbpolitepol\", \"/bin/bash\", \"./frontend/start.sh\"]
     container_name: politepol
-    restart: unless-stopped
     networks:
       - no-internet
       internet:
@@ -1688,6 +1676,7 @@ echo "$ymlhdr
       - no-internet
     volumes:
       - ./mysql:/var/lib/mysql
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1740,9 +1729,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1772,8 +1759,7 @@ sed -i 's/    server_name '$containername'./    server_name '$rpsubdomain'.''/g'
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
-#  softether vpn
-
+#  Softether vpn
 # Get download link from here:
 # https://www.softether-download.com/en.aspx
 
@@ -1782,12 +1768,14 @@ tar -xzsf $(ls -la | grep softether | awk '{print $9}')
 cd vpnserver
 tar -xzsf $(ls -la | grep softether | awk '{print $9}')
 
-docker pull siomiz/softethervpn
-
 #  Create the docker-compose file
 containername=softether
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 sepsk=$(echo $RANDOM | md5sum | head -c 35)
+seusrid=$(echo $RANDOM | md5sum | head -c 35)
+sepass=$(echo $RANDOM | md5sum | head -c 35)
+sespw=$(echo $RANDOM | md5sum | head -c 35)
+sehpw=$(echo $RANDOM | md5sum | head -c 35)
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
@@ -1799,6 +1787,8 @@ touch $ymlname
 echo '$ymlhdr
   $containername:
     image: siomiz/softethervpn
+    cap_add:
+      - NET_ADMIN
     ports:
       - 5500:500/udp  # for L2TP/IPSec
       - 4500:4500/udp  # for L2TP/IPSec
@@ -1812,9 +1802,9 @@ echo '$ymlhdr
       # are separated by :. Each pair of username:password should be separated
       # by ;. If not set a single user account with a random username 
       # ("user[nnnn]") and a random weak password is created.
-      - USERS:     
-      - SPW=  # Server management password. :warning:
-      - HPW=  # "DEFAULT" hub management password. :warning:
+      - USERS=$seusrid:$sepass
+      - SPW=$sespw  # Server management password. :warning:
+      - HPW=$sehpw  # "DEFAULT" hub management password. :warning:
     Volumes:
       - $rootdir/docker/$containername:/usr/vpnserver  # vpn_server.config
       # By default SoftEther has a very verbose logging system. For privacy or 
@@ -1828,12 +1818,12 @@ echo '$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr' >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+# --env-file use for above to hide environmental variables from the portainer gui
 
 #  Firewall rules
 iptables -A INPUT -p udp --dport 58211 -j ACCEPT
@@ -1884,9 +1874,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -1961,7 +1949,6 @@ echo "$ymlhdr
 #        context: ../..
 #        dockerfile: docker/Dockerfile
     image: docker.io/matrixdotorg/synapse:latest
-    restart: unless-stopped
     environment:
       - SYNAPSE_SERVER_NAME=$containername
       - SYNAPSE_REPORT_STATS=no # Privacy
@@ -1986,6 +1973,7 @@ echo "$ymlhdr
       no-internet:
       internet:
         ipv4_address: $ipaddress
+$ymlrestart
 
   synapsedb:
     container_name: postgres
@@ -1998,6 +1986,7 @@ echo "$ymlhdr
       - $rootdir/docker/postgresql/data:/var/lib/postgresql/data
     networks:
       no-internet:
+$ymlrestart
 $ymlftr" >> $ymlname
 
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
@@ -2064,9 +2053,9 @@ echo "$ymlhdr
     image: awesometechnologies/synapse-admin
  #   ports:
  #     - 8080:80
-    restart: unless-stopped
     networks:
       - no-internet
+$ymlrestart
 $ymlftr" >> $ymlname
 
 #  Launch the 'normal' way using the yml file
@@ -2118,9 +2107,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -2225,9 +2212,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -2298,9 +2283,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -2388,9 +2371,7 @@ echo "$ymlhdr
       - no-internet
       internet:
         ipv4_address: $ipaddress
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
@@ -2491,9 +2472,7 @@ echo "$ymlhdr
       #  Set a static ip address for the pihole - https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/
       internet:
           ipv4_address: $piholeip
-    deploy:
-      restart_policy:
-       condition: on-failure
+$ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
