@@ -1758,8 +1758,8 @@ done
 
 #  Add the crontab job to kill off already used rss-proxy feeds as this does
 #  not seem to be done automatically and leads to overloaded CPU and memory
-#  after repeted requests for feed update(s).  Run every five minutes
-(crontab -l 2>/dev/null || true; echo "*/5 * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
+#  after repeted requests for feed update(s).  Run every two minutes
+(crontab -l 2>/dev/null || true; echo "*/2 * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
 
 #  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
@@ -1770,6 +1770,80 @@ cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $d
 sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$rpsubdomain'.''/g' $destconf
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
+
+##################################################################################################################################
+#  softether vpn
+
+# Get download link from here:
+# https://www.softether-download.com/en.aspx
+
+wget https://github.com/SoftEtherVPN/SoftEtherVPN_Stable/releases/download/v4.38-9760-rtm/softether-vpnserver-v4.38-9760-rtm-2021.08.17-linux-arm64-64bit.tar.gz
+tar -xzsf $(ls -la | grep softether | awk '{print $9}')
+cd vpnserver
+tar -xzsf $(ls -la | grep softether | awk '{print $9}')
+
+docker pull siomiz/softethervpn
+
+#  Create the docker-compose file
+containername=softether
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+sepsk=$(echo $RANDOM | md5sum | head -c 35)
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr))
+ipaddress=$subnet.$ipend
+mkdir -p $rootdir/docker/$containername;
+
+rm -f $ymlname
+touch $ymlname
+
+echo '$ymlhdr
+  $containername:
+    image: siomiz/softethervpn
+    ports:
+      - 5500:500/udp  # for L2TP/IPSec
+      - 4500:4500/udp  # for L2TP/IPSec
+      - 1701:1701/tcp  # for L2TP/IPSec
+      - 5555:5555/tcp  # for SoftEther VPN (recommended by vendor).
+      - 992:992/tcp  # is also available as alternative.
+    environment:
+      - PSK=$sepsk  # Pre-Shared Key (PSK), if not set: "notasecret" (without quotes) by default.
+      # Multiple usernames and passwords may be set with the following pattern:
+      # username:password;user2:pass2;user3:pass3. Username and passwords
+      # are separated by :. Each pair of username:password should be separated
+      # by ;. If not set a single user account with a random username 
+      # ("user[nnnn]") and a random weak password is created.
+      - USERS:     
+      - SPW=  # Server management password. :warning:
+      - HPW=  # "DEFAULT" hub management password. :warning:
+    Volumes:
+      - $rootdir/docker/$containername:/usr/vpnserver  # vpn_server.config
+      # By default SoftEther has a very verbose logging system. For privacy or 
+      # space constraints, this may not be desirable. The easiest way to solve this 
+      # create a dummy volume to log to /dev/null. In your docker run you can 
+      # use the following volume variables to remove logs entirely.
+      - /dev/null:/usr/vpnserver/server_log
+      - /dev/null:/usr/vpnserver/packet_log
+      - /dev/null:/usr/vpnserver/security_log
+    networks:
+      - no-internet
+      internet:
+        ipv4_address: $ipaddress
+    deploy:
+      restart_policy:
+       condition: on-failure
+$ymlftr' >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 58211 -j ACCEPT
+iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
 
 ##################################################################################################################################
 #  Shadowsocks proxy
