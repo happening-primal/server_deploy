@@ -16,6 +16,11 @@
 #onionshare
 #  Fail2ban - https://www.the-lazy-dev.com/en/install-fail2ban-with-docker/
 
+# Required reading to understand this script:
+#  sed
+#  grep
+#  awk
+
 echo "
  - Run this script as superuser.
 "
@@ -45,9 +50,10 @@ dockersubnet=$subnet.0
 dockergateway=$subnet.1
 #  Starting IP subnet (for pihole)
 ipend=10
+piholeip=$subnet.$ipend
 #  Amount to increment the starting IP subnet (10, 15, 20, 25...)
 ipincr=5
-piholeip=1$subnet.$ipend
+# Increment the subnet...
 ipend=$(($ipend+$ipincr))
 
 # Header for the docker-compose .yml files
@@ -89,7 +95,6 @@ echo "export myip=$myip" >> $rootdir/.bashrc
 echo "export subnet=$subnet" >> $rootdir/.bashrc
 echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
 echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
-echo "export piholeip=$piholeip" >> $rootdir/.bashrc
 #echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
 #echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
 
@@ -2411,6 +2416,7 @@ ymlname=$rootdir/$containername-compose.yml
 echo "
 #  Pihole Admin" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
+echo "export piholeip=$piholeip" >> $rootdir/.bashrc
 echo "export pipass=$pipass" >> $rootdir/.bashrc
 # Commit the .bashrc changes
 source $rootdir/.bashrc
