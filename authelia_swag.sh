@@ -14,6 +14,7 @@
 #openvpn
 #ptpp
 #onionshare
+#  Fail2ban - https://www.the-lazy-dev.com/en/install-fail2ban-with-docker/
 
 echo "
  - Run this script as superuser.
@@ -24,6 +25,9 @@ if [[ "${EUID}" -ne 0 ]]; then
   echo "This installer needs to be run with superuser privileges." >&2
   exit 1
 fi
+
+#  Install fail2ban for use later
+apt-get -qq update && apt install -y -qq fail2ban
 
 ##################################################################################################################################
 #  Global Variables
@@ -147,41 +151,23 @@ done
 subdomains="www"
 #  Add a few specific use case subdomains
 #  farside
-fssubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$fssubdomain
+fssubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$fssubdomain
 #  huginn
-hgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$hgsubdomain
+hgsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$hgsubdomain
 #  jitsiweb
-jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$jwebsubdomain
+jwebsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$jwebsubdomain
 #  libretranslate
-ltsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$ltsubdomain
+ltsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$ltsubdomain
 #  lingva
-lvsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$lvsubdomain
+lvsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$lvsubdomain
 #  openvpn access server
-ovpnsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$ovpnsubdomain
+ovpnsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$ovpnsubdomain
 #  rss-proxy
-rpsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$rpsubdomain
+rpsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$rpsubdomain
 #  synapse
-sysubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$sysubdomain
+sysubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$sysubdomain
 #  wireguard gui
-wgsubdomain=$(echo $RANDOM | md5sum | head -c 8)
-subdomains+=", "
-subdomains+=$wgsubdomain
+wgsubdomain=$(echo $RANDOM | md5sum | head -c 8) && subdomains+=", " && subdomains+=$wgsubdomain
 
 while true; do
   read -rp "
@@ -245,12 +231,10 @@ source $rootdir/.bashrc
 #  Create the docker-compose file
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   swag:
@@ -356,8 +340,6 @@ done
 
 echo "
 #  Authelia" >> $rootdir/.bashrc
-#  Commit the variable(s) to bashrc
-#  Commit the variable(s) to bashrc
 echo "export authusr=$authusr" >> $rootdir/.bashrc
 echo "export authpwd=$authpwd" >> $rootdir/.bashrc
 
@@ -379,8 +361,7 @@ autheliasubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -472,8 +453,7 @@ sed -i 's/\#  \#   filename: \/config\/notification.txt/    filename: \/config\/
 # Yeah, that was exhausting...
 
 #  Restart Authelia so that it will generate the users_database.yml file
-docker-compose -f $ymlname -p $stackname down
-docker-compose -f $ymlname -p $stackname up -d
+docker-compose -f $ymlname -p $stackname down && docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -522,8 +502,7 @@ sed -i 's/\        try_files \$uri \$uri\/ \/index.html \/index.php?\$args =404;
 sed -i ':a;N;$!ba;s/\    }/#    }''/1' $rootdir/docker/$swagloc/nginx/site-confs/default
 
 #  Restart the stack to get the configuration changes committed
-#docker-compose -f $ymlname -p $stackname down
-#docker-compose -f $ymlname -p $stackname up -d
+docker-compose -f $ymlname -p $stackname down && docker-compose -f $ymlname -p $stackname up -d
 
 #  First wait until the stack is first initialized...
 while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -544,9 +523,7 @@ wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo 
 rm erlang-solutions_2.0_all.deb
 apt-get -qq update
 #  Install redis server
-apt install -y -qq redis-server
-apt-get install -y -qq esl-erlang
-apt-get install -y -qq elixir
+apt install -y -qq redis-server esl-erlang elixir
 #  Download farside
 wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
 tar -xzsf v0.1.0.tar.gz
@@ -557,8 +534,7 @@ mix.exs mix deps.get
 mix run -e Farside.Instances.sync
 elixir --erl "-detached" -S mix run --no-halt
 
-rm -f run.sh
-touch run.sh
+rm -f run.sh && touch run.sh
 
 #  Make a script to launch the app
 #  Check for running process and fire if not running
@@ -617,8 +593,7 @@ ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:  # linuxserver.io firefox browser
@@ -669,8 +644,7 @@ homersubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -811,8 +785,7 @@ sed -i '7 i
 
 #  Create the docker-compose file
 containername=huginn
-dbname=$containername
-dbname+="_mysql"
+dbname=$containername && dbname+="_mysql"
 huginndbuser=$(echo $RANDOM | md5sum | head -c 35)
 huginndbpass=$(echo $RANDOM | md5sum | head -c 35)
 mysqlrootpass=$(echo $RANDOM | md5sum | head -c 35)
@@ -820,8 +793,7 @@ mysqlrootpass=$(echo $RANDOM | md5sum | head -c 35)
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 35)
 # Create a very strong invitation code so that it is almost impossible
 # for someone to sign up without prior knowledge
-invitationcode=$(echo $RANDOM | md5sum | head -c 35)
-invitationcode+=$(echo $RANDOM | md5sum | head -c 35)
+invitationcode=$(echo $RANDOM | md5sum | head -c 35) && invitationcode+=$(echo $RANDOM | md5sum | head -c 35)
 huginnsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername
@@ -838,8 +810,7 @@ echo "export invitationcode=$invitationcode  # Huginn invitation code" >> $rootd
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 # Info on environmental variables
 # https://github.com/huginn/huginn/blob/master/.env.example
@@ -1104,8 +1075,7 @@ jcontdir=jitsi-meet
 containername=jitsi-meet
 jmoduser=userid
 jmodpass=password
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 
 echo "
 #  Jitsi Meet" >> $rootdir/.bashrc
@@ -1229,12 +1199,10 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/
 #  Create the docker-compose file
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -1283,12 +1251,10 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 #  Create the docker-compose file
 containername=lingva
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -1365,13 +1331,11 @@ nekosubdirectory=$rndsubfolder
 nekoportrange1=52000
 nekoportrange2=52100
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:  # Neko firefox browser
@@ -1484,12 +1448,10 @@ torsubdirectory=$rndsubfolder
 torportrange1=52200
 torportrange2=52300
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:  # Neko tor browser
@@ -1548,7 +1510,7 @@ sacliloc=/usr/local/openvpn_as/scripts/sacli
 ovpntcpport=26111
 ovpnudpport=21894
 ovpnuser=$(echo $RANDOM | md5sum | head -c 8)
-ovpnpass=$(echo $RANDOM | md5sum | head -c 25)
+ovpnpass=$(echo $RANDOM | md5sum | head -c 35)
 ovpngroup=$(echo $RANDOM | md5sum | head -c 8)
 
 echo "
@@ -1624,20 +1586,18 @@ rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 ppolsubdirectory=$rndsubfolder
 pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername
 
 echo "
 #  Politepol - rss feed generator" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
-echo "export pport=$pport" >> $rootdir/.bashrc
+echo "export pport=$pport  # Politepol" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -1706,12 +1666,10 @@ rm -r $rootdir/pol
 
 containername=rssproxy
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -1777,12 +1735,10 @@ sepass=$(echo $RANDOM | md5sum | head -c 35)
 sespw=$(echo $RANDOM | md5sum | head -c 35)
 sehpw=$(echo $RANDOM | md5sum | head -c 35)
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo '$ymlhdr
   $containername:
@@ -1853,12 +1809,18 @@ containername=shadowsocks
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 shadowsockssubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+echo "
+#  Shadosocks proxy" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export sspass=$sspass  # Shadowsocks" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -1914,32 +1876,31 @@ if [[ -z "${sypass}" ]]; then
   break
 done
 
-echo "
-#  Synapse (Matrix)" >> $rootdir/.bashrc
-#  Commit the variable(s) to bashrc
-echo "export syusrid=$syusrid" >> $rootdir/.bashrc
-echo "export sypass=$sypass" >> $rootdir/.bashrc
-
-# Commit the .bashrc changes
-source $rootdir/.bashrc
-
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr))
 ipaddress=$subnet.$ipend
 synapseport=8008
+REG_SHARED_SECRET=$(openssl rand -hex 40)
+POSTGRES_USER=$(openssl rand -hex 25)
+POSTGRES_PASSWORD=$(openssl rand -hex 25)
+
+echo "
+#  Synapse (Matrix)" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export syusrid=$syusrid  # Synapse userid" >> $rootdir/.bashrc
+echo "export sypass=$sypass  # Syanpse password" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 mkdir -p $rootdir/docker/$containername
 mkdir -p $rootdir/docker/$containername/data
 mkdir -p $rootdir/docker/postgresql
 mkdir -p $rootdir/docker/postgresql/data
 
-REG_SHARED_SECRET=$(openssl rand -hex 40)
-POSTGRES_USER=$(openssl rand -hex 25)
-POSTGRES_PASSWORD=$(openssl rand -hex 25)
-
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -2041,8 +2002,7 @@ rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 synapseuisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 #docker run awesometechnologies/synapse-admin
 
@@ -2079,12 +2039,10 @@ containername=syncthing
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 syncthingsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -2139,8 +2097,8 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 #  Create the docker-compose file
 containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername
 mylink=$fssubdomain'.'$fqdn
 
@@ -2160,8 +2118,7 @@ git clone https://github.com/benbusby/whoogle-search.git
 # Move the contents from directory whoogle-search to directory whoogle
 mv $rootdir/whoogle-search $rootdir/docker/$containername
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -2237,23 +2194,23 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 ##################################################################################################################################
 #  Wireguard
 #  Create the docker-compose file
-
+containername=wireguard
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 wgport=50220
-echo "export mwgport=$wgport" >> $rootdir/.bashrc
+
+echo "
+#  Wireguard" >> $rootdir/.bashrc
+echo "export mwgport=$wgport  # Wireguard port" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
-containername=wireguard
-ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/config;
 mkdir -p $rootdir/docker/$containername/modules;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -2323,6 +2280,12 @@ Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBb
   break
 done
 
+containername=wgui
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+wguisubdirectory=$rndsubfolder
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 echo "
 #  Wireguard UI" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
@@ -2332,18 +2295,11 @@ echo "export wgpass=$wgpass" >> $rootdir/.bashrc
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
-containername=wgui
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
-wguisubdirectory=$rndsubfolder
-ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/app;
 mkdir -p $rootdir/docker/$containername/etc;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:
@@ -2425,6 +2381,10 @@ Enter your desired pihole webgui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyB
   break
 done
 
+#  Create the docker-compose file
+containername=pihole
+ymlname=$rootdir/$containername-compose.yml
+
 echo "
 #  Pihole Admin" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
@@ -2433,15 +2393,11 @@ echo "export pipass=$pipass" >> $rootdir/.bashrc
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
-#  Create the docker-compose file
-containername=pihole
-ymlname=$rootdir/$containername-compose.yml
 mkdir -p $rootdir/docker/$containername;
 mkdir -p $rootdir/docker/$containername/etc-pihole;
 mkdir -p $rootdir/docker/$containername/etc-dnsmasq.d;
 
-rm -f $ymlname
-touch $ymlname
+rm -f $ymlname && touch $ymlname
 
 echo "$ymlhdr
   $containername:  # See this link for some help getting the host configured properly or else there will be a port 53 conflict
