@@ -179,6 +179,9 @@ How many random subdomains would you like to generate?: " rnddomain
   break
 done
 
+#  Add a few more for the novice user, they may need them later :)
+rnddomain=$(($rnddomain+10))
+
 # Domain and DNS setup section
 i=0
 while [ $i -ne $rnddomain ]
@@ -338,14 +341,6 @@ Enter your desired Authelia password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDY
   break
 done
 
-echo "
-#  Authelia" >> $rootdir/.bashrc
-echo "export authusr=$authusr" >> $rootdir/.bashrc
-echo "export authpwd=$authpwd" >> $rootdir/.bashrc
-
-# Commit the .bashrc changes
-source $rootdir/.bashrc
-
 #  Generate some of the variables that will be used later but that the user does
 #  not need to keep track of
 #    https://linuxhint.com/generate-random-string-bash/
@@ -359,6 +354,16 @@ containername=authelia
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 autheliasubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+
+
+echo "
+#  Authelia" >> $rootdir/.bashrc
+echo "export authusr=$authusr" >> $rootdir/.bashrc
+echo "export authpwd=$authpwd" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -589,8 +594,8 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;''/g' $destco
 #  Create the docker-compose file
 containername=firefox
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -642,6 +647,7 @@ containername=homer
 rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 homersubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
+
 mkdir -p docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -796,8 +802,6 @@ rndsubfolder=$(echo $RANDOM | md5sum | head -c 35)
 invitationcode=$(echo $RANDOM | md5sum | head -c 35) && invitationcode+=$(echo $RANDOM | md5sum | head -c 35)
 huginnsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
-mkdir -p $rootdir/docker/$containername
-mkdir -p $rootdir/docker/$containername/mysql
 
 echo "
 #  Huginn" >> $rootdir/.bashrc
@@ -809,6 +813,9 @@ echo "export invitationcode=$invitationcode  # Huginn invitation code" >> $rootd
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
+
+mkdir -p $rootdir/docker/$containername
+mkdir -p $rootdir/docker/$containername/mysql
 
 rm -f $ymlname && touch $ymlname
 
@@ -1067,7 +1074,7 @@ docker run -p 80:8080 --rm jams:latest
 
 #  Jitsi Broadcasting Infrastructure (Jibri) - https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker#advanced-configuration
 #  Install dependencies
-apt-get install -y -qq linux-image-extra-virtual
+apt-get -qq update && apt-get install -y -qq linux-image-extra-virtual
 
 jitsilatest=stable-6826
 jextractdir=docker-jitsi-meet-$jitsilatest
@@ -1200,6 +1207,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $rootdir/
 containername=translate
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -1252,6 +1260,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;''/g' $destco
 containername=lingva
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername
 
 rm -f $ymlname && touch $ymlname
@@ -1316,6 +1325,14 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
   break
 done
 
+containername=neko
+rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+nekosubdirectory=$rndsubfolder
+nekoportrange1=52000
+nekoportrange2=52100
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 echo "
 #  Neko" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
@@ -1324,14 +1341,6 @@ echo "export napass=$napass" >> $rootdir/.bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
-
-containername=neko
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
-nekosubdirectory=$rndsubfolder
-nekoportrange1=52000
-nekoportrange2=52100
-ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 
 mkdir -p $rootdir/docker/$containername;
 
@@ -1449,6 +1458,7 @@ torportrange1=52200
 torportrange2=52300
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -1587,6 +1597,7 @@ ppolsubdirectory=$rndsubfolder
 pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername
 
 echo "
@@ -1736,6 +1747,18 @@ sespw=$(echo $RANDOM | md5sum | head -c 35)
 sehpw=$(echo $RANDOM | md5sum | head -c 35)
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+echo "
+#  Softether" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export seusrid=$seusrid  # Softether userid" >> $rootdir/.bashrc
+echo "export sepass=$sepass  # Softether password" >> $rootdir/.bashrc
+echo "export sespw=$sespw" >> $rootdir/.bashrc
+echo "export sehpw=$sehpw" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -1810,6 +1833,7 @@ rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 shadowsockssubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername;
 
 echo "
@@ -1865,7 +1889,6 @@ if [[ -z "${syusrid}" ]]; then
   break
 done
 
-
 while true; do
   read -rp "
 Enter your desired synapse password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " sypass
@@ -1879,10 +1902,9 @@ done
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr))
-ipaddress=$subnet.$ipend
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 synapseport=8008
-REG_SHARED_SECRET=$(openssl rand -hex 40)
+REG_SHARED_SECRET=$(openssl rand -hex 35)
 POSTGRES_USER=$(openssl rand -hex 25)
 POSTGRES_PASSWORD=$(openssl rand -hex 25)
 
@@ -1891,7 +1913,7 @@ echo "
 #  Commit the variable(s) to bashrc
 echo "export syusrid=$syusrid  # Synapse userid" >> $rootdir/.bashrc
 echo "export sypass=$sypass  # Syanpse password" >> $rootdir/.bashrc
-
+echo "export synapseport=$synapseport  # Syanpse port" >> $rootdir/.bashrc
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
@@ -1986,7 +2008,7 @@ sed -i 's/        set $upstream_port 8008;/        set $upstream_port '$synapsep
 #  https://hub.docker.com/r/awesometechnologies/synapse-admin
 
 #  Install some depndencies
-apt install -y -qq git yarn nodejs
+apt-get -qq update && apt install -y -qq git yarn nodejs
 
 #  Download the repository
 #git clone https://github.com/Awesome-Technologies/synapse-admin.git
@@ -2040,6 +2062,7 @@ rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 syncthingsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p $rootdir/docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -2098,9 +2121,9 @@ sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/n
 containername=whoogle
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+mylink=$fssubdomain'.'$fqdn
 
 mkdir -p $rootdir/docker/$containername
-mylink=$fssubdomain'.'$fqdn
 
 echo "
 #  Whoogle" >> $rootdir/.bashrc
@@ -2112,7 +2135,7 @@ source $rootdir/.bashrc
 
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
-apt-get install -y -qq libcurl4-openssl-dev libssl-dev
+apt-get -qq update && apt-get install -y -qq libcurl4-openssl-dev libssl-dev
 git clone https://github.com/benbusby/whoogle-search.git
 
 # Move the contents from directory whoogle-search to directory whoogle
@@ -2389,7 +2412,6 @@ echo "
 #  Pihole Admin" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export pipass=$pipass" >> $rootdir/.bashrc
-
 # Commit the .bashrc changes
 source $rootdir/.bashrc
 
