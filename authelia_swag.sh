@@ -95,8 +95,8 @@ echo "export myip=$myip" >> $rootdir/.bashrc
 echo "export subnet=$subnet" >> $rootdir/.bashrc
 echo "export dockersubnet=$dockersubnet" >> $rootdir/.bashrc
 echo "export dockergateway=$dockergateway" >> $rootdir/.bashrc
-#echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc
-#echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc
+#echo "export ymlhdr=$ymlhdr" >> $rootdir/.bashrc  # Cannot store in .bashrc
+#echo "export ymlftr=$ymlftr" >> $rootdir/.bashrc  # Cannot store in .bashrc
 
 # Commit the .bashrc changes
 source $rootdir/.bashrc
@@ -184,7 +184,7 @@ How many random subdomains would you like to generate?: " rnddomain
   break
 done
 
-#  Add a few more for the novice user, they may need them later :)
+#  Add a few more for the novice user, they may need them later even though they don't know it now :)
 rnddomain=$(($rnddomain+10))
 
 # Domain and DNS setup section
@@ -240,6 +240,7 @@ source $rootdir/.bashrc
 containername=swag
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
 mkdir -p docker/$containername;
 
 rm -f $ymlname && touch $ymlname
@@ -649,7 +650,7 @@ sed -i 's/    set $upstream_port 8080;/    set $upstream_port 3000;''/g' $destco
 #         https://github.com/bastienwirtz/homer/blob/main/docs/configuration.md
 #  Create the docker-compose file
 containername=homer
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 homersubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 
@@ -797,14 +798,14 @@ sed -i '7 i
 #  Create the docker-compose file
 containername=huginn
 dbname=$containername && dbname+="_mysql"
-huginndbuser=$(echo $RANDOM | md5sum | head -c 35)
-huginndbpass=$(echo $RANDOM | md5sum | head -c 35)
-mysqlrootpass=$(echo $RANDOM | md5sum | head -c 35)
+huginndbuser=$(openssl rand -hex 32)
+huginndbpass=$(openssl rand -hex 32)
+mysqlrootpass=$(openssl rand -hex 32)
       
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 35)
+rndsubfolder=$(openssl rand -hex 32)
 # Create a very strong invitation code so that it is almost impossible
 # for someone to sign up without prior knowledge
-invitationcode=$(echo $RANDOM | md5sum | head -c 35) && invitationcode+=$(echo $RANDOM | md5sum | head -c 35)
+invitationcode=$(openssl rand -hex 32) && invitationcode+=$(openssl rand -hex 32)
 huginnsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 
@@ -1331,7 +1332,7 @@ Enter your desired neko admin password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxg
 done
 
 containername=neko
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 nekosubdirectory=$rndsubfolder
 nekoportrange1=52000
 nekoportrange2=52100
@@ -1457,7 +1458,7 @@ EOF
 # Neko Tor browser
 #  Create the docker-compose file
 containername=tor
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 torsubdirectory=$rndsubfolder
 torportrange1=52200
 torportrange2=52300
@@ -1524,9 +1525,9 @@ containername=openvpnas
 sacliloc=/usr/local/openvpn_as/scripts/sacli
 ovpntcpport=26111
 ovpnudpport=21894
-ovpnuser=$(echo $RANDOM | md5sum | head -c 8)
-ovpnpass=$(echo $RANDOM | md5sum | head -c 35)
-ovpngroup=$(echo $RANDOM | md5sum | head -c 8)
+ovpnuser=$(openssl rand -hex 8)
+ovpnpass=$(openssl rand -hex 32)
+ovpngroup=$(openssl rand -hex 8)
 
 echo "
 #  OpenVPN Access Server" >> $rootdir/.bashrc
@@ -1597,7 +1598,7 @@ git clone https://github.com/taroved/pol
 cd pol
 
 containername=politepol
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 ppolsubdirectory=$rndsubfolder
 pport=8088
 ymlname=$rootdir/pol/$containername-compose.yml
@@ -1733,93 +1734,6 @@ sed -i 's/    server_name '$containername'./    server_name '$rpsubdomain'.''/g'
 sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
 
 ##################################################################################################################################
-#  Softether vpn
-# Get download link from here:
-# https://www.softether-download.com/en.aspx
-
-wget https://github.com/SoftEtherVPN/SoftEtherVPN_Stable/releases/download/v4.38-9760-rtm/softether-vpnserver-v4.38-9760-rtm-2021.08.17-linux-arm64-64bit.tar.gz
-tar -xzsf $(ls -la | grep softether | awk '{print $9}')
-cd vpnserver
-tar -xzsf $(ls -la | grep softether | awk '{print $9}')
-
-#  Create the docker-compose file
-containername=softether
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
-sepsk=$(echo $RANDOM | md5sum | head -c 35)
-seusrid=$(echo $RANDOM | md5sum | head -c 35)
-sepass=$(echo $RANDOM | md5sum | head -c 35)
-sespw=$(echo $RANDOM | md5sum | head -c 35)
-sehpw=$(echo $RANDOM | md5sum | head -c 35)
-ymlname=$rootdir/$containername-compose.yml
-ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
-
-echo "
-#  Softether" >> $rootdir/.bashrc
-#  Commit the variable(s) to bashrc
-echo "export seusrid=$seusrid  # Softether userid" >> $rootdir/.bashrc
-echo "export sepass=$sepass  # Softether password" >> $rootdir/.bashrc
-echo "export sespw=$sespw" >> $rootdir/.bashrc
-echo "export sehpw=$sehpw" >> $rootdir/.bashrc
-
-# Commit the .bashrc changes
-source $rootdir/.bashrc
-
-mkdir -p $rootdir/docker/$containername;
-
-rm -f $ymlname && touch $ymlname
-
-echo '$ymlhdr
-  $containername:
-    image: siomiz/softethervpn
-    cap_add:
-      - NET_ADMIN
-    ports:
-      - 5500:500/udp  # for L2TP/IPSec
-      - 4500:4500/udp  # for L2TP/IPSec
-      - 1701:1701/tcp  # for L2TP/IPSec
-      - 5555:5555/tcp  # for SoftEther VPN (recommended by vendor).
-      - 992:992/tcp  # is also available as alternative.
-    environment:
-      - PSK=$sepsk  # Pre-Shared Key (PSK), if not set: "notasecret" (without quotes) by default.
-      # Multiple usernames and passwords may be set with the following pattern:
-      # username:password;user2:pass2;user3:pass3. Username and passwords
-      # are separated by :. Each pair of username:password should be separated
-      # by ;. If not set a single user account with a random username 
-      # ("user[nnnn]") and a random weak password is created.
-      - USERS=$seusrid:$sepass
-      - SPW=$sespw  # Server management password. :warning:
-      - HPW=$sehpw  # "DEFAULT" hub management password. :warning:
-    Volumes:
-      - $rootdir/docker/$containername:/usr/vpnserver  # vpn_server.config
-      # By default SoftEther has a very verbose logging system. For privacy or 
-      # space constraints, this may not be desirable. The easiest way to solve this 
-      # create a dummy volume to log to /dev/null. In your docker run you can 
-      # use the following volume variables to remove logs entirely.
-      - /dev/null:/usr/vpnserver/server_log
-      - /dev/null:/usr/vpnserver/packet_log
-      - /dev/null:/usr/vpnserver/security_log
-    networks:
-      - no-internet
-      internet:
-        ipv4_address: $ipaddress
-$ymlrestart
-$ymlftr' >> $ymlname
-
-docker-compose -f $ymlname -p $stackname up -d
-
-# --env-file use for above to hide environmental variables from the portainer gui
-
-#  Firewall rules
-iptables -A INPUT -p udp --dport 58211 -j ACCEPT
-iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
-
-#  First wait until the stack is first initialized...
-while [ -f "$(sudo docker ps | grep $containername)" ];
-do
- sleep 5
-done
-
-##################################################################################################################################
 #  Shadowsocks proxy
 
 while true; do
@@ -1834,7 +1748,7 @@ done
 
 #  Create the docker-compose file
 containername=shadowsocks
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 shadowsockssubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
@@ -1842,7 +1756,7 @@ ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 mkdir -p $rootdir/docker/$containername;
 
 echo "
-#  Shadosocks proxy" >> $rootdir/.bashrc
+#  Shadowsocks proxy" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
 echo "export sspass=$sspass  # Shadowsocks" >> $rootdir/.bashrc
 
@@ -1869,6 +1783,108 @@ $ymlrestart
 $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 58211 -j ACCEPT
+iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+##################################################################################################################################
+# Softether vpn
+# Get download link from here:
+# https://www.softether-download.com/en.aspx
+# https://hub.docker.com/r/siomiz/softethervpn
+
+wget https://github.com/SoftEtherVPN/SoftEtherVPN_Stable/releases/download/v4.38-9760-rtm/softether-vpnserver-v4.38-9760-rtm-2021.08.17-linux-arm64-64bit.tar.gz
+tar -xzsf $(ls -la | grep softether | awk '{print $9}')
+cd vpnserver
+tar -xzsf $(ls -la | grep softether | awk '{print $9}')
+
+#  Create the docker-compose file
+containername=softether
+rndsubfolder=$(openssl rand -hex 15)
+sepsk=$(openssl rand -hex 40)  # Pre-Shared Key (PSK)
+seusrid=$(openssl rand -hex 40)
+sepass=$(openssl rand -hex 40)
+sespw=$(openssl rand -hex 40)  # Server management password
+sehpw=$(openssl rand -hex 40)  # Hub management password
+# SoftEther ports - L2TP/IPSec ports
+sel2tp1port1=1701
+sel2tp1port2=4500
+sel2tp1port3=5500
+# SoftEther ports - SoftEther VPN
+sevpnport1=5555
+sevpnport2=992
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+echo "
+#  Softether" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export seusrid=$seusrid  # Softether userid" >> $rootdir/.bashrc
+echo "export sepass=$sepass  # Softether password" >> $rootdir/.bashrc
+echo "export sespw=$sespw  # Server management password" >> $rootdir/.bashrc
+echo "export sehpw=$sehpw  # Hub management password" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
+mkdir -p $rootdir/docker/$containername
+mkdir -p $rootdir/docker/$containername/vpnserver
+
+# Obtain a a config file template
+docker run --name vpnconf -e SPW=$sespw -e HPW=$sehpw siomiz/softethervpn echo
+docker cp vpnconf:/usr/vpnserver/vpn_server.config $rootdir/docker/$containername/vpnserver/vpn_server.config
+docker rm vpnconf
+
+rm -f $ymlname && touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: siomiz/softethervpn
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - $sel2tp1port1:1701/tcp  # for L2TP/IPSec
+      - $sel2tp1port2:4500/udp  # for L2TP/IPSec
+      - $sel2tp1port3:500/udp  # for L2TP/IPSec
+      - $sevpnport1:5555/tcp  # for SoftEther VPN (recommended by vendor).
+      - $sevpnport2:992/tcp  # is also available as alternative.
+    environment:
+      - PSK=$sepsk  # Pre-Shared Key (PSK), if not set: "notasecret" (without quotes) by default.
+      # Multiple usernames and passwords may be set with the following pattern:
+      # username:password;user2:pass2;user3:pass3. Username and passwords
+      # are separated by :. Each pair of username:password should be separated
+      # by ;. If not set a single user account with a random username 
+      # ("user[nnnn]") and a random weak password is created.
+      - USERS=$seusrid:$sepass
+      - SPW=$sespw  # Server management password. :warning:
+      - HPW=$sehpw  # 'DEFAULT' hub management password. :warning:
+    volumes:
+      - $rootdir/docker/$containername:/usr/vpnserver  # vpn_server.config
+      # By default SoftEther has a very verbose logging system. For privacy or 
+      # space constraints, this may not be desirable. The easiest way to solve this 
+      # create a dummy volume to log to /dev/null. In your docker run you can 
+      # use the following volume variables to remove logs entirely.
+      - $rootdir/docker/$containername/vpnserver/vpn_server.config:/usr/vpnserver/vpn_server.config
+      - /dev/null:/usr/vpnserver/server_log
+      - /dev/null:/usr/vpnserver/packet_log
+      - /dev/null:/usr/vpnserver/security_log
+    networks:
+      no-internet:
+      internet:
+        ipv4_address: $ipaddress
+$ymlrestart
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+# --env-file use for above to hide environmental variables from the portainer gui
 
 #  Firewall rules
 iptables -A INPUT -p udp --dport 58211 -j ACCEPT
@@ -2025,7 +2041,7 @@ apt-get -qq update && apt install -y -qq git yarn nodejs
 
 #  Create the docker-compose file
 containername=synapseui
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 synapseuisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 
@@ -2063,7 +2079,7 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;''/g' $destconf
 # Syncthing
 #  Create the docker-compose file
 containername=syncthing
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 syncthingsubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
@@ -2309,7 +2325,7 @@ Enter your desired wireguard ui password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBb
 done
 
 containername=wgui
-rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+rndsubfolder=$(openssl rand -hex 15)
 wguisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
