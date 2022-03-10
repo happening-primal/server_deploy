@@ -34,6 +34,15 @@ fi
 #  Install fail2ban for use later
 apt-get -qq update && apt install -y -qq fail2ban
 
+# Install diceware (passphrase generator) for later use
+# https://github.com/ulif/diceware
+#sudo apt install -y -qq python3-pip
+#pip3 install diceware
+apt -y -qq install diceware
+# Usage - diceware -d "_" --> Wavy_Baden_400_Whelp_Quest_Macon
+# Usage - diceware -n 3 -d " " --> Define Critter Lagoon
+
+
 ##################################################################################################################################
 #  Global Variables
 
