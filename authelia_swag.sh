@@ -1929,11 +1929,24 @@ if [[ -z "${sypass}" ]]; then
   break
 done
 
+while true; do
+  read -rp "
+How many non-admin users would you like to generate?: " nausrs
+  if [[ -z "${nausrs}" ]]; then
+    echo "Enter the number of random subdomains would you like to generate or hit ctrl+C to exit."
+    continue
+  fi
+  break
+done
+
+#  Add a few more for the novice user, they may need them later even though they don't know it now :)
+nausrs=$(($nausrs+10))
+
 #  Create the docker-compose file
 containername=synapse
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
-synapseport=8008
+synapseport=8448
 REG_SHARED_SECRET=$(openssl rand -hex 35)
 POSTGRES_USER=$(openssl rand -hex 25)
 POSTGRES_PASSWORD=$(openssl rand -hex 25)
@@ -1974,6 +1987,7 @@ echo "$ymlhdr
       - POSTGRES_HOST=synapsedb
       - POSTGRES_USER=$POSTGRES_USER
       - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - SYNAPSE_SERVER_NAME=$sysubdomain.$fqdn
     volumes:
       - $rootdir/docker/$containername/data:/data
     depends_on:
@@ -2004,7 +2018,9 @@ $ymlftr" >> $ymlname
 
 #  https://adfinis.com/en/blog/how-to-set-up-your-own-matrix-org-homeserver-with-federation/
 #  Run first to generate the homeserver.yaml file
-docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=$sysubdomain -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=$synapseport -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+docker run -it --rm -v $rootdir/docker/synapse/data:/data -e SYNAPSE_SERVER_NAME=$sysubdomain.$fqdn -e SYNAPSE_REPORT_STATS=no -e SYNAPSE_HTTP_PORT=$synapseport -e PUID=1000 -e PGID=1000 matrixdotorg/synapse:latest generate
+
+# Add a step to wait untilt he homeserver.yml file is created
 
 #  Launch the 'normal' way using the yml file
 docker-compose -f $ymlname -p $stackname up -d
@@ -2022,8 +2038,26 @@ iptables -A INPUT -p tcp --dport $synapseport -j ACCEPT
 #  If you are using a port other than 8448, it may fail unless to tell it where to look.  This command assumes it is on port 8448
 #  docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user -u $syusrid -p $sypass -a -c /data/homeserver.yaml
 #  See this for a solution https://github.com/matrix-org/synapse/issues/6783
-docker exec -it $(sudo docker ps | grep $containername | awk '{ print$NF }') register_new_matrix_user http://localhost:$synapseport -u $syusrid -p $sypass -a -c /data/homeserver.yaml
+docker exec -it $(sudo docker ps | grep -w $containername | grep -v ui | awk '{ print$NF }') register_new_matrix_user http://localhost:$synapseport -u $syusrid -p $sypass -a -c /data/homeserver.yaml
 #sudo docker ps | grep synapse | awk '{ print$NF }'
+
+echo "You can just hit enter at the 'Make admin [no]:' prompt(s)."
+
+# Create the non-admin users
+i=0
+while [ $i -ne $nausrs ]
+do
+        i=$(($i+1))
+        nausrid=$(diceware -n 2 -d "_")  # synapse only accepts lower case userids
+        napassphrase=$(diceware -n 3 -d "_")
+        docker exec -it $(sudo docker ps | grep $containername | grep -v ui | awk '{ print$NF }') register_new_matrix_user http://localhost:$synapseport -u $nausrid -p $napassphrase -c /data/homeserver.yaml
+        # Store the users in .bashrc
+        echo "export nausr$1=$nausrid  # Syanpse non-admin user$i" >> $rootdir/.bashrc
+        echo "export napassphrase$1=$napassphrase  # Syanpse non-admin user$i passphrase" >> $rootdir/.bashrc
+done
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
 
 #  Set up swag
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
@@ -2048,8 +2082,13 @@ apt-get -qq update && apt install -y -qq git yarn nodejs
 #yarn start
 #cd $rootdir
 
-#  Create the docker-compose file
-containername=synapseui
+# Create the docker-compose file
+# Note the reuse of the synapse container name with appended 'ui'
+# This is there because grep will not find containers only named
+# 'synapse' and if synapse and synapseui are both installed, you
+# will have trouble getting just the synapse container.  See
+# the synapse installation fro grep command with '-v ui'.
+containername+=ui
 rndsubfolder=$(openssl rand -hex 15)
 synapseuisubdirectory=$rndsubfolder
 ymlname=$rootdir/$containername-compose.yml
