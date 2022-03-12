@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# All of these links are archived at archive.today as of 11-Mar-2022
+
 # ToDo:
 #  1.  Configure iptable rules
 #  2.  Wireguard
@@ -534,6 +536,9 @@ done
 #  Farside rotating redirector written in elixer by ben busby
 #    https://github.com/benbusby/farside
 
+containername=farside  # Not acutally a container, but used for consistency
+fssubfolder=farside  # Unpack subfolder - don't use spaces
+
 #  Download the latest copy of radis - https://redis.io/
 #  wget https://download.redis.io/releases/redis-6.2.6.tar.gz
 #  Unpack the tarball
@@ -542,12 +547,14 @@ done
 wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
 rm erlang-solutions_2.0_all.deb
 apt-get -qq update
+
 #  Install redis server
 apt install -y -qq redis-server esl-erlang elixir
-#  Download farside
+
+#  Download and upack farside
 wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
-tar -xzsf v0.1.0.tar.gz
-cd $rootdir/farside-0.1.0
+tar -xzsf v0.1.0.tar.gz -C $rootdir/$fssubfolder
+cd $rootdir/$fssubfolder
 #  Run the below from within the unpacked farside folder (farside-0.1.0)
 #  redis-server
 mix.exs mix deps.get
@@ -560,7 +567,7 @@ rm -f run.sh && touch run.sh
 #  Check for running process and fire if not running
 #  Must use single quotes for !
 echo '#!/bin/bash
-cd $rootdir/farside-0.1.0
+cd $rootdir/$fssubfolder
 while [ -z "$(ps aux | grep -w no-halt | grep elixir)" ];
 do
  elixir --erl "-detached" -S mix run --no-halt
@@ -569,7 +576,7 @@ done' >> run.sh
 
 #  Set up a cron job to start the server once every five minutes if it isn't running
 #  so that it is always available.
-(crontab -l 2>/dev/null || true; echo "*/5 * * * * $rootdir/farside-0.1.0/run.sh") | crontab -
+(crontab -l 2>/dev/null || true; echo "*/5 * * * * $rootdir/$fssubfolder/run.sh") | crontab -
 
 #  Uses localhost:4001
 #  edit farside-0.1.0/services.json if you desire to control the instances of redirects
@@ -589,8 +596,6 @@ iptables -t filter -A INPUT -p udp --dport 4001 -j ACCEPT
 
 #  Enable swag capture of farside
 #  Prepare the farside proxy-conf file using using syncthing.subdomain.conf.sample as a template
-containername=farside
-
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -810,12 +815,13 @@ dbname=$containername && dbname+="_mysql"
 huginndbuser=$(openssl rand -hex 32)
 huginndbpass=$(openssl rand -hex 32)
 mysqlrootpass=$(openssl rand -hex 32)
-      
+huginnport=3000
 rndsubfolder=$(openssl rand -hex 32)
 # Create a very strong invitation code so that it is almost impossible
 # for someone to sign up without prior knowledge
 invitationcode=$(openssl rand -hex 32) && invitationcode+=$(openssl rand -hex 32)
 huginnsubdirectory=$rndsubfolder
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 ymlname=$rootdir/$containername-compose.yml
 
 echo "
@@ -861,10 +867,11 @@ echo "$ymlhdr
     depends_on:
       - $dbname
     ports:
-      - 3000:3000
+      - $huginnport:3000
     networks:
       - no-internet
-      - internet
+      internet:
+        ipv4_address: $ipaddress
     environment:
       # Database configuration
       - MYSQL_PORT_3306_TCP_ADDR=$dbname
@@ -1066,11 +1073,42 @@ destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.con
 cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
 #  Don't capture with Authelia or you won't be able to get your RSS feeds
-sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    #include \/config\/nginx\/authelia-server.conf;/g' $destconf
-sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;''/g' $destconf
+# sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    #include \/config\/nginx\/authelia-server.conf;/g' $destconf
+
 sed -i 's/syncthing/'$containername'/g' $destconf
 sed -i 's/    server_name '$containername'./    server_name '$hgsubdomain'.''/g' $destconf
-sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;''/g' $destconf
+sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    #include \/config\/nginx\/authelia-server.conf;/g' $destconf
+sed -i 's/        \#include \/config\/nginx\/authelia-location.conf;/        include \/config\/nginx\/authelia-location.conf;/g' $destconf
+sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$ipaddress';/g' $destconf
+sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$huginnport';/g' $destconf
+
+# Remove the last line of the file
+sed -i '$ d' $destconf
+    
+echo '
+    # Allow unauthenticated access to xml used as rss feeds
+    # by commenting out the authelia-location.conf line
+    # for specifc request to the regex below.
+    location ~ /users/(.*).xml$ {
+        # enable the next two lines for http auth
+        #auth_basic "Restricted";
+        #auth_basic_user_file /config/nginx/.htpasswd;
+
+        # enable the next two lines for ldap auth
+        #auth_request /auth;
+        #error_page 401 =200 /ldaplogin;
+
+        # enable for Authelia
+        #include /config/nginx/authelia-location.conf;
+
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set \$upstream_app '$ipaddress';
+        set \$upstream_port '$huginnport';
+        set \$upstream_proto http;
+        proxy_pass \$upstream_proto://\$upstream_app:\$upstream_port;
+    }
+}' >> $destconf
 
 ##################################################################################################################################
 #  JAMS Jami server application - https://jami.biz/jams-user-guide#Obtaining-JAMS
@@ -1804,10 +1842,11 @@ do
 done
 
 ##################################################################################################################################
-# Softether vpn
+# VPN - Softether vpn
 # Get download link from here:
 # https://www.softether-download.com/en.aspx
 # https://hub.docker.com/r/siomiz/softethervpn
+# https://hub.docker.com/r/fernandezcuesta/softethervpn
 
 wget https://github.com/SoftEtherVPN/SoftEtherVPN_Stable/releases/download/v4.38-9760-rtm/softether-vpnserver-v4.38-9760-rtm-2021.08.17-linux-arm64-64bit.tar.gz
 tar -xzsf $(ls -la | grep softether | awk '{print $9}')
@@ -1823,20 +1862,22 @@ sepass=$(openssl rand -hex 40)
 sespw=$(openssl rand -hex 40)  # Server management password
 sehpw=$(openssl rand -hex 40)  # Hub management password
 # SoftEther ports - L2TP/IPSec ports
-sel2tp1port1=1701
-sel2tp1port2=4500
-sel2tp1port3=5500
+sel2tp1port1=500
+sel2tp1port2=1701
+sel2tp1port3=4500
 # SoftEther ports - SoftEther VPN
 sevpnport1=5555
 sevpnport2=992
+sesstpport=9347
 ymlname=$rootdir/$containername-compose.yml
 ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 
 echo "
 #  Softether" >> $rootdir/.bashrc
 #  Commit the variable(s) to bashrc
-echo "export seusrid=$seusrid  # Softether userid" >> $rootdir/.bashrc
-echo "export sepass=$sepass  # Softether password" >> $rootdir/.bashrc
+echo "export sepsk=$sepsk  # SoftEther pre-shared key (PSK)" >> $rootdir/.bashrc
+echo "export seusrid=$seusrid  # SoftEther userid" >> $rootdir/.bashrc
+echo "export sepass=$sepass  # SoftEther password" >> $rootdir/.bashrc
 echo "export sespw=$sespw  # Server management password" >> $rootdir/.bashrc
 echo "export sehpw=$sehpw  # Hub management password" >> $rootdir/.bashrc
 
@@ -1859,11 +1900,12 @@ echo "$ymlhdr
     cap_add:
       - NET_ADMIN
     ports:
-      - $sel2tp1port1:1701/tcp  # for L2TP/IPSec
-      - $sel2tp1port2:4500/udp  # for L2TP/IPSec
-      - $sel2tp1port3:500/udp  # for L2TP/IPSec
+      - $sel2tp1port1:500/udp  # for L2TP/IPSec
+      - $sel2tp1port2:1701/tcp  # for L2TP/IPSec
+      - $sel2tp1port3:4500/udp  # for L2TP/IPSec
       - $sevpnport1:5555/tcp  # for SoftEther VPN (recommended by vendor).
       - $sevpnport2:992/tcp  # is also available as alternative.
+      - $sesstpport:443/tcp # for SSTP
     environment:
       - PSK=$sepsk  # Pre-Shared Key (PSK), if not set: "notasecret" (without quotes) by default.
       # Multiple usernames and passwords may be set with the following pattern:
@@ -1871,11 +1913,16 @@ echo "$ymlhdr
       # are separated by :. Each pair of username:password should be separated
       # by ;. If not set a single user account with a random username 
       # ("user[nnnn]") and a random weak password is created.
-      - USERS=$seusrid:$sepass
+      - USERNAME=$seusrid
+      - PASSWORD=$sepass
+      #- USERS=$seusrid:$sepass
       - SPW=$sespw  # Server management password. :warning:
       - HPW=$sehpw  # 'DEFAULT' hub management password. :warning:
+      - L2TP_ENABLED=true  # Disabled by default
+      - OPENVPN_ENABLED=false  # Disabled by default
+      - SSTP_ENABLED=true  # Disabled by default
     volumes:
-      - $rootdir/docker/$containername:/usr/vpnserver  # vpn_server.config
+      - $rootdir/docker/$containername/vpnserver:/usr/vpnserver  # vpn_server.config
       # By default SoftEther has a very verbose logging system. For privacy or 
       # space constraints, this may not be desirable. The easiest way to solve this 
       # create a dummy volume to log to /dev/null. In your docker run you can 
@@ -1906,8 +1953,97 @@ do
 done
 
 ##################################################################################################################################
-#  Synapse matrix server
-#  https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
+# VPN - IPSec/IKEv2
+# https://github.com/hwdsl2/docker-ipsec-vpn-server
+
+#  Create the docker-compose file
+containername=vpn-ipsec
+rndsubfolder=$(openssl rand -hex 15)
+ipsecpsk=$(openssl rand -hex 40)  # Pre-Shared Key (PSK)
+ipsecusrid=$(openssl rand -hex 40)
+ipsecpass=$(openssl rand -hex 40)
+sespw=$(openssl rand -hex 40)  # Server management password
+sehpw=$(openssl rand -hex 40)  # Hub management password
+# SoftEther ports - L2TP/IPSec ports
+ipsecl2tp1port1=500
+ipsecl2tp1port2=4500
+# SoftEther ports - SoftEther VPN
+sevpnport1=5555
+sevpnport2=992
+sesstpport=9347
+ymlname=$rootdir/$containername-compose.yml
+ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+echo "
+#  VPN - IPSec/IKEv2" >> $rootdir/.bashrc
+#  Commit the variable(s) to bashrc
+echo "export ipsecpsk=$psecpsk  # SoftEther pre-shared key (PSK)" >> $rootdir/.bashrc
+echo "export ipsecusrid=$ipsecusrid # IPSec userid" >> $rootdir/.bashrc
+echo "export ipsecpass=$ipsecpass  # IPSec password" >> $rootdir/.bashrc
+
+# Commit the .bashrc changes
+source $rootdir/.bashrc
+
+mkdir -p $rootdir/docker/$containername
+mkdir -p $rootdir/docker/$containername/ikev2-vpn-data
+mkdir -p $rootdir/docker/$containername/lib
+mkdir -p $rootdir/docker/$containername/lib/modules
+
+rm -f $ymlname && touch $ymlname
+
+echo "$ymlhdr
+  $containername:
+    image: hwdsl2/ipsec-vpn-server
+    privileged: true
+    ports:
+      - $ipsecl2tp1port1:500/udp  # for L2TP/IPSec
+      - $ipsecl2tp1port2:4500/tcp  # for L2TP/IPSec
+      #- $sel2tp1port3:4500/udp  # for L2TP/IPSec
+      #- $sevpnport1:5555/tcp  # for SoftEther VPN (recommended by vendor).
+      #- $sevpnport2:992/tcp  # is also available as alternative.
+      #- $sesstpport:443/tcp # for SSTP
+    environment:
+      - VPN_IPSEC_PSK=$ipsecpsk # Pre-Shared Key (PSK)
+      - VPN_USER=$ipsecusrid
+      - VPN_PASSWORD=$ipsecpass
+    volumes:
+      - $rootdir/docker/$containername/ikev2-vpn-data:/etc/ipsec.d
+      - $rootdir/docker/$containername/ikev2-vpn-data/lib/modules:/lib/modules:ro
+      # By default SoftEther has a very verbose logging system. For privacy or 
+      # space constraints, this may not be desirable. The easiest way to solve this 
+      # create a dummy volume to log to /dev/null. In your docker run you can 
+      # use the following volume variables to remove logs entirely.
+      #- /dev/null:/usr/vpnserver/server_log
+      #- /dev/null:/usr/vpnserver/packet_log
+      #- /dev/null:/usr/vpnserver/security_log
+    networks:
+      no-internet:
+      internet:
+        ipv4_address: $ipaddress
+$ymlrestart
+$ymlftr" >> $ymlname
+
+docker-compose -f $ymlname -p $stackname up -d
+
+sudo chmod 777 -R $rootdir/docker/$containername/ikev2-vpn-data/vpnclient.*
+
+# --env-file use for above to hide environmental variables from the portainer gui
+
+#  Firewall rules
+iptables -A INPUT -p udp --dport 58211 -j ACCEPT
+iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
+
+#  First wait until the stack is first initialized...
+while [ -f "$(sudo docker ps | grep $containername)" ];
+do
+ sleep 5
+done
+
+
+##################################################################################################################################
+# Synapse matrix server
+# https://github.com/mfallone/docker-compose-matrix-synapse/blob/master/docker-compose.yaml
+# https://manpages.debian.org/testing/matrix-synapse/register_new_matrix_user.1.en.html
 
 while true; do
   read -rp "
@@ -1998,8 +2134,8 @@ echo "$ymlhdr
     #   - $synapseport:$synapseport/tcp
     networks:
       no-internet:
-      internet:
-        ipv4_address: $ipaddress
+      #internet:
+      #  ipv4_address: $ipaddress
 $ymlrestart
 
   synapsedb:
