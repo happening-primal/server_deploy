@@ -800,6 +800,7 @@ sed -i '7 i
 # https://github.com/BytemarkHosting/configs-huginn-docker/blob/master/docker-compose.yml
 # https://drwho.virtadpt.net/tags/huginn/
 # Send a text message through email - https://www.digitaltrends.com/mobile/how-to-send-a-text-from-your-email-account/
+# Learn regex for performing certain tasks like find+replace in huginn - https://regex101.com/
 
 # Build after synapse so you can use the same postgres container
 # Above didn't work for me, I had to go the route of using MySQL as
@@ -1084,7 +1085,10 @@ sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$huginnport';/g' 
 
 # Remove the last line of the file
 sed -i '$ d' $destconf
-    
+
+
+# https://stackoverflow.com/questions/22224441/nginx-redirect-all-requests-from-subdirectory-to-another-subdirectory-root
+#  https://linuxhint.com/nginx-location-regex-examples/
 echo '
     # Allow unauthenticated access to xml used as rss feeds
     # by commenting out the authelia-location.conf line
@@ -1103,10 +1107,10 @@ echo '
 
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
-        set \$upstream_app '$ipaddress';
-        set \$upstream_port '$huginnport';
-        set \$upstream_proto http;
-        proxy_pass \$upstream_proto://\$upstream_app:\$upstream_port;
+        set $upstream_app '$ipaddress';
+        set $upstream_port '$huginnport';
+        set $upstream_proto http;
+        proxy_pass $upstream_proto://$upstream_app:$upstream_port;
     }
 }' >> $destconf
 
@@ -1634,6 +1638,12 @@ $sacliloc --user openvpn UserPropDelAll
 
 #  Restart the server
 $sacliloc start
+
+
+###########################################################################################################################
+#  PhantomJS - 
+#  https://stackoverflow.com/questions/39451134/installing-phantomjs-with-node-in-docker
+
 
 ###########################################################################################################################
 #  PolitePol - https://github.com/taroved/pol
