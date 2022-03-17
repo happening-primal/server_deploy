@@ -1292,6 +1292,10 @@ $ymlftr" >> $ymlname
 
 docker-compose -f $ymlname -p $stackname up -d
 
+# How to create a superuser
+# https://3xn.nl/projects/2021/11/11/archivebox-docker-superuser-root-issues/
+sudo docker exec -it --user archivebox $(sudo docker ps | grep $containername) /bin/bash
+
 #  Firewall rules
 #  None needed
 
