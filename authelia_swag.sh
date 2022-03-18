@@ -533,6 +533,14 @@ do
 done
 
 ##################################################################################################################################
+# Archivebox - web page archiver
+# https://github.com/ArchiveBox/ArchiveBox#input-formats
+# Add webgui admin user - https://3xn.nl/projects/2021/11/11/archivebox-docker-superuser-root-issues/
+# Add an RSS feed - https://computingforgeeks.com/install-use-archivebox-self-hosted-internet-archiving/
+
+
+
+##################################################################################################################################
 #  Farside rotating redirector written in elixer by ben busby
 #    https://github.com/benbusby/farside
 
