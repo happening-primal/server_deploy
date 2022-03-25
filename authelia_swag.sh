@@ -1790,7 +1790,7 @@ done
 #  Add the crontab job to kill off already used rss-proxy feeds as this does
 #  not seem to be done automatically and leads to overloaded CPU and memory
 #  after repeted requests for feed update(s).  Run every two minutes
-(crontab -l 2>/dev/null || true; echo "*/2 * * * * ps -efw | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
+(crontab -l 2>/dev/null || true; echo "*/1 * * * * ps -eaf | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
 
 #  Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
 destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
