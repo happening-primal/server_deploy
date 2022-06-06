@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# https://github.com/oijkn/adguardhome-doh-dot
+# https://simpledns.plus/kb/202/how-to-enable-dns-over-tls-dot-dns-over-https-doh-in-ios-v14
+# https://rodneylab.com/how-to-enable-encrypted-dns-on-iphone-ios-14/
+# https://github.com/oijkn/pihole-doh-dot
+# https://www.reddit.com/r/pihole/comments/unx2kb/pihole_adguard_home_and_dohdot_and_such_what_was/
+# https://www.linuxbabe.com/ubuntu/dns-over-https-doh-resolver-ubuntu-dnsdist
+# https://www.aaflalo.me/2018/10/tutorial-setup-dns-over-https-server/
+# https://www.whooglesearch.ml/search?q=vps+doh+or+dot+server
+# https://github.com/satishweb/docker-doh
+
+
 # Run this script as superuser with the -E flag to load to ensure the environmental
 # variables are available.
 #	sudo -E bash scriptnama.sh
@@ -248,8 +259,14 @@
 	export_variable "\n# SWAG subdomains"
 	# archivebox
 	absubdomain=$(manage_variable absubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Archivebox") && subdomains+=", " && subdomains+=$absubdomain
+	# adguard home
+	agsubdomain=$(manage_variable agsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # AdGuard Home") && subdomains+=", " && subdomains+=$agsubdomain
 	# coturn (used with synapse)
 	ctsubdomain=$(manage_variable ctsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Coturn used with synapse") && subdomains+=", " && subdomains+=$ctsubdomain
+	# dns over https
+	dhsubdomain=$(manage_variable dhsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # DNS over HTTPS server") && subdomains+=", " && subdomains+=$dhsubdomain
+	# dnsproxy
+	dpsubdomain=$(manage_variable dpsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # DNSProxy") && subdomains+=", " && subdomains+=$dpsubdomain
 	# farside
 	fssubdomain=$(manage_variable fssubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Farside") && subdomains+=", " && subdomains+=$fssubdomain
 	# huginn
@@ -279,6 +296,8 @@
 
 	# Restart policies for the docker-compose .yml files
 	ymlrestart="restart: unless-stopped\n    deploy:\n      restart_policy:\n        condition: on-failure"
+	# Some containers will not start automatically after reboot with 'condition: on-failure'
+	#ymlrestart="restart: unless-stopped\n    deploy:\n      restart_policy:\n        condition: unless-stopped"
 	
 	# Footer for the docker-compose .yml files
 	ymlftr="networks:\n  # For networking setup explaination, see this link:"
@@ -939,6 +958,356 @@
             esac
         done      
 			
+	##############################################################################################################################
+
+	##########################################################################################################################
+	# AdGuard home (DoH DoT Resolver)
+	    
+		# https://github.com/oijkn/adguardhome-doh-dot
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall AdGuard Home (DoH DoT Resolver) (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+					containername=adguardhome
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+					agwebguiport=3000
+					#upstreamdns=$piholeip # Route to pihole or other dns provider like 1.1.1.1 or 9.9.9.9
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername;
+					mkdir -p $rootdir/docker/$containername/conf;
+					mkdir -p $rootdir/docker/$containername/work
+
+					rm -rf $ymlname && touch $ymlname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: oijkn/adguardhome-doh-dot:latest" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified
+					# Miscellaneous docker container parameters (user specified)
+					echo -e "    cap_add:" >> $ymlname
+      				echo -e "      - NET_ADMIN" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    # The port needs to be exposed to accept DNS requests" >> $ymlname
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- $agwebguiport:$agwebguiport # Web interface port" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/conf:/opt/adguardhome/conf" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/work:/opt/adguardhome/work" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					sed -i 's/\"remoteDnsServers\": \[\]/\"remoteDnsServers\": \['$piholeip'\]/g' $rootdir/docker/$containername/conf/config.json
+
+					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$agsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$agwebguiport';/g' $destconf
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+				
+					# Firewall rules
+					# None needed
+					# #iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##############################################################################################################################
+
+	##########################################################################################################################
+	# DNSProxy (DoH DoT Resolver)
+	    
+		# http://mageddo.github.io/dns-proxy-server/latest/en/3-configuration/
+		# https://www.linuxbabe.com/ubuntu/dns-over-https-doh-resolver-ubuntu-dnsdist
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall DNSProxy (DoH Resolver) (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+					containername=dnsproxy
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+					dnsproxyport=5380
+					#upstreamdns=$piholeip # Route to pihole or other dns provider like 1.1.1.1 or 9.9.9.9
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername;
+					mkdir -p $rootdir/docker/$containername/conf;
+					mkdir -p $rootdir/docker/$containername/etc;
+					mkdir -p $rootdir/docker/$containername/var-run;
+
+					rm -rf $ymlname && touch $ymlname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: defreitas/dns-proxy-server" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified
+					# Miscellaneous docker container parameters (user specified)
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    # The port needs to be exposed to accept DNS requests" >> $ymlname
+					echo -e "    ports:" >> $ymlname
+					echo -e "      - $dnsproxyport:$dnsproxyport" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/conf:/app/conf" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/etc:/var/run/docker.sock" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/var-run:/host/etc" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					sed -i 's/\"remoteDnsServers\": \[\]/\"remoteDnsServers\": \['$piholeip'\]/g' $rootdir/docker/$containername/conf/config.json
+
+					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$dpsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$dnsproxyport';/g' $destconf
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+				
+					# Firewall rules
+					# None needed
+					# #iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##############################################################################################################################
+
+	##########################################################################################################################
+	# DNS over HTTPS (DoH) Server - will not run on a subfolder
+	    
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall the DNS over HTTPS zerver (DoH Resolver) (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+					containername=dohserver
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+					dnsproxyport=8053
+					tsconfname=doh-server.conf
+					upstreamdns=$piholeip # Route to pihole or other dns provider like 1.1.1.1 or 9.9.9.9
+					dohhttpprefix=getnsrecord # 'Subfolder' that will be used to append the query to
+					dohhttpprefix=$(echo $RANDOM | md5sum | head -c 35)  # Makes it very hard for someone to abuse your DoH server
+					dohhttpprefix=$(manage_variable "dohhttpprefix" "$dohhttpprefix")
+					# The final query will look like https://$dhsubdomain.$fqdn/$dohhttpprefix?name=domain_to_be_looked_up&type=A
+					#   Example:  https://$dhsubdomain.$fqdn/$dohhttpprefix?name=google.com&type=A
+					# To configure firefox to use DoH, put https://$dhsubdomain.$fqdn/$dohhttpprefix in the network settings
+					# page.  You can see this link for some help - https://www.linuxbabe.com/ubuntu/dns-over-https-doh-resolver-ubuntu-dnsdist
+					# Similar configuration can be used for THunderbird - http://daemonforums.org/showthread.php?t=11203
+
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername;
+					mkdir -p $rootdir/docker/$containername/server;
+					mkdir -p $rootdir/docker/$containername/app-config;
+
+					rm -rf $ymlname && touch $ymlname
+					rm -f $rootdir/docker/$containername/server/$tsconfname && touch $rootdir/docker/$containername/server/$tsconfname
+					sudo chmod 777 -R $rootdir/docker/$containername/server/$tsconfname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: satishweb/doh-server" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified
+					echo -e '      - DEBUG=0' >> $ymlname
+					echo -e '      - UPSTREAM_DNS_SERVER=udp:'$upstreamdns':53' >> $ymlname # 'Upstream' = provider like Quad9 of Cloudflare
+					echo -e '      - DOH_HTTP_PREFIX=/'$dohhttpprefix >> $ymlname
+					echo -e '      - DOH_SERVER_LISTEN=0.0.0.0:'$dnsproxyport >> $ymlname
+					echo -e '      - DOH_SERVER_TIMEOUT=10' >> $ymlname
+					echo -e '      - DOH_SERVER_TRIES=3' >> $ymlname
+					echo -e '      - DOH_SERVER_VERBOSE=false' >> $ymlname # Change to 'true' for better logs
+					# Miscellaneous docker container parameters (user specified)
+					echo -e '    deploy:' >> $ymlname
+					echo -e '      - replicas=1' >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    # The port needs to be exposed to accept DNS requests" >> $ymlname
+					echo -e "    ports:" >> $ymlname
+					echo -e "      - $dnsproxyport:$dnsproxyport" >> $ymlname
+					echo -e "      - $dnsproxyport:$dnsproxyport/udp" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/server/$tsconfname:/server/doh-server.conf" >> $ymlname
+      				echo -e "      # Mount app-config script with your customizations" >> $ymlname
+      				echo -e "      - $rootdir/docker/$containername/app-config:/app-config" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					# Remove the last line of the file
+                    sed -i '$ d' $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$dhsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$dnsproxyport';/g' $destconf
+
+					echo -e "" >> $destconf
+					echo -e "    # Do not requests to the  doh http prefix ('$dohhttpprefix') through authelia so" >> $destconf
+					echo -e "    # dns queries can come straight in without authentication but anyting else" >> $destconf
+					echo -e "    # still gets routed for authentication" >> $destconf
+					echo -e "    location /'$dohhttpprefix' {" >> $destconf
+					echo -e "        # enable the next two lines for http auth" >> $destconf
+					echo -e '        #auth_basic "Restricted";' >> $destconf
+					echo -e "        #auth_basic_user_file /config/nginx/.htpasswd;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable the next two lines for ldap auth" >> $destconf
+					echo -e "        #auth_request /auth;" >> $destconf
+					echo -e "        #error_page 401 =200 /ldaplogin;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable for Authelia" >> $destconf
+					echo -e "        #include /config/nginx/authelia-location.conf;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        include /config/nginx/proxy.conf;" >> $destconf
+					echo -e "        include /config/nginx/resolver.conf;" >> $destconf
+					echo -e '        set $upstream_app '$containername';' >> $destconf
+					echo -e '        set $upstream_port 80;' >> $destconf
+					echo -e '        set $upstream_proto http;' >> $destconf
+					echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
+					echo -e "    }" >> $destconf
+
+					echo -e "}" >> $destconf
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+				
+					# Firewall rules
+					# None needed
+					# #iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
 	##############################################################################################################################
 
 	##############################################################################################################################
@@ -2392,7 +2761,9 @@
 	##############################################################################################################################
 
 	##############################################################################################################################
-	# PolitePol - https://github.com/taroved/pol
+	# PolitePol
+	    
+		# https://github.com/taroved/pol
 
 		# Increment this regardless of installation or repeat runs of this
 		# script will lead to docker errors due to address already in use
@@ -2668,6 +3039,8 @@
 		#		https://raddinox.com/self-hosted-discord-alternetive
 		#		https://discourse.linuxserver.io/t/setting-up-matrix-behind-swag/3427
 		# https://discourse.destinationlinux.network/t/setting-up-matrix-with-1-1-audio-video-calling-and-no-federation/2833
+		#
+		# You may need to enable access to the "Local Network" in iPhone for calling to work.
 
         while true; do
             read -p $'\n'"Do you want to install/reinstall Synapse (Matrix) (y/n)? " yn
@@ -2999,7 +3372,7 @@
         done
 
 	##############################################################################################################################
-
+	
 	##############################################################################################################################
 	# Synapse UI
 
@@ -4145,6 +4518,11 @@
 					# Needed if you are going to run pihole
 					#   Reference - https://www.geeksforgeeks.org/create-your-own-secure-home-network-using-pi-hole-and-docker/
 					#   Reference - https://www.shellhacks.com/setup-dns-resolution-resolvconf-example/
+					#   Reference - https://docs.pi-hole.net/regex/pi-hole/ (how to block AAAA record lookups)
+					# Cloudflared - https://docs.pi-hole.net/guides/dns/cloudflared/
+					# PiHold DoH DoT - https://libreddit.dcs0.hu/r/pihole/comments/gljrg2/pihole_with_doh_and_dot/
+					# Unbound DoH DoT - https://docs.pi-hole.net/guides/dns/unbound/
+
 					sudo systemctl stop systemd-resolved.service
 					sudo systemctl disable systemd-resolved.service
 					sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
@@ -4213,9 +4591,9 @@
 					echo -e "        ipv4_address: $piholeip" >> $ymlname
 					# Ports specifications (user specified)
 					echo -e "    ports:" >> $ymlname
-					echo -e "      - 53:53/udp" >> $ymlname
-					echo -e "      - 53:53/tcp" >> $ymlname
-					echo -e "      - 67:67/tcp" >> $ymlname
+					echo -e "      - 53:53/udp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
+					echo -e "      - 53:53/tcp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
+					echo -e "      - 67:67/tcp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
 					echo -e "      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia" >> $ymlname
 					echo -e "      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia" >> $ymlname
 					# Restart policies (generic)
