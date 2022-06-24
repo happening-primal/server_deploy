@@ -30,6 +30,7 @@ apt-get -qq update && apt-get -y -qq upgrade  && apt-get -y -qq dist-upgrade
 # Install essential apps
 apt-get install -y -qq nano wget unattended-upgrades apt-listchanges libpam-google-authenticator
 apt-get install -y -qq tmux bleachbit iptables-persistent fail2ban
+apt-get install -y -qq apt-transport-https ca-certificates curl software-properties-common
 #  Whoogle - https://hub.docker.com/r/benbusby/whoogle-search#g-manual-docker
 #  Install dependencies
 apt-get install -y -qq libcurl4-openssl-dev libssl-dev
