@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# To Do - remove nitter ip address mod
+#         remove DNSCrypt-proxy ip address mod
+
 # https://github.com/oijkn/adguardhome-doh-dot
 # https://simpledns.plus/kb/202/how-to-enable-dns-over-tls-dot-dns-over-https-doh-in-ios-v14
 # https://rodneylab.com/how-to-enable-encrypted-dns-on-iphone-ios-14/
@@ -159,7 +162,7 @@
 	"
 	
 	# Install fail2ban for use later
-	sudo apt-get -qq update && sudo apt -y -qq install fail2ban tmux
+	sudo apt-get -qq update && sudo apt -y -qq install fail2ban tmux resolvconf
 
 	# Install diceware (passphrase generator) for later use - https://github.com/ulif/diceware
 	#sudo apt install -y -qq python3-pip
@@ -275,16 +278,20 @@
 	jwebsubdomain=$(manage_variable jwebsubdomain "$(echo $RANDOM | md5sum | head -c 8)    # JitsiWeb") && subdomains+=", " && subdomains+=$jwebsubdomain
 	# libretranslate - 
 	ltsubdomain=$(manage_variable ltsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Libre translate") && subdomains+=", " && subdomains+=$ltsubdomain
-	# lingva
+	# lingva translate
 	lvsubdomain=$(manage_variable lvsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Lingva translate") && subdomains+=", " && subdomains+=$lvsubdomain
+	# nitter
+	ntsubdomain=$(manage_variable ntsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Nitter (Twitter frontend)") && subdomains+=", " && subdomains+=$ntsubdomain
 	# openvpn access server
 	ovpnsubdomain=$(manage_variable ovpnsubdomain "$(echo $RANDOM | md5sum | head -c 8)    # OpenVPN Access Server") && subdomains+=", " && subdomains+=$ovpnsubdomain
 	# rss-proxy
 	rpsubdomain=$(manage_variable rpsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # RSS-Proxy") && subdomains+=", " && subdomains+=$rpsubdomain
 	# synapse
 	sysubdomain=$(manage_variable sysubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Synapse (Matrix)") && subdomains+=", " && subdomains+=$sysubdomain
+	# synapseui
+	suisubdomain=$(manage_variable sysubdomain "$(echo $RANDOM | md5sum | head -c 8)     # Synapse Web UI") && subdomains+=", " && subdomains+=$suisubdomain
 	# whoogle
-	whglsubdomain=$(manage_variable whglsubdomain "$(echo $RANDOM | md5sum | head -c 8)    # Whoogle" "-r") && subdomains+=", " && subdomains+=$whglsubdomain
+	whglsubdomain=$(manage_variable whglsubdomain "$(echo $RANDOM | md5sum | head -c 8)    # Whoogle") && subdomains+=", " && subdomains+=$whglsubdomain
 	# wireguard gui
 	wgsubdomain=$(manage_variable wgsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Wireguard GUI") && subdomains+=", " && subdomains+=$wgsubdomain
 
@@ -296,6 +303,7 @@
 
 	# Restart policies for the docker-compose .yml files
 	ymlrestart="restart: unless-stopped\n    deploy:\n      restart_policy:\n        condition: on-failure"
+	#ymlrestart="restart: unless-stopped"
 	# Some containers will not start automatically after reboot with 'condition: on-failure'
 	#ymlrestart="restart: unless-stopped\n    deploy:\n      restart_policy:\n        condition: unless-stopped"
 	
@@ -422,7 +430,7 @@
                     $(docker-compose -f $ymlname -p $stackname down -v)
                     rm -rf $rootdir/docker/$containername
 
-                    mkdir -p docker/$containername;
+                    mkdir -p $rootdir/docker/$containername;
 
                     rm -f $ymlname && touch $ymlname
 
@@ -647,11 +655,11 @@
                     sed -i 's/\#---/---/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#theme: light/theme: light/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#jwt_secret: a_very_important_secret/jwt_secret: '"$jwts"'/g' $rootdir/docker/$containername/configuration.yml
-                    sed -i 's/\#default_redirection_url: https:\/\/home.example.com\/default_redirection_url: https:\/\/"$fqdn"\///g' $rootdir/docker/$containername/configuration.yml
+                    sed -i 's/\#default_redirection_url: https:\/\/home.example.com\/default_redirection_url: https:\/\/'$fqdn'\//g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#server:/server:/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  host: 0.0.0.0/  host: 0.0.0.0/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  port: 9091/  port: 9091/g' $rootdir/docker/$containername/configuration.yml
-                    sed -i 's/\#  path: ""/  path: \"authelia\"/g' $rootdir/docker/$containername/configuration.yml
+                    sed -i 's/\#  path: ""/  path: \"'$containername'\"/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  read_buffer_size: 4096/  read_buffer_size: 4096/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  write_buffer_size: 4096/  write_buffer_size: 4096/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#log:/log:/g' $rootdir/docker/$containername/configuration.yml
@@ -676,9 +684,10 @@
                     sed -i 's/\#  default_policy: deny/  default_policy: deny/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  rules:/  rules:/g' $rootdir/docker/$containername/configuration.yml
                     sed -i ':a;N;$!ba;s/\#    - domain:/    - domain:''/3' $rootdir/docker/$containername/configuration.yml
-                    sed -i 's/\#        - secure.example.com/      - '"$fqdn"'/g' $rootdir/docker/$containername/configuration.yml
-                    sed -i 's/\#        - private.example.com/      - \"*.'"$fqdn"'\"/g' $rootdir/docker/$containername/configuration.yml
-                    sed -i ':a;N;$!ba;s/\#      policy: two_factor/      policy: two_factor''/1' $rootdir/docker/$containername/configuration.yml
+                    sed -i "s/\#        - 'secure.example.com'/      - '$fqdn'/g" $rootdir/docker/$containername/configuration.yml
+                    sed -i "s/\#        - 'private.example.com'/      - '\*.$fqdn'/g" $rootdir/docker/$containername/configuration.yml
+                    # Change only the first instance
+					sed -i ':a;N;$!ba;s/\#      policy: two_factor/      policy: two_factor''/1' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#session:/session:/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  name: authelia_session/  name: authelia_session/g' $rootdir/docker/$containername/configuration.yml
                     sed -i 's/\#  domain: example.com/  domain: '"$fqdn"'/g' $rootdir/docker/$containername/configuration.yml
@@ -702,7 +711,8 @@
 
                     # Restart Authelia so that it will generate the users_database.yml file
                     echo -e "\nRestarting the container to commit the configuration file changes...\n"
-                    docker-compose -f $ymlname -p $stackname down && docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+                    docker-compose -f $ymlname -p $stackname down
+
 					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
                     # Wait until the stack is first initialized...
@@ -808,38 +818,18 @@
 
 		# How to create a superuser
 		# https://3xn.nl/projects/2021/11/11/archivebox-docker-superuser-root-issues/
-		#sudo docker exec -it --user archivebox $(sudo docker ps | grep $containername) /bin/bash
+		# sudo docker exec -it --user archivebox $(sudo docker ps | grep $containername) /bin/bash
+		# https://github.com/ArchiveBox/ArchiveBox/issues/395
+		# From the command line - https://github.com/ArchiveBox/ArchiveBox/wiki/Upgrading-or-Merging-Archives#example-adding-a-new-user-with-a-hashed-password
 
         while true; do
             read -p $'\n'"Do you want to install/reinstall Archivebox (y/n)? " yn
             case $yn in
                 [Yy]* ) 
-                    while true; do
-						read -rp $'\n'"Enter your desired Archivebox userid - example - 'mynewuser' or (better) 'Fkr5HZH4Rv': " abxusr
-						if [[ -z "${abxhusr}" ]]; then
-							echo -e "Enter your desired archivebox userid or hit Ctrl+C to exit."
-							continue
-						fi
-						break
-                    done
-
-                    while true; do
-						read -rp $'\n'"Enter your desired Archivebox password - example - 'wWDmJTkPzx5zhxcWpQ3b2HvyBbxgDYK5jd2KBRvw': " abxpwd
-						if [[ -z "${abxpwd}" ]]; then
-							echo -e "Enter your desired Archivebox password or hit Ctrl+C to exit."
-							continue
-						fi
-						break
-                    done
-
+ 
 					# Create the docker-compose file
 					containername=archivebox
 					ymlname=$rootdir/$containername-compose.yml
-
-                    # Save variable to .bashrc for later persistent use
-                    export_variable "\n# Archivebox"
-                    authusr=$(manage_variable "abxusr" "$abxusr" "-r")
-                    authpwd=$(manage_variable "abxpwd" "$abxpwd" "-r")
 
                     # Commit the .bashrc changes
                     source $rootdir/.bashrc
@@ -872,9 +862,17 @@
 					# Miscellaneous docker container parameters (user specified)
 					echo -e "    #build: .                              # for developers working on archivebox" >> $ymlname
 					echo -e "    command: server --quick-init 0.0.0.0:8000" >> $ymlname
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
 					# Ports specifications
 					echo -e "    #ports:" >> $ymlname
 					echo -e "      #- 8222:8000" >> $ymlname
@@ -917,7 +915,6 @@
 					curl -O https://raw.githubusercontent.com/ArchiveBox/ArchiveBox/master/etc/sonic.cfg
 					cd $rootdir
 
-
 					#docker-compose run $containername init --setup -f $ymlname
 					# Perform the initial setup of userid and password for admin user
 					# https://www.vultr.com/docs/install-archivebox-on-a-oneclick-docker-application/
@@ -933,7 +930,7 @@
 							sleep 5
 					done
 
-                    # Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
+                    # Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
                     destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
                     cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -947,6 +944,15 @@
 					echo -e "Restarting SWAG..."
 					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
 					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1 > /dev/null
+
+					echo -e ""
+					echo -e "   Now execute the command 'archivebox manage createsuperuser' and add userid, email and password."
+					echo -e "	You can enter a fake email address."
+					echo -e "	When you are finished, type 'exit' to return to the main script."
+					echo -e "	** Note that these inputs are not managed by this script, so you must save them manually **\n"
+
+					docker exec -it --user archivebox $(sudo docker ps | grep $containername | grep -v $containername'_' | awk '{print $1}') /bin/bash
+					#archivebox manage createsuperuser
 
 					# Firewall rules
 					# None required
@@ -1034,7 +1040,7 @@
 
 					sed -i 's/\"remoteDnsServers\": \[\]/\"remoteDnsServers\": \['$piholeip'\]/g' $rootdir/docker/$containername/conf/config.json
 
-					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -1061,8 +1067,300 @@
 
 	##############################################################################################################################
 
+	##############################################################################################################################
+	# DNSCrypt-Proxy (DNS over HTTPS (DoH) proxy backend)
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall dnscrypt-proxy (y/n)? " yn
+            case $yn in
+                [Yy]* )
+
+					# https://github.com/DNSCrypt/dnscrypt-proxy/wiki
+					# https://docs.pi-hole.net/guides/dns/unbound/
+					# Solve some permission errors when mapping local volume - https://github.com/MatthewVance/unbound-docker/issues/22
+					# https://dnscrypt.info/stamps-specifications/
+					# https://farside.link/scribe/privacytools/adding-custom-dns-over-https-resolvers-to-dnscloak-20ff5845f4b5
+
+					containername=dnscrypt-proxy
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(openssl rand -hex 15)
+
+                    # Save variable to .bashrc for later persistent use
+                    export_variable "\n# dnscrypt-proxy"
+					dnscpipaddress=$(manage_variable "dnscpipaddress" "$ipaddress" -r)
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername;
+
+					mkdir -p $rootdir/docker/$containername;
+
+					#chmod 777 -R $rootdir/docker/$containername # Required for unbound to write to the directory
+
+					rm -f $ymlname && touch $ymlname
+
+					# Fetch a default .toml file (can be modified after initial install)
+					wget https://raw.githubusercontent.com/DNSCrypt/dnscrypt-proxy/master/dnscrypt-proxy/example-dnscrypt-proxy.toml
+					mv example-dnscrypt-proxy.toml $rootdir/docker/$containername
+					cp $rootdir/docker/$containername/example-dnscrypt-proxy.toml $rootdir/docker/$containername/dnscrypt-proxy.toml
+
+					# Customize the .toml file
+					# No traditional ipv4 servers
+					sed -i "s/listen_addresses = \['127.0.0.1:53'\]/listen_addresses = \['$ipaddress:53'\]/g" $rootdir/docker/$containername/dnscrypt-proxy.toml
+					# Increase max_clients to handle ipleak.net tests...
+					sed -i 's/max_clients = 250/max_clients = 2500/g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's/ipv4_servers = true/ipv4_servers = false/g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					# Enable DNSSEC
+					sed -i 's/require_dnssec = false/require_dnssec = true/g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's/\# dnscrypt_ephemeral_keys = false/dnscrypt_ephemeral_keys = true/g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					# Fuck google!
+					sed -i "s/bootstrap_resolvers = \['9.9.9.11:53', '8.8.8.8:53'\]/bootstrap_resolvers = \['9.9.9.11:53', '1.1.1.1:53', '9.9.9.9:53'\]/g" $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's/log_files_max_age = 7/log_files_max_age = 1/g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's/block_ipv6 = false/block_ipv6 = true/g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's///g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's///g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					sed -i 's///g' $rootdir/docker/$containername/dnscrypt-proxy.toml
+					#require_dnssec = false
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: gists/dnscrypt-proxy" >> $ymlname
+					#echo -e "    image: klutchell/unbound" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					# Miscellaneous docker container parameters (user specified)
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 3000:3000" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/dnscrypt-proxy.toml:/etc/dnscrypt-proxy/dnscrypt-proxy.toml" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					#chown -R "$nonrootuser:$nonrootuser" $rootdir/docker/$containername
+					chmod 777 -R $rootdir/docker/$containername
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Firewall rules
+					# None needed
+					# #iptables-save
+					# Drop all ipv6 traffic
+					#ip6tables -P INPUT DROP
+					#ip6tables -P FORWARD DROP
+					#ip6tables -P OUTPUT DROP
+					# ip6tables-save
+
+					# Test the server
+					# dig google.com @$dnscrypt-proxy-ipaddress -p $dnscrypt-proxy-port
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##################################################################################################################################
+
 	##########################################################################################################################
-	# DNSProxy (DoH DoT Resolver)
+	# DNS over HTTPS (DoH) Server (frontend) - will not run on a subfolder
+	    
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall the DNS over HTTPS server (DoH Resolver) (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+					containername=dohserver
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+					dnsproxyport=8053
+					tsconfname=doh-server.conf
+					upstreamdns=$piholeip # Route to pihole or other dns provider like 1.1.1.1 or 9.9.9.9
+
+					while true; do
+						read -rp $'\n'"Enter the DoH server subfolder (https://$fqdn/somerandomsubfolder): " dohhttpsubfolder
+						if [[ -z "${dohhttpsubfolder}" ]]; then
+							echo -e "Enter the DoH server subfolder or hit Ctrl+C to exit."
+							continue
+						fi
+						break
+                    done
+					# 'Subfolder' that will be used to append the query to
+					#dohhttpsubfolder=$(openssl rand -hex 20)   # Makes it very hard for someone to abuse your DoH server
+					# Save variable to .bashrc for later persistent use
+                    export_variable "\n# DNS over HTTPS server"
+					dohhttpsubfolder=$(manage_variable "dohhttpsubfolder" "$dohhttpsubfolder" -r)
+					# The final query will look like https://$dhsubdomain.$fqdn/$dohhttpsubfolder?name=domain_to_be_looked_up&type=A
+					#   Example:  https://$dhsubdomain.$fqdn/$dohhttpsubfolder?name=google.com&type=A
+					# To configure firefox to use DoH, put https://$dhsubdomain.$fqdn/$dohhttpsubfolder in the network settings
+					# page.  You can see this link for some help - https://www.linuxbabe.com/ubuntu/dns-over-https-doh-resolver-ubuntu-dnsdist
+					# Similar configuration can be used for THunderbird - http://daemonforums.org/showthread.php?t=11203
+					# aboout:config in firefox
+					# Set network.trr.mode to 3 to only use DoH as the resolver
+					# Set network.trr.bootstrapAddress to the ip address of the DoH server to allow
+					# firefox / thunderbird to bootstrap up access to the DoH server.
+					# https://www.inmotionhosting.com/support/security/dns-over-https-encrypted-sni-in-firefox/
+					
+					# Use this link to create the .mobilconfig file for iPhone
+					# https://simpledns.plus/apple-dot-doh
+					# Service / company name: doh-dns-proxy
+					# DNS query URL:  https://$fqdn/$dohhttpsubfolder
+					# Server IP addresses (one per line): $myip
+					# https://simpledns.plus/kb/202/how-to-enable-dns-over-tls-dot-dns-over-https-doh-in-ios-v14
+					# Can also see this link - https://rodneylab.com/how-to-enable-encrypted-dns-on-iphone-ios-14/
+					# Add the 
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername;
+					mkdir -p $rootdir/docker/$containername/server;
+					mkdir -p $rootdir/docker/$containername/app-config;
+
+					rm -rf $ymlname && touch $ymlname
+					rm -f $rootdir/docker/$containername/server/$tsconfname && touch $rootdir/docker/$containername/server/$tsconfname
+					chmod 777 -R $rootdir/docker/$containername/server/$tsconfname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: satishweb/doh-server" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified
+					echo -e '      - DEBUG=0' >> $ymlname
+					echo -e '      - UPSTREAM_DNS_SERVER=udp:'$upstreamdns':53' >> $ymlname # 'Upstream' = provider like Quad9 of Cloudflare
+					echo -e '      - DOH_HTTP_PREFIX=/'$dohhttpsubfolder >> $ymlname
+					echo -e '      - DOH_SERVER_LISTEN=0.0.0.0:'$dnsproxyport >> $ymlname
+					echo -e '      - DOH_SERVER_TIMEOUT=10' >> $ymlname
+					echo -e '      - DOH_SERVER_TRIES=3' >> $ymlname
+					echo -e '      - DOH_SERVER_VERBOSE=false' >> $ymlname # Change to 'true' for better logs
+					# Miscellaneous docker container parameters (user specified)
+					echo -e '    deploy:' >> $ymlname
+					echo -e '      - replicas=1' >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    # The port needs to be exposed to accept DNS requests" >> $ymlname
+					echo -e "    ports:" >> $ymlname
+					echo -e "      - $dnsproxyport:$dnsproxyport" >> $ymlname
+					echo -e "      - $dnsproxyport:$dnsproxyport/udp" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/server/$tsconfname:/server/doh-server.conf" >> $ymlname
+      				echo -e "      # Mount app-config script with your customizations" >> $ymlname
+      				echo -e "      - $rootdir/docker/$containername/app-config:/app-config" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					# Remove the last line of the file
+                    sed -i '$ d' $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$dhsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$dnsproxyport';/g' $destconf
+
+					echo -e "" >> $destconf
+					echo -e "    # Do not proxy requests to the doh http prefix ($dohhttpsubfolder) through authelia so" >> $destconf
+					echo -e "    # dns queries can come straight in without authentication but anyting else" >> $destconf
+					echo -e "    # still gets routed for authentication" >> $destconf
+					echo -e "    location /$dohhttpsubfolder {" >> $destconf
+					echo -e "        # enable the next two lines for http auth" >> $destconf
+					echo -e '        #auth_basic "Restricted";' >> $destconf
+					echo -e "        #auth_basic_user_file /config/nginx/.htpasswd;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable the next two lines for ldap auth" >> $destconf
+					echo -e "        #auth_request /auth;" >> $destconf
+					echo -e "        #error_page 401 =200 /ldaplogin;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable for Authelia" >> $destconf
+					echo -e "        #include /config/nginx/authelia-location.conf;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        include /config/nginx/proxy.conf;" >> $destconf
+					echo -e "        include /config/nginx/resolver.conf;" >> $destconf
+					echo -e '        set $upstream_app '$containername';' >> $destconf
+					echo -e '        set $upstream_port '$dnsproxyport';' >> $destconf
+					echo -e '        set $upstream_proto http;' >> $destconf
+					echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
+					echo -e "    }" >> $destconf
+
+					echo -e "}" >> $destconf
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+				
+					# Firewall rules
+					# None needed
+					# #iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##############################################################################################################################
+
+	##########################################################################################################################
+	# DNSProxy (DNS over HTTPS (DoH) or DoT Resolver)
 	    
 		# http://mageddo.github.io/dns-proxy-server/latest/en/3-configuration/
 		# https://www.linuxbabe.com/ubuntu/dns-over-https-doh-resolver-ubuntu-dnsdist
@@ -1136,7 +1434,7 @@
 
 					sed -i 's/\"remoteDnsServers\": \[\]/\"remoteDnsServers\": \['$piholeip'\]/g' $rootdir/docker/$containername/conf/config.json
 
-					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -1145,153 +1443,6 @@
 					sed -i 's/syncthing/'$containername'/g' $destconf
 					sed -i 's/    server_name '$containername'./    server_name '$dpsubdomain'./g' $destconf
 					sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$dnsproxyport';/g' $destconf
-
-					# Restart SWAG to propogate the changes to proxy-confs
-					echo -e "Restarting SWAG..."
-					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
-					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
-				
-					# Firewall rules
-					# None needed
-					# #iptables-save
-
-                    break;;
-                [Nn]* ) break;;
-                * ) echo -e "Please answer yes or no.";;
-            esac
-        done
-
-	##############################################################################################################################
-
-	##########################################################################################################################
-	# DNS over HTTPS (DoH) Server - will not run on a subfolder
-	    
-		# Increment this regardless of installation or repeat runs of this
-		# script will lead to docker errors due to address already in use
-		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
-
-        while true; do
-            read -p $'\n'"Do you want to install/reinstall the DNS over HTTPS zerver (DoH Resolver) (y/n)? " yn
-            case $yn in
-                [Yy]* ) 
-					# Create the docker-compose file
-					containername=dohserver
-					ymlname=$rootdir/$containername-compose.yml
-					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
-					dnsproxyport=8053
-					tsconfname=doh-server.conf
-					upstreamdns=$piholeip # Route to pihole or other dns provider like 1.1.1.1 or 9.9.9.9
-					dohhttpprefix=getnsrecord # 'Subfolder' that will be used to append the query to
-					dohhttpprefix=$(echo $RANDOM | md5sum | head -c 35)  # Makes it very hard for someone to abuse your DoH server
-					dohhttpprefix=$(manage_variable "dohhttpprefix" "$dohhttpprefix")
-					# The final query will look like https://$dhsubdomain.$fqdn/$dohhttpprefix?name=domain_to_be_looked_up&type=A
-					#   Example:  https://$dhsubdomain.$fqdn/$dohhttpprefix?name=google.com&type=A
-					# To configure firefox to use DoH, put https://$dhsubdomain.$fqdn/$dohhttpprefix in the network settings
-					# page.  You can see this link for some help - https://www.linuxbabe.com/ubuntu/dns-over-https-doh-resolver-ubuntu-dnsdist
-					# Similar configuration can be used for THunderbird - http://daemonforums.org/showthread.php?t=11203
-
-
-					# Remove any existing installation
-					$(docker-compose -f $ymlname -p $stackname down -v)
-					rm -rf $rootdir/docker/$containername
-
-					mkdir -p $rootdir/docker/$containername;
-					mkdir -p $rootdir/docker/$containername/server;
-					mkdir -p $rootdir/docker/$containername/app-config;
-
-					rm -rf $ymlname && touch $ymlname
-					rm -f $rootdir/docker/$containername/server/$tsconfname && touch $rootdir/docker/$containername/server/$tsconfname
-					sudo chmod 777 -R $rootdir/docker/$containername/server/$tsconfname
-
-					# Build the .yml file
-					# Header (generic)
-					echo -e "$ymlhdr" >> $ymlname
-					echo -e "  $containername:" >> $ymlname
-					echo -e "    container_name: $containername" >> $ymlname
-					echo -e "    hostname: $containername" >> $ymlname
-					# Docker image (user specified)
-					echo -e "    image: satishweb/doh-server" >> $ymlname
-					# Environmental variables (generic)
-					echo -e "    $ymlenv" >> $ymlname
-					# Additional environmental variables (user specified
-					echo -e '      - DEBUG=0' >> $ymlname
-					echo -e '      - UPSTREAM_DNS_SERVER=udp:'$upstreamdns':53' >> $ymlname # 'Upstream' = provider like Quad9 of Cloudflare
-					echo -e '      - DOH_HTTP_PREFIX=/'$dohhttpprefix >> $ymlname
-					echo -e '      - DOH_SERVER_LISTEN=0.0.0.0:'$dnsproxyport >> $ymlname
-					echo -e '      - DOH_SERVER_TIMEOUT=10' >> $ymlname
-					echo -e '      - DOH_SERVER_TRIES=3' >> $ymlname
-					echo -e '      - DOH_SERVER_VERBOSE=false' >> $ymlname # Change to 'true' for better logs
-					# Miscellaneous docker container parameters (user specified)
-					echo -e '    deploy:' >> $ymlname
-					echo -e '      - replicas=1' >> $ymlname
-					# Network specifications (user specified)
-					echo -e "    networks:" >> $ymlname
-					echo -e "      no-internet:" >> $ymlname
-					echo -e "      internet:" >> $ymlname
-					echo -e "        ipv4_address: $ipaddress" >> $ymlname
-					# Ports specifications (user specified)
-					echo -e "    # The port needs to be exposed to accept DNS requests" >> $ymlname
-					echo -e "    ports:" >> $ymlname
-					echo -e "      - $dnsproxyport:$dnsproxyport" >> $ymlname
-					echo -e "      - $dnsproxyport:$dnsproxyport/udp" >> $ymlname
-					# Restart policies (generic)
-					echo -e "    $ymlrestart" >> $ymlname
-					# Volumes (user specified)
-					echo -e "    volumes:" >> $ymlname
-					echo -e "      - $rootdir/docker/$containername/server/$tsconfname:/server/doh-server.conf" >> $ymlname
-      				echo -e "      # Mount app-config script with your customizations" >> $ymlname
-      				echo -e "      - $rootdir/docker/$containername/app-config:/app-config" >> $ymlname
-					# Networks, etc (generic)...
-					echo -e "$ymlftr" >> $ymlname
-
-					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
-
-					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
-
-					# Wait until the stack is first initialized...
-					while [ -f "$(sudo docker ps | grep $containername)" ];
-						do
-							sleep 5
-					done
-
-					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
-					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
-					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
-
-					# Remove the last line of the file
-                    sed -i '$ d' $destconf
-
-					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
-					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
-					sed -i 's/syncthing/'$containername'/g' $destconf
-					sed -i 's/    server_name '$containername'./    server_name '$dhsubdomain'./g' $destconf
-					sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$dnsproxyport';/g' $destconf
-
-					echo -e "" >> $destconf
-					echo -e "    # Do not requests to the  doh http prefix ('$dohhttpprefix') through authelia so" >> $destconf
-					echo -e "    # dns queries can come straight in without authentication but anyting else" >> $destconf
-					echo -e "    # still gets routed for authentication" >> $destconf
-					echo -e "    location /'$dohhttpprefix' {" >> $destconf
-					echo -e "        # enable the next two lines for http auth" >> $destconf
-					echo -e '        #auth_basic "Restricted";' >> $destconf
-					echo -e "        #auth_basic_user_file /config/nginx/.htpasswd;" >> $destconf
-					echo -e "" >> $destconf
-					echo -e "        # enable the next two lines for ldap auth" >> $destconf
-					echo -e "        #auth_request /auth;" >> $destconf
-					echo -e "        #error_page 401 =200 /ldaplogin;" >> $destconf
-					echo -e "" >> $destconf
-					echo -e "        # enable for Authelia" >> $destconf
-					echo -e "        #include /config/nginx/authelia-location.conf;" >> $destconf
-					echo -e "" >> $destconf
-					echo -e "        include /config/nginx/proxy.conf;" >> $destconf
-					echo -e "        include /config/nginx/resolver.conf;" >> $destconf
-					echo -e '        set $upstream_app '$containername';' >> $destconf
-					echo -e '        set $upstream_port 80;' >> $destconf
-					echo -e '        set $upstream_proto http;' >> $destconf
-					echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
-					echo -e "    }" >> $destconf
-
-					echo -e "}" >> $destconf
 
 					# Restart SWAG to propogate the changes to proxy-confs
 					echo -e "Restarting SWAG..."
@@ -1342,7 +1493,7 @@
                     # Unpack the tarball
                     # tar -xzsf redis-6.2.6.tar.gz
                     # Install elixer - https://elixir-lang.org/install.html
-                    wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb
+                    wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb && sudo dpkg -i erlang-solutions_2.0_all.deb > /dev/null 2>&1
                     rm erlang-solutions_2.0_all.deb
                     sudo apt-get -qq update
 
@@ -1353,10 +1504,11 @@
                     wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
                     mkdir -p $rootdir/$fssubfolder
                     tar -xvf v0.1.0.tar.gz -C $rootdir/$fssubfolder --strip-components=1
+					chmod 777 -R $rootdir/$fssubfolder
                     cd $rootdir/$fssubfolder
                     # Run the below from within the unpacked farside folder (farside-0.1.0)
                     # redis-server
-                    mix.exs mix deps.get
+                    mix deps.get
                     mix run -e Farside.Instances.sync
                     elixir --erl "-detached" -S mix run --no-halt
 
@@ -1388,9 +1540,11 @@
                     rm -f v0.1.0.tar.gz
 
                     # Enable swag capture of farside
-                    # Prepare the farside proxy-conf file using using syncthing.subdomain.conf.sample as a template
+                    # Prepare the proxy-conf file using using syncthing.subdomain.conf.sample as a template
                     destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
                     cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $destconf
 
                     # Enabling authelia capture will greatly reduce the effectiveness of farside but opens you up to
                     # access to anyone on the internet.  Tradeoff...
@@ -1398,10 +1552,15 @@
                     #sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
                     sed -i 's/syncthing/'$containername'/g' $destconf
                     # Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
-                    sed -i 's/        set $upstream_app '$containername';/        set $upstream_app 127.0.0.1;/g' $destconf
+                    sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';/g' $destconf
                     sed -i 's/    server_name '$containername'./    server_name '$fssubdomain'./g' $destconf
                     sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;/g' $destconf
-                
+
+v					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+
                     # Firewall rules
                     iptables -t filter -A OUTPUT -p tcp --dport 4001 -j ACCEPT
                     iptables -t filter -A INPUT -p tcp --dport 4001 -j ACCEPT
@@ -1458,6 +1617,12 @@
 					echo -e "      - SUBFOLDER=/firefox/ # Required if using authelia to authenticate" >> $ymlname
 					# Miscellaneous docker container parameters (user specified)
 					echo -e "    shm_size: \"1gb\"" >> $ymlname
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
@@ -1482,7 +1647,7 @@
 							sleep 5
 					done
 
-					# Prepare the firefox proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/calibre.subfolder.conf.sample $destconf
 
@@ -1528,7 +1693,7 @@
 					$(docker-compose -f $ymlname -p $stackname down -v)
 					rm -rf $rootdir/docker/$containername
 					
-					mkdir -p docker/$containername;
+					mkdir -p $rootdir/docker/$containername;
 
 					rm -f $ymlname && touch $ymlname
 
@@ -1647,7 +1812,7 @@
 							# class: \"green\" # optional custom CSS class for card, useful with custom stylesheet
 							# background: red # optional color for card to set color directly without custom stylesheet" >> $rootdir/docker/homer/config.yml
 
-					# Prepare the homer proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
@@ -1684,7 +1849,7 @@
 		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 
         while true; do
-            read -p $'\n'"Do you want to install/reinstall Huggin (y/n)? " yn
+            read -p $'\n'"Do you want to install/reinstall Huginn (y/n)? " yn
             case $yn in
                 [Yy]* ) 
                     # https://github.com/huginn/huginn/tree/master/docker/multi-process
@@ -1701,27 +1866,39 @@
                     # to get this sorted and use postgres, but it was simpler to just
                     # use mysql...whatever
 
+                    # Create a very strong invitation code so that it is almost impossible
+                    # for someone to sign up without prior knowledge
+                    while true; do
+						read -rp $'\n'"Enter your desired Huginn invitation code 'wWDmJTkPzx5zhxcWp': " invitationcode
+						if [[ -z "${invitationcode}" ]]; then
+							echo -e "Enter your desired Huginn invitation code or hit Ctrl+C to exit."
+							continue
+						fi
+						break
+                    done
+
                     # Create the docker-compose file
                     containername=huginn
                     ymlname=$rootdir/$containername-compose.yml
                     rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
                     dbname=$containername && dbname+="_mysql"
-                    huginndbuser=$(openssl rand -hex 32)
-                    huginndbpass=$(openssl rand -hex 32)
-                    mysqlrootpass=$(openssl rand -hex 32)
-                    huginnport=3000
+                    huginndbuser=$(openssl rand -hex 12)
+                    huginndbpass=$(openssl rand -hex 12)
+                    mysqlrootpass=$(openssl rand -hex 12)
+                    huginnport=3000 # Internal runs on 3000
+					huginnseedusr=$(openssl rand -hex 12)
+					huginnseedusrpass=$(openssl rand -hex 18)
 
-                    # Create a very strong invitation code so that it is almost impossible
-                    # for someone to sign up without prior knowledge
-                    invitationcode=$(openssl rand -hex 32) && invitationcode+=$(openssl rand -hex 32)
                     huginnsubdirectory=$rndsubfolder
 
                     # Save variable to .bashrc for later persistent use
-                    echo -e "\n# Huginn" >> $rootdir/.bashrc
-                    echo -e "export huginndbuser=$huginndbuser  # Huginn database user" >> $rootdir/.bashrc
-                    echo -e "export uginndbpass=$uginndbpass  # Huginn database password" >> $rootdir/.bashrc
-                    echo -e "export mysqlrootpass=$mysqlrootpass  # MySQL root password for huginn database" >> $rootdir/.bashrc
-                    echo -e "export invitationcode=$invitationcode  # Huginn invitation code" >> $rootdir/.bashrc
+                    export_variable "\n# Huginn"
+                    huginndbuser=$(manage_variable huginndbuser "$huginndbuser  # Huginn database user")
+                    huginndbpass=$(manage_variable huginndbpass "$huginndbpass  # Huginn database password")
+                    mysqlrootpass=$(manage_variable mysqlrootpass "$mysqlrootpass  # MySQL root password for huginn database")
+                    invitationcode=$(manage_variable invitationcode "$invitationcode  # Huginn invitation code")
+                    huginnseedusr=$(manage_variable huginnseedusr "$huginnseedusr  # Huginn seed (default) user")
+                    huginnseedusrpass=$(manage_variable huginnseedusrpass "$huginnseedusrpass  # Huginn seed (default) user password")
 
                     # Commit the .bashrc changes
                     source $rootdir/.bashrc
@@ -1742,6 +1919,8 @@
                     # Header (generic)
                     echo -e "$ymlhdr" >> $ymlname
                     echo -e "  $dbname:" >> $ymlname
+                    echo -e "    container_name: $dbname" >> $ymlname
+                    echo -e "    hostname: $dbname" >> $ymlname
                     echo -e "    # https://hub.docker.com/_/mariadb/" >> $ymlname
                     echo -e "    # Specify 10.3 as we only want watchtower to apply minor updates" >> $ymlname
                     echo -e "    # (eg, 10.3.1) and not major updates (eg, 10.4)." >> $ymlname
@@ -1755,6 +1934,12 @@
                     echo -e "      - MYSQL_USER=$huginndbuser" >> $ymlname
                     echo -e "      - MYSQL_PASSWORD=$huginndbpass" >> $ymlname
                     # Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
                     # Network specifications (user specified)
                     echo -e "    networks:" >> $ymlname
                     echo -e "        no-internet:" >> $ymlname
@@ -1787,9 +1972,9 @@
                     echo -e "      - REQUIRE_CONFIRMED_EMAIL=false" >> $ymlname
                     echo -e "      # Don't create the default "admin" user with password "password"." >> $ymlname
                     echo -e "      # Instead, use the below SEED_USERNAME and SEED_PASSWORD" >> $ymlname
-                    echo -e "      - SEED_USERNAME=huginnuserid" >> $ymlname
-                    echo -e "      - SEED_PASSWORD=huginnuserpassword" >> $ymlname
-                    echo -e "      - DO_NOT_SEED=false" >> $ymlname
+                    echo -e "      - SEED_USERNAME=$huginnseedusr" >> $ymlname
+                    echo -e "      - SEED_PASSWORD=$huginnseedusrpass" >> $ymlname
+                    echo -e "      - DO_NOT_SEED=true # Do not provide default userid and password" >> $ymlname
                     # Miscellaneous docker container parameters (user specified)
                     echo -e "    depends_on:" >> $ymlname
                     echo -e "      - $dbname" >> $ymlname
@@ -1799,8 +1984,8 @@
                     echo -e "      internet:" >> $ymlname
                     echo -e "        ipv4_address: $ipaddress" >> $ymlname
                     # Ports specifications (user specified)
-                    echo -e "    ports:" >> $ymlname
-                    echo -e "      - $huginnport:3000" >> $ymlname
+                    echo -e "    #ports:" >> $ymlname
+                    echo -e "      #- $huginnport:3000" >> $ymlname
                     # Restart policies (generic)
                     echo -e "    $ymlrestart" >> $ymlname
                     # Volumes (user specified)
@@ -1811,110 +1996,14 @@
 
                     docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
-                    nointernet=$(docker network ls | grep no-internet | awk '{print $2}')
-                    internet=$(docker network ls | grep _internet | awk '{print $2}')
-
-                    docker run --name $dbname \
-                        -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-                        -e POSTGRES_USER=$POSTGRES_USER -d postgres
-
-                    docker run --rm -d --name $containername \
-                        --link $dbname:postgres \
-                        -e HUGINN_DATABASE_USERNAME=$POSTGRES_USER \
-                        -e HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD \
-                        -e HUGINN_DATABASE_ADAPTER=postgresql \
-                        -e INVITATION_CODE=mystronginvitationcdoe \
-                        -e REQUIRE_CONFIRMED_EMAIL=false \
-                        -e SEED_USERNAME=huginnuserid \
-                        -e SEED_PASSWORD=huginnuserpassword \
-                        huginn/huginn
-
-                    docker network connect $nointernet $containername
-
-                    docker run --name huginn_postgres \
-                        -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-                        -e POSTGRES_USER=$POSTGRES_USER -d postgres
-
-
-                    ====================================================
-
-                    docker run --name huginn_mysql \
-                        -e MYSQL_DATABASE=huginn \
-                        -e MYSQL_USER=huginn \
-                        -e MYSQL_PASSWORD=somethingsecret \
-                        -e MYSQL_ROOT_PASSWORD=somethingevenmoresecret \
-                        mysql
-
-                    docker run --rm --name huginn \
-                        --link huginn_mysql:mysql \
-                        -p 3000:3000 \
-                        -e HUGINN_DATABASE_NAME=huginn \
-                        -e HUGINN_DATABASE_USERNAME=huginn \
-                        -e HUGINN_DATABASE_PASSWORD=somethingsecret \
-                        huginn/huginn
-
-                    ====================================================
-                    Experiment
-
-                    docker run --name $dbname \
-                        -e POSTGRES_USER=$POSTGRES_USER \
-                        -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-                        -d postgres
-
-                    docker run --rm -d --name $containername \
-                        --link $dbname:postgres \
-                        -p 3000:3000 \
-                        -e HUGINN_DATABASE_USERNAME=$POSTGRES_USER \
-                        -e HUGINN_DATABASE_PASSWORD=$POSTGRES_PASSWORD \
-                        -e HUGINN_DATABASE_ADAPTER=postgresql \
-                        -e DATABASE_HOST=172.17.0.3 \
-                        -e INVITATION_CODE=mystronginvitationcdoe \
-                        -e SEED_USERNAME=huginnuserid \
-                        -e SEED_PASSWORD=huginnuserpassword \
-                        -e REQUIRE_CONFIRMED_EMAIL=false \
-                        huginn/huginn
-
-                    containername=huginn && docker network connect $internet $containername && docker network connect $nointernet $containername && docker network disconnect bridge $containername
-                    containername=huginn_postgres && docker network connect $nointernet $containername && docker network disconnect bridge $containername
-
-                    ====================================================
-                    Working
-
-                    docker run --name huginn_postgres \
-                        -e POSTGRES_USER=huginn \
-                        -e POSTGRES_PASSWORD=mysecretpassword \
-                        -d postgres
-
-                    docker run --rm -d --name huginn \
-                        --link huginn_postgres:postgres \
-                        -p 3000:3000 \
-                        -e HUGINN_DATABASE_USERNAME=huginn \
-                        -e HUGINN_DATABASE_PASSWORD=mysecretpassword \
-                        -e HUGINN_DATABASE_ADAPTER=postgresql \
-                        -e SKIP_INVITATION_CODE=true \
-                        -e REQUIRE_CONFIRMED_EMAIL=false \
-                        huginn/huginn
-
                     # Wait until the stack is first initialized...
+					echo -e "\nWaiting for the container to start for the first time..."
                     while [ -f "$(sudo docker ps | grep $containername)" ];
-                            do
-                            sleep 5
-                    done
-
-                    # Make sure the stack started properly by checking for the existence of config.yml
-                    while [ ! -f $rootdir/docker/$containername/config.yml ]
                         do
                             sleep 5
                     done
 
-                    # Create a backup of the config.yml file if needed
-                    while [ ! -f $rootdir/docker/$containername/config.yml.bak ]
-                        do
-                        cp $rootdir/docker/$containername/config.yml \
-                            $rootdir/docker/$containername/config.yml.bak;
-                        done
-
-                    # Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
+                    # Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
                     destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
                     cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -1923,9 +2012,10 @@
 
                     sed -i 's/syncthing/'$containername'/g' $destconf
                     sed -i 's/    server_name '$containername'./    server_name '$hgsubdomain'./g' $destconf
-                    sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    #include \/config\/nginx\/authelia-server.conf;/g' $destconf
+                    sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    include \/config\/nginx\/authelia-server.conf;/g' $destconf
                     sed -i 's/        \#include \/config\/nginx\/authelia-location.conf;/        include \/config\/nginx\/authelia-location.conf;/g' $destconf
-                    sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$ipaddress';/g' $destconf
+                    #sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$ipaddress';/g' $destconf
+					sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$containername';/g' $destconf
                     sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$huginnport';/g' $destconf
 
                     # Remove the last line of the file
@@ -1933,30 +2023,36 @@
 
                     # https://stackoverflow.com/questions/22224441/nginx-redirect-all-requests-from-subdirectory-to-another-subdirectory-root
                     # https://linuxhint.com/nginx-location-regex-examples/
-                    echo '
-                        # Allow unauthenticated access to xml used as rss feeds
-                        # by commenting out the authelia-location.conf line
-                        # for specifc request to the regex below.
-                        location ~ /users/(.*).xml$ {
-                            # enable the next two lines for http auth
-                            #auth_basic "Restricted";
-                            #auth_basic_user_file /config/nginx/.htpasswd;
+                    echo -e "" >> $destconf
+                    echo -e '    # Allow unauthenticated access to xml used as rss feeds' >> $destconf
+                    echo -e '    # by commenting out the authelia-location.conf line' >> $destconf
+                    echo -e '    # for specifc request to the regex below.' >> $destconf
+                    echo -e '    location ~ /users/(.*).xml$ {' >> $destconf
+                    echo -e '        # enable the next two lines for http auth' >> $destconf
+                    echo -e '        #auth_basic "Restricted";' >> $destconf
+                    echo -e '        #auth_basic_user_file /config/nginx/.htpasswd;' >> $destconf
+					echo -e "" >> $destconf
+                    echo -e '        # enable the next two lines for ldap auth' >> $destconf
+                    echo -e '        #auth_request /auth;' >> $destconf
+                    echo -e '        #error_page 401 =200 /ldaplogin;' >> $destconf
+					echo -e "" >> $destconf
+                    echo -e '        # enable for Authelia' >> $destconf
+                    echo -e '        #include /config/nginx/authelia-location.conf;' >> $destconf
+					echo -e "" >> $destconf
+                    echo -e '        include /config/nginx/proxy.conf;' >> $destconf
+                    echo -e '        include /config/nginx/resolver.conf;' >> $destconf
+                    #echo -e '        set $upstream_app '$ipaddress';' >> $destconf
+					echo -e '        set $upstream_app '$containername';' >> $destconf
+                    echo -e '        set $upstream_port '$huginnport';' >> $destconf
+                    echo -e '        set $upstream_proto http;' >> $destconf
+                    echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
+					echo -e '    }' >> $destconf
+					echo -e '}' >> $destconf
 
-                            # enable the next two lines for ldap auth
-                            #auth_request /auth;
-                            #error_page 401 =200 /ldaplogin;
-
-                            # enable for Authelia
-                            #include /config/nginx/authelia-location.conf;
-
-                            include /config/nginx/proxy.conf;
-                            include /config/nginx/resolver.conf;
-                            set $upstream_app '$ipaddress';
-                            set $upstream_port '$huginnport';
-                            set $upstream_proto http;
-                            proxy_pass $upstream_proto://$upstream_app:$upstream_port;
-                        }
-                    }' >> $destconf
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
 
                     # Firewall rules
                     # None required
@@ -2023,6 +2119,15 @@
 						break
                     done
 
+                    while true; do
+						read -rp $'\n'"Enter your desired Jitsi-Meet meeting prefix 'wWDmJTkPzx5zhxcWp': " meetingprefix
+						if [[ -z "${meetingprefix}" ]]; then
+							echo -e "Enter your desired Jitsi-Meet meeting prefix or hit Ctrl+C to exit."
+							continue
+						fi
+						break
+                    done
+
 					# https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker
 					# https://github.com/jitsi/jitsi-meet-electron/releases
 					# https://scribe.rip/nginx-and-lets-encrypt-with-docker-in-less-than-5-minutes-b4b8a60d3a71
@@ -2046,7 +2151,7 @@
 					jcontdir=jitsi-meet
 					# Meeting prefix is used to let people into the meeting without the need
 					# for authelia login.  Usefull for sending links to 'guests'
-					meetingprefix=$(echo $RANDOM | md5sum | head -c 15)
+					# meetingprefix=$(echo $RANDOM | md5sum | head -c 15)
 
 					# Save variable to .bashrc for later persistent use
 					export_variable "\n# Jitsi Meet"
@@ -2055,7 +2160,7 @@
 					jcontdir=$(manage_variable "jcontdir" "$jcontdir" "-r")
 					jmoduser=$(manage_variable "jmoduser" "$jmoduser" "-r")
 					jmodpass=$(manage_variable "jmodpass" "$jmodpass" "-r")
-					meetingprefix=$(manage_variable "meetingprefixs" "$meetingprefix")
+					meetingprefix=$(manage_variable "meetingprefixs" "$meetingprefix" -r)
 					tssharedsecret=$(manage_variable "tssharedsecret" "$tssharedsecret # Turnserver shared secret")
 
 					# Commit the .bashrc changes
@@ -2158,7 +2263,7 @@
 					# and 'QBo3fMdLFpShtkg2jvg2XPCpZ4NkDf3zp6Xn6Ndf'
 					docker exec -i $(sudo docker ps | grep prosody | awk '{print $NF}') bash -c "prosodyctl --config /config/prosody.cfg.lua register $jmoduser meet.jitsi $jmodpass"
 
-					# Prepare the jitsi-meet proxy-conf file using syncthing.subdomain.conf as a template
+					# Prepare the proxy-conf file using syncthing.subdomain.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 					
@@ -2287,7 +2392,7 @@
             case $yn in
                 [Yy]* ) 
 					# Create the docker-compose file
-					containername=translate
+					containername=libretranslate
 					ymlname=$rootdir/$containername-compose.yml
 					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 
@@ -2314,7 +2419,13 @@
 					echo -e "    #build: ." >> $ymlname
 					echo -e "    # Uncomment below command and define your args if necessary" >> $ymlname
 					echo -e "    # command: --ssl --ga-id MY-GA-ID --req-limit 100 --char-limit 500" >> $ymlname
-					echo -e "    command: --ssl" >> $ymlname
+					echo -e "    command: --ssl --build-arg with_models=true" >> $ymlname
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
@@ -2342,7 +2453,7 @@
 							sleep 5
 					done
 
-					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -2381,7 +2492,7 @@
             case $yn in
                 [Yy]* ) 
 					# Create the docker-compose file
-					containername=lingva
+					containername=lingvatranslate
 					ymlname=$rootdir/$containername-compose.yml
 					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
 
@@ -2407,6 +2518,12 @@
 					echo -e "      - site_domain=$lvsubdomain.$fqdn" >> $ymlname
 					echo -e "      - dark_theme=true" >> $ymlname
 					# Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
@@ -2434,7 +2551,7 @@
 							sleep 5
 					done
 
-					# Prepare the libretranslate proxy-conf file using syncthing.subdomain.conf.sample as a template
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -2518,6 +2635,7 @@
 					nekoupass=$(manage_variable "nekoupass" "$nekoupass" "-r")
 					nekoapass=$(manage_variable "nekoapass" "$nekoapass" "-r")
 					nekoffsync=$(manage_variable "nekoffsync" "$nekoffsync" "-r")
+					#nekoffsync=${nekoffsync//\//\\/} # set up for sed replacement
 
 					# Commit the .bashrc changes
 					source $rootdir/.bashrc
@@ -2527,6 +2645,80 @@
 					rm -rf $rootdir/docker/$containername
 
 					mkdir -p $rootdir/docker/$containername;
+
+					wget https://raw.githubusercontent.com/m1k1o/neko/master/.docker/firefox/policies.json
+					mv policies.json $rootdir/docker/$containername/policies.json
+
+					wget https://raw.githubusercontent.com/m1k1o/neko/master/.docker/firefox/neko.js
+					mv neko.js $rootdir/docker/$containername/mozilla.cfg
+
+					mkdir -p $rootdir/docker/$containername/home;
+					chmod 777 -R $rootdir/docker/$containername/home;
+
+					# Remove the policy restrictions all together :)
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') /bin/bash -c "cp /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak"
+					# Change some of the parameters in mozilla.cfg (about:config) - /usr/lib/firefox/mozilla.cfg
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') bash -c "sed -i 's/lockPref(\"xpinstall.enabled\", false);//g' /usr/lib/firefox/mozilla.cfg"
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') bash -c "sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);//g' /usr/lib/firefox/mozilla.cfg"
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') bash -c 'echo -e "lockPref(\"identity.sync.tokenserver.uri\", \"'$nekoffsync'/token/1.0/sync/1.5\");" >> /usr/lib/firefox/mozilla.cfg'
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') bash -c "sed -i 's/lockPref(/pref(/g' /usr/lib/firefox/mozilla.cfg"
+
+					# Configure policies for firefox - 
+					# Remove the policy restrictions all together by deleting this file
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') /bin/bash -c "mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak"
+					echo -e "	Adjusting policies.json..."
+					sed -i 's/\"BlockAboutConfig\": true,/\"BlockAboutConfig\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/\"BlockAboutProfiles\": true,/\"BlockAboutProfiles\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/\"BlockAboutSupport\": true,/\"BlockAboutSupport\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/\"DisableAppUpdate\": true,/\"DisableAppUpdate\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/\"DisableBuiltinPDFViewer\": true,/\"DisableBuiltinPDFViewer\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/\"DisableFirefoxAccounts\": true,/\"DisableFirefoxAccounts\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/\"DisablePrivateBrowsing\": true,/\"DisablePrivateBrowsing\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/    \"DisableProfileImport\": true,/    \"DisableProfileImport\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/    \"DisableProfileRefresh\": true,/    \"DisableProfileRefresh\": false,/g' $rootdir/docker/$containername/policies.json # Allow installation of user selected add-ons
+					sed -i 's/    \"DisableSystemAddonUpdate\": true,/    \"DisableSystemAddonUpdate\": false,/g' $rootdir/docker/$containername/policies.json
+					sed -i 's/    \"DisplayBookmarksToolbar\": false,/    \"DisplayBookmarksToolbar\": true,/g' $rootdir/docker/$containername/policies.json  $rootdir/docker/$containername/policies.json
+					#sed -i 's///g' $rootdir/docker/$containername/policies.json  $rootdir/docker/$containername/policies.json
+					#sed -i 's///g' $rootdir/docker/$containername/policies.json  $rootdir/docker/$containername/policies.json
+					#sed -i 's///g' $rootdir/docker/$containername/policies.json  $rootdir/docker/$containername/policies.json
+					#sed -i 's///g' $rootdir/docker/$containername/policies.json  $rootdir/docker/$containername/policies.json
+					#sed -i ':a;N;$!ba;s/      \"\*\": {\n//1' $rootdir/docker/$containername/policies.json
+					#sed -i ':a;N;$!ba;s/        \"installation_mode\": \"blocked\"\n//1' $rootdir/docker/$containername/policies.json
+					sed -i ':a;N;$!ba;s/        \"installation_mode\": \"blocked\"/        \"installation_mode\": \"allowed\"/1' $rootdir/docker/$containername/policies.json
+					#sed -i ':a;N;$!ba;s/      },\n//3' $rootdir/docker/$containername/policies.json
+					
+					# Remove ublock origin
+					sed -i ':a;N;$!ba;s/      \"uBlock0@raymondhill.net\": {\n//1' $rootdir/docker/$containername/policies.json
+					sed -i ':a;N;$!ba;s/        \"install_url\": \"https:\/\/addons.mozilla.org\/firefox\/downloads\/latest\/ublock-origin\/latest.xpi\",\n//1' $rootdir/docker/$containername/policies.json
+					# Change only the first instance
+					sed -i ':a;N;$!ba;s/        \"installation_mode\": \"force_installed\"\n//1' $rootdir/docker/$containername/policies.json
+					# Change only the third instance (now three, was four, but above eliminated one)
+					sed -i ':a;N;$!ba;s/      },\n//2' $rootdir/docker/$containername/policies.json
+										# Remove sponsorblock add-on
+					sed -i ':a;N;$!ba;s/      \"sponsorBlocker@ajay.app\": {\n//1' $rootdir/docker/$containername/policies.json
+					sed -i ':a;N;$!ba;s/        \"install_url\": \"https:\/\/addons.mozilla.org\/firefox\/downloads\/latest\/sponsorblock\/latest.xpi\",\n//1' $rootdir/docker/$containername/policies.json
+					# Change only the first instance
+					sed -i ':a;N;$!ba;s/        \"installation_mode\": \"force_installed\"\n//1' $rootdir/docker/$containername/policies.json
+					# Change only the third instance (now three, was four, but above eliminated one)
+					sed -i ':a;N;$!ba;s/      },\n//2' $rootdir/docker/$containername/policies.json
+					sed -i ':a;N;$!ba;s/      },\n//2' $rootdir/docker/$containername/policies.json
+					#sed -i 's/        \"installation_mode\": \"force_installed\"/        \"installation_mode\": \"force_installed\"/g' $rootdir/docker/$containername/policies.json
+					#sed -i 's///g' $rootdir/docker/$containername/policies.json
+
+					echo -e "	Adjusting mozilla.cfg...\n"
+					sed -i 's/lockPref(\"app.update.auto\", false);/\#lockPref(\"app.update.auto\", false);/g' $rootdir/docker/$containername/mozilla.cfg
+					sed -i 's/lockPref(\"app.update.enabled\", false);/\#lockPref(\"app.update.enabled\", false);/g' $rootdir/docker/$containername/mozilla.cfg
+					sed -i 's/lockPref(\"extensions.update.enabled\", false);/\#lockPref(\"extensions.update.enabled\", false);/g' $rootdir/docker/$containername/mozilla.cfg
+					#sed -i 's/lockPref(\"profile.allow_automigration\", false);/\#lockPref(\"profile.allow_automigration\", false);/g' $rootdir/docker/$containername/mozilla.cfg
+					sed -i 's/lockPref(\"xpinstall.enabled\", false);/\#lockPref(\"xpinstall.enabled\", false);/g' $rootdir/docker/$containername/mozilla.cfg
+					sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);/\#lockPref(\"xpinstall.whitelist.required\", true);/g' $rootdir/docker/$containername/mozilla.cfg
+					#sed -i 's/lockPref(\"identity.sync.tokenserver.uri\"/\"'$nekoffsync'\"/g' $rootdir/docker/$containername/mozilla.cfg
+					# Set custon firefox sync server
+					echo -e 'lockPref("identity.sync.tokenserver.uri", "'$nekoffsync'");' >> $rootdir/docker/$containername/mozilla.cfg
+					#sed -i 's///g' $rootdir/docker/$containername/mozilla.cfg
+					#sed -i 's///g' $rootdir/docker/$containername/mozilla.cfg					
+					#sed -i 's///g' $rootdir/docker/$containername/mozilla.cfg
+					#sed -i 's///g' $rootdir/docker/$containername/mozilla.cfg
 
 					rm -f $ymlname && touch $ymlname
 
@@ -2566,9 +2758,11 @@
 					# Restart policies (generic)
 					echo -e "    $ymlrestart" >> $ymlname
 					# Volumes (user specified)
-					echo -e "    #volumes:" >> $ymlname
-					echo -e "      #- $rootdir/docker/neko/firefox/usr/lib/firefox:/usr/lib/firefox" >> $ymlname
-					echo -e "      #- $rootdir/docker/neko/firefox/home/neko:/home/neko" >> $ymlname
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/policies.json:/usr/lib/firefox/distribution/policies.json:ro" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/mozilla.cfg:/usr/lib/firefox/mozilla.cfg:ro" >> $ymlname
+					# Required so that you can transfer files to a location accessible to the browser (e.g. uBlock Origin config)
+					#echo -e "      - $rootdir/docker/$containername/home:/home/neko" >> $ymlname
 					# Networks, etc (generic)...
 					echo -e "$ymlftr" >> $ymlname
 
@@ -2577,12 +2771,12 @@
 					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
 					# Wait until the stack is first initialized...
-					while [ -f "$(sudo docker ps | grep $containername)" ];
+					while [ -f "$(sudo docker ps | grep $containername | grep -v tor)" ];
 						do
 							sleep 5
 					done
 
-					# Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
@@ -2590,10 +2784,24 @@
 					sed -i 's/syncthing/'$containername'/g' $destconf
 					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;/g' $destconf
 
+					# Remove the policy restrictions all together by deleting this file
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') /bin/bash -c "mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak"
+
 					# Restart SWAG to propogate the changes to proxy-confs
 					echo -e "Restarting SWAG..."
 					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
 					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+
+					# Restart the container
+					docker-compose -f $ymlname -p $stackname down
+					
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the container is initialized...
+					while [ -f "$(sudo docker ps | grep $containername | grep -v tor)" ];
+						do
+							sleep 5
+					done
 
 					# Unlock neko policies in /usr/lib/firefox/distribution/policies.json
 					#docker exec -i $(sudo docker ps | grep _neko | awk '{print $NF}') bash <<EOF
@@ -2604,18 +2812,6 @@
 
 					# Wait just a bit for the container to fully deploy
 					sleep 5
-
-					# Remove the policy restrictions all together :)
-					docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash -c "mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak"
-
-					# Change some of the parameters in mozilla.cfg (about:config) - /usr/lib/firefox/mozilla.cfg
-					docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash -c "sed -i 's/lockPref(\"xpinstall.enabled\", false);//g' /usr/lib/firefox/mozilla.cfg"
-
-					docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash -c "sed -i 's/lockPref(\"xpinstall.whitelist.required\", true);//g' /usr/lib/firefox/mozilla.cfg"
-
-					docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash -c 'echo -e "lockPref(\"identity.sync.tokenserver.uri\", \"'$nekoffsync'/token/1.0/sync/1.5\");" >> /usr/lib/firefox/mozilla.cfg'
-
-					docker exec -i $(sudo docker ps | grep $containername | awk '{print $NF}') bash -c "sed -i 's/lockPref(/pref(/g' /usr/lib/firefox/mozilla.cfg"
 
 					# Firewall rules
 					iptables -A INPUT -p udp --dport $nekoportrange1:$nekoportrange2 -j ACCEPT
@@ -2698,6 +2894,12 @@
 					echo -e "      - NEKO_ICELITE=1" >> $ymlname
 					# Miscellaneous docker container parameters (user specified)
 					echo -e "    shm_size: \"2gb\"" >> $ymlname
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point neko to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
@@ -2723,7 +2925,7 @@
 					sleep 5
 					done
 
-					# Prepare the neko proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
@@ -2740,6 +2942,202 @@
 					iptables -A INPUT -p udp --dport $torportrange1:$torportrange2 -j ACCEPT
 
 					#iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##############################################################################################################################
+
+	##############################################################################################################################
+	# Nitter (Twitter frontend) - will not run on a subfolder
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+		#nipend=$(($ipend+100)) && ipaddress=$subnet.$nipend # You can remove this later for full deploy
+
+		# Requires two ip addresses
+		#redisipend=$(($ipend+1)) && redisip=$subnet.$redisipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall Nitter a Twitter frontend (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# https://github.com/goodtiding5/docker-nitter
+					# https://github.com/zedeus/nitter
+
+					# Install some depndencies
+					sudo apt-get -qq update && sudo apt install -y -qq git yarn nodejs
+
+					# Create the docker-compose file
+					containername=nitter
+					redisname=$containername'_redis'
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(openssl rand -hex 15)
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername;
+					rm -rf $rootdir/docker/$redisname;
+
+					mkdir -p $rootdir/docker/$containername;
+					mkdir -p $rootdir/docker/$redisname;
+
+					rm -f $ymlname && touch $ymlname
+
+					# Create the .conf files
+					rm -f $rootdir/docker/$containername/nitter.conf && touch $rootdir/docker/$containername/nitter.conf
+					chown "$nonrootuser:$nonrootuser" $rootdir/docker/$containername/nitter.conf
+
+					rm -f $rootdir/docker/$redisname/redis.conf && touch $rootdir/docker/$redisname/redis.conf
+					chown "$nonrootuser:$nonrootuser" $rootdir/docker/$redisname/redis.conf
+
+					# Build the .yml file - https://github.com/goodtiding5/docker-nitter
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+
+					echo -e "  $redisname:" >> $ymlname
+					echo -e "    container_name: $redisname" >> $ymlname
+					echo -e "    hostname: $redisname" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: redis:alpine" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					# Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					# Ports specifications (user specified)
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+      				echo -e "      - $rootdir/docker/$redisname:/data" >> $ymlname
+
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: epenguincom/nitter:latest" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					echo -e "      - REDIS_HOST=\"$redisname\"" >> $ymlname
+					echo -e "      - NITTER_HOST=farside.link\/nitter" >> $ymlname
+					echo -e "      - NITTER_NAME=$containername" >> $ymlname
+					echo -e "      - REPLACE_TWITTER=farside.link\/nitter" >> $ymlname
+					#echo -e "      - REPLACE_YOUTUBE=piped.kavin.rocks" >> $ymlname
+					echo -e "      - REPLACE_YOUTUBE=farside.link\/invidious" >> $ymlname
+					echo -e "      - REPLACE_REDDIT=farside.link\/libreddit" >> $ymlname
+					echo -e "      - REPLACE_INSTAGRAM=farside.link\/bibliogram" >> $ymlname
+					# Miscellaneous docker container parameters (user specified)
+					echo -e "    depends_on:" >> $ymlname
+					echo -e "      - $redisname" >> $ymlname
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 8080:8080" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					#echo -e "    volumes:" >> $ymlname
+      				#echo -e "      - $rootdir/docker/$containername/nitter.conf:/src/nitter.conf" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+					
+					# Launch the 'normal' way using the yml file
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$ntsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 8080;/g' $destconf
+
+					# Remove the last line of the file
+                    sed -i '$ d' $destconf
+
+					# Allow rss feeds to be retrieved without authentication
+					echo -e "" >> $destconf
+					echo -e "    # Do not proxy rss feeds through authelia so that they can be" >> $destconf
+					echo -e "    # updeated by your rss feed reader without authentication." >> $destconf
+					echo -e "    location ~ /(.+)/rss$ {" >> $destconf
+					echo -e "        # enable the next two lines for http auth" >> $destconf
+					echo -e '        #auth_basic "Restricted";' >> $destconf
+					echo -e "        #auth_basic_user_file /config/nginx/.htpasswd;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable the next two lines for ldap auth" >> $destconf
+					echo -e "        #auth_request /auth;" >> $destconf
+					echo -e "        #error_page 401 =200 /ldaplogin;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable for Authelia" >> $destconf
+					echo -e "        #include /config/nginx/authelia-location.conf;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        include /config/nginx/proxy.conf;" >> $destconf
+					echo -e "        include /config/nginx/resolver.conf;" >> $destconf
+					echo -e '        set $upstream_app '$containername';' >> $destconf
+					echo -e '        set $upstream_port 8080;' >> $destconf
+					echo -e '        set $upstream_proto http;' >> $destconf
+					echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
+					echo -e "    }" >> $destconf
+
+					echo -e "" >> $destconf
+					echo -e "    # Do not proxy rss feeds through authelia so that they can be" >> $destconf
+					echo -e "    # updeated by your rss feed reader without authentication." >> $destconf
+					echo -e "    location ~ /(.+)/with_replies/rss$ {" >> $destconf
+					echo -e "        # enable the next two lines for http auth" >> $destconf
+					echo -e '        #auth_basic "Restricted";' >> $destconf
+					echo -e "        #auth_basic_user_file /config/nginx/.htpasswd;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable the next two lines for ldap auth" >> $destconf
+					echo -e "        #auth_request /auth;" >> $destconf
+					echo -e "        #error_page 401 =200 /ldaplogin;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable for Authelia" >> $destconf
+					echo -e "        #include /config/nginx/authelia-location.conf;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        include /config/nginx/proxy.conf;" >> $destconf
+					echo -e "        include /config/nginx/resolver.conf;" >> $destconf
+					echo -e '        set $upstream_app '$containername';' >> $destconf
+					echo -e '        set $upstream_port 8080;' >> $destconf
+					echo -e '        set $upstream_proto http;' >> $destconf
+					echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
+					echo -e "    }" >> $destconf
+
+					echo -e "}" >> $destconf
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+
+					# Firewall rules
+					# None needed
+					# #iptables-save
 
                     break;;
                 [Nn]* ) break;;
@@ -2864,7 +3262,7 @@
 
 					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
-					# Prepare the politepol proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
@@ -2931,6 +3329,12 @@
 					echo -e "    $ymlenv" >> $ymlname
 					# Additional environmental variables (user specified)
 					# Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
@@ -2965,7 +3369,7 @@
 						(crontab -l 2>/dev/null || true; echo -e "*/1 * * * * ps -eaf | grep rss-proxy | grep -v grep | awk '{print $2}' | xargs kill") | crontab -
 					fi
 
-					# Prepare the rss-proxy proxy-conf file using syncthing.subdomain.conf.sample as a template
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -3133,6 +3537,12 @@
                     echo -e "    $ymlenv" >> $ymlname
                     # Additional environmental variables (user specified)
                     # Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
                     # Network specifications (user specified)
                     echo -e "    networks:" >> $ymlname
                     echo -e "      no-internet:" >> $ymlname
@@ -3188,8 +3598,6 @@
 					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
 					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
 					echo -e "      - $piholeip" >> $ymlname
-					echo -e "      - 9.9.9.9" >> $ymlname
-					echo -e "      - 1.1.1.1" >> $ymlname
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
 					echo -e "      internet:" >> $ymlname # Required for push notifications to work
@@ -3234,7 +3642,7 @@
 					#  Edit the configuration file
 					echo -e "Editing the $configbackname file..."
 					chown "$nonrootuser:$nonrootuser" $configbackpath
-					sed -i 's/\#max_upload_size: 50M/max_upload_size: 250M/g'$configbackpath # Maximum file upload size
+					sed -i ':a;N;$!ba;s/\#max_upload_size: 50M/max_upload_size: 250M/1'$configbackpath # Maximum file upload size
 					sed -i ':a;N;$!ba;s/  \#enabled: true/  enabled: true/2' $configbackpath # Replace the second instance
 					sed -i 's/\#default_policy:/default_policy:/g' $configbackpath
 					sed -i 's/\#  min_lifetime: 1d/  min_lifetime: 1d/g' $configbackpath
@@ -3320,6 +3728,14 @@
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample $destconf
 
+					# Add a step to wait untilt the homeserver.yml file is created
+					echo -e "Waiting for the $containername.subdomain.conf file to be created..."
+					while [ ! -f $configbackpath ]
+						do
+							sleep 5
+							cp $rootdir/docker/$swagloc/nginx/proxy-confs/synapse.subdomain.conf.sample $destconf
+					done
+
 					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
 					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
 					sed -i 's/    server_name matrix./    server_name '$sysubdomain'./g' $destconf
@@ -3374,7 +3790,7 @@
 	##############################################################################################################################
 	
 	##############################################################################################################################
-	# Synapse UI
+	# Synapse UI - will not run on a subfolder!
 
 		# Increment this regardless of installation or repeat runs of this
 		# script will lead to docker errors due to address already in use
@@ -3412,7 +3828,7 @@
 					$(docker-compose -f $ymlname -p $stackname down -v)
 					rm -rf $rootdir/docker/$containername
 
-					mkdir -p docker/$containername;
+					mkdir -p $rootdir/docker/$containername;
 
 					rm -f $ymlname && touch $ymlname
 
@@ -3446,12 +3862,15 @@
 					# Launch the 'normal' way using the yml file
 					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
-					# Set up swag
-					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
-					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
+					# Capture the setup page through authelia to prevent misuse
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
 					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
 					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$suisubdomain'./g' $destconf
 					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;/g' $destconf
 
 					# Restart SWAG to propogate the changes to proxy-confs
@@ -3582,7 +4001,7 @@
 					# Restart syncthing so that changes to config.xml will not get overwritten
 					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
-					# Prepare the syncthing proxy-conf file
+					# Prepare the proxy-conf file
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
 
@@ -3625,6 +4044,104 @@
         done
 
 	##############################################################################################################################
+
+	##############################################################################################################################
+	# Unbound (DNS over HTTPS (DoH) proxy backend)
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall Unbound a DoH proxy backend (y/n)? " yn
+            case $yn in
+                [Yy]* )
+
+					# https://docs.pi-hole.net/guides/dns/unbound/
+					# Solve some permission errors when mapping local volume - https://github.com/MatthewVance/unbound-docker/issues/22
+
+					containername=unbound
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(openssl rand -hex 15)
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername;
+
+
+					mkdir -p $rootdir/docker/$containername;
+					#chmod 777 -R $rootdir/docker/$containername # Required for unbound to write to the directory
+
+					rm -f $ymlname && touch $ymlname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: mvance/unbound:latest" >> $ymlname
+					#echo -e "    image: klutchell/unbound" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					# Miscellaneous docker container parameters (user specified)
+					#echo -e "    detach:" >> $ymlname
+					#echo -e "      true" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 3000:3000" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername:/etc/unbound/" >> $ymlname
+					#echo -e "      - $rootdir/docker/$containername/unbound.conf:/etc/unbound/unbound.conf:ro" >> $ymlname
+					#echo -e "      - $rootdir/docker/$containername/a-records.conf:/etc/unbound/a-records.conf:ro" >> $ymlname
+					#echo -e "      - $rootdir/docker/$containername/srv-records.conf:/etc/unbound/srv-records.conf:ro" >> $ymlname
+					#echo -e "      - $rootdir/docker/$containername/forward-records.conf:/etc/unbound/forward-records.conf:ro" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					#touch $rootdir/docker/$containername/unbound.conf
+					#touch $rootdir/docker/$containername/a-records.conf
+					#touch $rootdir/docker/$containername/srv-records.conf
+					#touch $rootdir/docker/$containername/forward-records.conf
+
+					#chown -R "$nonrootuser:$nonrootuser" $rootdir/docker/$containername
+					chmod 777 -R $rootdir/docker/$containername
+
+					#a-records.conf
+					#srv-records.conf
+					#forward-records.conf
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Firewall rules
+					# None needed
+					# #iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##################################################################################################################################
 
 	##############################################################################################################################
 	# VPNs
@@ -3728,7 +4245,7 @@
 
 						docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
-						sudo chmod 777 -R $rootdir/docker/$containername/ikev2-vpn-data/vpnclient.*
+						chmod 777 -R $rootdir/docker/$containername/ikev2-vpn-data/vpnclient.*
 
 						# --env-file use for above to hide environmental variables from the portainer gui
 
@@ -3792,19 +4309,20 @@
 						sacliloc=$(manage_variable "sacliloc" "$sacliloc")
 						ovpntcpport=$(manage_variable "ovpntcpport" "$ovpntcpport")
 						ovpnudpport=$(manage_variable "ovpnudpport" "$ovpnudpport")
-						novpnuser=$(manage_variable "novpnuser" "$ovpnuser")
+						ovpnuser=$(manage_variable "ovpnuser" "$ovpnuser")
+						ovpnpass=$(manage_variable "ovpnpass" "$ovpnpass")
 						ovpngroup=$(manage_variable "ovpngroup=" "$ovpngroup")
 
 						# Commit the .bashrc changes
 						source $rootdir/.bashrc
 
-						# Prepare the openvpn-as proxy-conf file using syncthing.subfolder.conf as a template
+						# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 						destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 						cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
 						sed -i 's/syncthing/'$containername'/g' $destconf
 						# Set the $upstream_app parameter to the localhost address (127.0.0.1) so it can be accessed from docker (swag)
-						sed -i 's/        set $upstream_app '$containername';/        set $upstream_app 127.0.0.1;/g' $destconf
+						sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';/g' $destconf
 						sed -i 's/    server_name '$containername'./    server_name '$ovpnsubdomain'./g' $destconf
 						sed -i 's/    \#include \/config\/nginx\/authelia-server.conf;/    include \/config\/nginx\/authelia-server.conf;/g' $destconf
 						sed -i 's/        \#include \/config\/nginx\/authelia-location.conf;/        include \/config\/nginx\/authelia-location.conf;/g' $destconf
@@ -3855,6 +4373,10 @@
 				esac
 			done
 
+		##########################################################################################################################
+
+		##########################################################################################################################
+		# VPN - Outline
 		##########################################################################################################################
 
 		##########################################################################################################################
@@ -3913,7 +4435,7 @@
 						echo -e "      - PASSWORD=$sspass" >> $ymlname
 						echo -e "      - DNS_ADDRS=$piholeip # Comma delimited, need to use external to this vps or internal to docker" >> $ymlname
 						# Miscellaneous docker container parameters (user specified)
-						echo -e "    cap-add:" >> $ymlname
+						echo -e "    cap-add:" >> $ymlname # this is throwing an error??
 						echo -e "      - NET_ADMIN" >> $ymlname
 						# Network specifications (user specified)
 						echo -e "    networks:" >> $ymlname
@@ -3952,6 +4474,10 @@
 				esac
 			done
 
+		##########################################################################################################################
+
+		##########################################################################################################################
+		# VPN - STunnel
 		##########################################################################################################################
 
 		##########################################################################################################################
@@ -4333,7 +4859,7 @@
 								sleep 5
 						done
 
-						# Prepare the wireguard gui (wgui) proxy-conf file using syncthing.subdomain.conf.sample as a template
+						# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
 						destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
 						cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
 
@@ -4454,6 +4980,12 @@
 					echo -e "      #- /var/lib/tor/:size=10M,uid=102,gid=102,mode=1700" >> $ymlname
 					echo -e "      #- /run/tor/:size=1M,uid=102,gid=102,mode=1700" >> $ymlname
 					echo -e "    #user: '102' # user debian-tor from tor package" >> $ymlname
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
 					# Network specifications (user specified)
 					echo -e "    networks:" >> $ymlname
 					echo -e "      no-internet:" >> $ymlname
@@ -4478,14 +5010,17 @@
 							sleep 5
 					done
 
-					# Prepare the whoogle proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
                     destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
                     cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					chown "$nonrootuser:$nonrootuser" $destconf
 
 					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
 					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
 					sed -i 's/syncthing/'$containername'/g' $destconf
 					sed -i 's/    server_name '$containername'./    server_name '$whglsubdomain'./g' $destconf
+					sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$ipaddress';/g' $destconf
 					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 5000;/g' $destconf
 
 					# Back to rootdir and clean up
@@ -4522,11 +5057,14 @@
 					# Cloudflared - https://docs.pi-hole.net/guides/dns/cloudflared/
 					# PiHold DoH DoT - https://libreddit.dcs0.hu/r/pihole/comments/gljrg2/pihole_with_doh_and_dot/
 					# Unbound DoH DoT - https://docs.pi-hole.net/guides/dns/unbound/
+					# Set webgui timeout - https://www.reddit.com/r/pihole/comments/dckr5i/web_logout_setting/
+					#                      https://discourse.pi-hole.net/t/persistent-login-to-pi-hole-admin-page/9225/3
+					#                      https://stackoverflow.com/questions/8311320/how-to-change-the-session-timeout-in-php
 
 					sudo systemctl stop systemd-resolved.service
 					sudo systemctl disable systemd-resolved.service
 					sed -i 's/nameserver 127.0.0.53/nameserver 9.9.9.9/g' /etc/resolv.conf # We will change this later after the pihole is set up
-					# sudo lsof -i -P -n | grep LISTEN - allows you to find out who is litening on a port
+					# sudo lsof -i -P -n | grep LISTEN - allows you to find out who is listening on a port
 					# sudo apt-get install net-tools
 					# sudo netstat -tulpn | grep ":53 " - port 53
 
@@ -4590,10 +5128,10 @@
 					echo -e "        # https://www.cloudsavvyit.com/14508/how-to-assign-a-static-ip-to-a-docker-container/" >> $ymlname
 					echo -e "        ipv4_address: $piholeip" >> $ymlname
 					# Ports specifications (user specified)
-					echo -e "    ports:" >> $ymlname
-					echo -e "      - 53:53/udp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
-					echo -e "      - 53:53/tcp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
-					echo -e "      - 67:67/tcp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 53:53/udp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
+					echo -e "      #- 53:53/tcp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
+					echo -e "      #- 67:67/tcp  # Disable these if using DNS over HTTPS (DoH) server" >> $ymlname
 					echo -e "      #- 8080:80/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia" >> $ymlname
 					echo -e "      #- 8443:443/tcp # WebApp port, don't publish this to the outside world - only proxy through swag/authelia" >> $ymlname
 					# Restart policies (generic)
@@ -4615,7 +5153,7 @@
 							sleep 5
 					done
 
-					# Prepare the pihole proxy-conf file using syncthing.subfolder.conf as a template
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
 					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
 					cp $rootdir/docker/$swagloc/nginx/proxy-confs/pihole.subfolder.conf.sample $destconf
 
@@ -4643,7 +5181,28 @@
 
 					# Route all traffic including localhost traffic through the pihole
 					# https://www.tecmint.com/find-my-dns-server-ip-address-in-linux/
-					sed -i 's/nameserver 9.9.9.9/nameserver '$myip'/g' /etc/resolv.conf
+					# https://kifarunix.com/make-permanent-dns-changes-on-resolv-conf-in-linux/
+					# apt install resolvconf
+					# sed -i 's/nameserver 9.9.9.9/nameserver '$piholeip'/g' /etc/resolv.conf - not persistent
+					rm -rf /etc/resolvconf/resolv.conf.d/base && touch /etc/resolvconf/resolv.conf.d/base
+					echo "nameserver $piholeip" >> /etc/resolvconf/resolv.conf.d/base
+					resolvconf -u
+
+
+					# https://robinwinslow.uk/fix-docker-networking-dns
+					# Route all docker traffic through the pihole DNS
+					#rm -rf /etc/docker/daemon.json && touch /etc/docker/daemon.json
+
+					# Force all docker traffic through the pihole
+					#echo -e "{" >> /etc/docker/daemon.json
+   				 	#echo -e '	dns": ["'$piholeip'"]' >> /etc/docker/daemon.json
+					#echo -e "}" >> /etc/docker/daemon.json
+
+					#service docker restart
+
+					# You can check who is providing name servies using the below
+					# docker run busybox nslookup google.com
+					# nslookup google.com
 
 					# Firewall rules
 					# Allow dns requests and other ports for pihole - https://docs.pi-hole.net/main/prerequisites/
