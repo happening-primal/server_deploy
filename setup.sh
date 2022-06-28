@@ -268,10 +268,14 @@
 	ctsubdomain=$(manage_variable ctsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Coturn used with synapse") && subdomains+=", " && subdomains+=$ctsubdomain
 	# dns over https
 	dhsubdomain=$(manage_variable dhsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # DNS over HTTPS server") && subdomains+=", " && subdomains+=$dhsubdomain
+	# dnscrypt-proxy
+	dcpsubdomain=$(manage_variable dpsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # DNScrypt-Proxy") && subdomains+=", " && subdomains+=$dcpsubdomain
 	# dnsproxy
 	dpsubdomain=$(manage_variable dpsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # DNSProxy") && subdomains+=", " && subdomains+=$dpsubdomain
 	# farside
 	fssubdomain=$(manage_variable fssubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Farside") && subdomains+=", " && subdomains+=$fssubdomain
+	# fenrus
+	frsubdomain=$(manage_variable hgsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Fenrus") && subdomains+=", " && subdomains+=$frsubdomain
 	# huginn
 	hgsubdomain=$(manage_variable hgsubdomain "$(echo $RANDOM | md5sum | head -c 8)      # Huginn") && subdomains+=", " && subdomains+=$hgsubdomain
 	# jitsiweb
@@ -1168,6 +1172,21 @@
 							sleep 5
 					done
 
+                    # Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
+                    destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+                    cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$dcpsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;/g' $destconf
+					
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1 > /dev/null
+
 					# Firewall rules
 					# None needed
 					# #iptables-save
@@ -1296,6 +1315,9 @@
 					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
 
 					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					echo -e "	Adjusting the configuration file..."
+					sed -i 's//g' 
 
 					# Wait until the stack is first initialized...
 					while [ -f "$(sudo docker ps | grep $containername)" ];
@@ -1462,6 +1484,250 @@
 	##############################################################################################################################
 
 	##############################################################################################################################
+	# Element web (Synapse/Matrix frontend) Private
+
+		# https://hub.docker.com/r/vectorim/element-web/
+		# https://github.com/djmaze/docker-element-web/blob/master/docker-compose.yml
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall Element (Private), a frontend for Synapse (Matrix) (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+					while true; do
+						read -rp $'\n'"Enter your desired homeserver (not https://matrix.org): " ewhomeserver
+						
+						if [[ -z "${ewhomeserver}" ]]; then
+							echo -e "Enter your desired neko user password or hit Ctrl+C to exit."
+							continue
+						fi
+
+						break
+					done
+
+					containername=elementwebprivate    
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername;
+
+					rm -f $ymlname && touch $ymlname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: vectorim/element-web" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					echo -e "      - DEFAULT_HS_URL=$ewhomeserver" >> $ymlname
+					echo -e "      - DISABLE_GUESTS=true" >> $ymlname
+					echo -e "      - DISABLE_LOGIN_LANGUAGE_SELECTOR=false" >> $ymlname
+					# Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point neko to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 80:80" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    #volumes:" >> $ymlname
+					echo -e "      #- $rootdir/docker/$containername:/" >> $ymlname
+					# Required so that you can transfer files to a location accessible to the browser (e.g. uBlock Origin config)
+					#echo -e "      - $rootdir/docker/$containername/home:/home/neko" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;/g' $destconf
+
+					# Remove the policy restrictions all together by deleting this file
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') /bin/bash -c "mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak"
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+
+					# Restart the container
+					docker-compose -f $ymlname -p $stackname down
+					
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the container is initialized...
+					while [ -f "$(sudo docker ps | grep $containername | grep -v tor)" ];
+						do
+							sleep 5
+					done
+
+					# Wait just a bit for the container to fully deploy
+					sleep 5
+
+					# Firewall rules
+					# None needed
+					#iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##############################################################################################################################
+
+	##############################################################################################################################
+	# Element web (Synapse/Matrix frontend) Public
+
+		# https://hub.docker.com/r/vectorim/element-web/
+		# https://github.com/djmaze/docker-element-web/blob/master/docker-compose.yml
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall Element (Public), a frontend for Synapse (Matrix) (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+
+					containername=elementwebpublic
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername;
+
+					rm -f $ymlname && touch $ymlname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: vectorim/element-web" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					echo -e "      - DEFAULT_HS_URL=https://matrix.org" >> $ymlname
+					echo -e "      - DISABLE_GUESTS=true" >> $ymlname
+					echo -e "      - DISABLE_LOGIN_LANGUAGE_SELECTOR=false" >> $ymlname
+					# Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point neko to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 80:80" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    #volumes:" >> $ymlname
+					echo -e "      #- $rootdir/docker/$containername:/" >> $ymlname
+					# Required so that you can transfer files to a location accessible to the browser (e.g. uBlock Origin config)
+					#echo -e "      - $rootdir/docker/$containername/home:/home/neko" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Prepare the proxy-conf file using syncthing.subfolder.conf as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subfolder.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subfolder.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 80;/g' $destconf
+
+					# Remove the policy restrictions all together by deleting this file
+					#docker exec -i $(sudo docker ps | grep $containername | grep -v tor | awk '{print $NF}') /bin/bash -c "mv /usr/lib/firefox/distribution/policies.json /usr/lib/firefox/distribution/policies.json.bak"
+
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+
+					# Restart the container
+					docker-compose -f $ymlname -p $stackname down
+					
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the container is initialized...
+					while [ -f "$(sudo docker ps | grep $containername | grep -v tor)" ];
+						do
+							sleep 5
+					done
+
+					# Wait just a bit for the container to fully deploy
+					sleep 5
+
+					# Firewall rules
+					# None needed
+					#iptables-save
+
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
+
+	##############################################################################################################################
+
+	##############################################################################################################################
 	# Farside - rotating redirector written in elixer by Ben Busby
 		
 		# https://github.com/benbusby/farside
@@ -1488,6 +1754,13 @@
             read -p $'\n'"$userprompt" yn
             case $yn in
                 [Yy]* ) 
+
+					# Farside version
+					fsversion=v0.2.1.tar.gz
+                    # Run the below from within the unpacked farside folder ($fsversion)
+					# Web gui runs on port 4001 (see firewall rule below)
+					farsideport=4001
+					
                     # Download the latest copy of radis - https://redis.io/
                     # wget https://download.redis.io/releases/redis-6.2.6.tar.gz
                     # Unpack the tarball
@@ -1501,15 +1774,23 @@
                     sudo apt install -y -qq redis-server esl-erlang elixir
 
                     # Download and upack farside
-                    wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
+					# Kill any existing installation
+					kill $(sudo lsof -i -P -n | grep LISTEN | grep $farsideport| awk '{ print$2 }')
+					sleep 5
+                    #wget https://github.com/benbusby/farside/archive/refs/tags/v0.1.0.tar.gz
+					rm -rf $rootdir/$fssubfolder
+					wget https://github.com/benbusby/farside/archive/refs/tags/$fsversion
                     mkdir -p $rootdir/$fssubfolder
-                    tar -xvf v0.1.0.tar.gz -C $rootdir/$fssubfolder --strip-components=1
+                    tar -xvf $fsversion -C $rootdir/$fssubfolder --strip-components=1
 					chmod 777 -R $rootdir/$fssubfolder
                     cd $rootdir/$fssubfolder
-                    # Run the below from within the unpacked farside folder (farside-0.1.0)
+
                     # redis-server
+					kill $(sudo lsof -i -P -n | grep LISTEN | grep $farsideport| awk '{ print$2 }')
                     mix deps.get
+					kill $(sudo lsof -i -P -n | grep LISTEN | grep $farsideport| awk '{ print$2 }')
                     mix run -e Farside.Instances.sync
+					kill $(sudo lsof -i -P -n | grep LISTEN | grep $farsideport| awk '{ print$2 }')
                     elixir --erl "-detached" -S mix run --no-halt
 
                     rm -f $fsrunscriptname && touch $fsrunscriptname
@@ -1524,6 +1805,7 @@
                     echo -e 'elixir --erl "-detached" -S mix run --no-halt' >> $fsrunscriptname
                     echo -e 'sleep 30' >> $fsrunscriptname
                     echo -e 'done' >> $fsrunscriptname
+					echo -e 'cd $rootdir' >> $fsrunscriptname
 
                     # Set up a cron job to start the server once every five minutes if it isn't running
                     # so that it is always available.
@@ -1533,11 +1815,11 @@
                     fi
                     
                     # Uses localhost:4001
-                    # edit farside-0.1.0/services.json if you desire to control the instances of redirects
+                    # edit $fsversion/services.json if you desire to control the instances of redirects
                     # such as if you want to create your own federated list of servers to choose from
                     # in a less trusted model (e.g. yourserver.1, yourserver.2, yourserver.3...) ;)
                     cd $rootdir
-                    rm -f v0.1.0.tar.gz
+                    rm -f $fsversion
 
                     # Enable swag capture of farside
                     # Prepare the proxy-conf file using using syncthing.subdomain.conf.sample as a template
@@ -1554,21 +1836,50 @@
                     # Set the $upstream_app parameter to the ethernet IP address so it can be accessed from docker (swag)
                     sed -i 's/        set $upstream_app '$containername';/        set $upstream_app '$myip';/g' $destconf
                     sed -i 's/    server_name '$containername'./    server_name '$fssubdomain'./g' $destconf
-                    sed -i 's/    set $upstream_port 8384;/    set $upstream_port 4001;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+                    sed -i 's/    set $upstream_port 8384;/    set $upstream_port '$farsideport';/g' $destconf
 
-v					# Restart SWAG to propogate the changes to proxy-confs
+					# Remove the last line of the file
+                    sed -i '$ d' $destconf
+
+					echo -e "" >> $destconf
+					echo -e "    # Do not proxy subfolders to the landing page through authelia so that invities" >> $destconf
+					echo -e "    # can come straight in." >> $destconf
+					echo -e "    location ~ /(bibliogram|imgin|invidious|librarian|libreddit|lingva|nitter|piped|proxitok|rimgo|scribe|searx|searxng|simplytranslate|teddit|whoogle|wikiless)(.*)$ {" >> $destconf
+					echo -e "        # enable the next two lines for http auth" >> $destconf
+					echo -e '        #auth_basic "Restricted";' >> $destconf
+					echo -e "        #auth_basic_user_file /config/nginx/.htpasswd;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable the next two lines for ldap auth" >> $destconf
+					echo -e "        #auth_request /auth;" >> $destconf
+					echo -e "        #error_page 401 =200 /ldaplogin;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        # enable for Authelia" >> $destconf
+					echo -e "        #include /config/nginx/authelia-location.conf;" >> $destconf
+					echo -e "" >> $destconf
+					echo -e "        include /config/nginx/proxy.conf;" >> $destconf
+					echo -e "        include /config/nginx/resolver.conf;" >> $destconf
+					echo -e '        set $upstream_app '$myip';' >> $destconf
+					echo -e '        set $upstream_port '$farsideport';' >> $destconf
+					echo -e '        set $upstream_proto http;' >> $destconf
+					echo -e '        proxy_pass $upstream_proto://$upstream_app:$upstream_port;' >> $destconf
+					echo -e "    }" >> $destconf
+					echo -e "}" >> $destconf
+
+					# Restart SWAG to propogate the changes to proxy-confs
 					echo -e "Restarting SWAG..."
 					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
 					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
 
                     # Firewall rules
-                    iptables -t filter -A OUTPUT -p tcp --dport 4001 -j ACCEPT
-                    iptables -t filter -A INPUT -p tcp --dport 4001 -j ACCEPT
-                    iptables -t filter -A OUTPUT -p udp --dport 4001 -j ACCEPT
-                    iptables -t filter -A INPUT -p udp --dport 4001 -j ACCEPT
-                    # Block access to port 943 from the outside - traffic must go thhrough SWAG
-                    # Blackhole outside connection attempts to port 943
-                    #iptables -t nat -A PREROUTING -i eth0 ! -s 127.0.0.1 -p tcp --dport 4001 -j REDIRECT --to-port 0
+                    #iptables -t filter -A OUTPUT -p tcp --dport $farsideport -j ACCEPT
+                    #iptables -t filter -A INPUT -p tcp --dport $farsideport -j ACCEPT
+                    #iptables -t filter -A OUTPUT -p udp --dport $farsideport -j ACCEPT
+                    #iptables -t filter -A INPUT -p udp --dport $farsideport -j ACCEPT
+
+                    # Blackhole outside connection attempts to port $farsideport web interface
+					iptables -t nat -A PREROUTING -i eth0 ! -s 127.0.0.1 -p tcp --dport $farsideport -j REDIRECT --to-port 0
 
 					#iptables-save
 
@@ -1577,6 +1888,107 @@ v					# Restart SWAG to propogate the changes to proxy-confs
                 * ) echo -e "Please answer yes or no.";;
             esac
         done   
+
+	##############################################################################################################################
+
+	##############################################################################################################################
+	# Fenrus landing page - will not run on a subfolder!
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+        while true; do
+            read -p $'\n'"Do you want to install/reinstall Fenrus landing page (y/n)? " yn
+            case $yn in
+                [Yy]* ) 
+					# Create the docker-compose file
+					containername=fenrus
+					ymlname=$rootdir/$containername-compose.yml
+					rndsubfolder=$(echo $RANDOM | md5sum | head -c 15)
+
+					# Remove any existing installation
+					$(docker-compose -f $ymlname -p $stackname down -v)
+					rm -rf $rootdir/docker/$containername
+
+					mkdir -p $rootdir/docker/$containername
+					mkdir -p $rootdir/docker/$containername/data
+					mkdir -p $rootdir/docker/$containername/images
+
+					rm -f $ymlname && touch $ymlname
+
+					# Build the .yml file
+					# Header (generic)
+					echo -e "$ymlhdr" >> $ymlname
+					echo -e "  $containername:" >> $ymlname
+					echo -e "    container_name: $containername" >> $ymlname
+					echo -e "    hostname: $containername" >> $ymlname
+					# Docker image (user specified)
+					echo -e "    image: revenz/fenrus" >> $ymlname
+					# Environmental variables (generic)
+					echo -e "    $ymlenv" >> $ymlname
+					# Additional environmental variables (user specified)
+					echo -e "      - site_domain=$lvsubdomain.$fqdn" >> $ymlname
+					echo -e "      - dark_theme=true" >> $ymlname
+					# Miscellaneous docker container parameters (user specified)
+					echo -e "    dns:" >> $ymlname
+					echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+					echo -e "      # If you are running pihole in a docker container, point archivebox to the pihole" >> $ymlname
+					echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+					echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+					echo -e "      - $piholeip" >> $ymlname
+					# Network specifications (user specified)
+					echo -e "    networks:" >> $ymlname
+					echo -e "      no-internet:" >> $ymlname
+					echo -e "      internet:" >> $ymlname
+					echo -e "        ipv4_address: $ipaddress" >> $ymlname
+					# Ports specifications (user specified)
+					echo -e "    # Don't expose external ports to prevent access outside swag" >> $ymlname
+					echo -e "    #ports:" >> $ymlname
+					echo -e "      #- 3000:3000" >> $ymlname
+					# Restart policies (generic)
+					echo -e "    $ymlrestart" >> $ymlname
+					# Volumes (user specified)
+					echo -e "    volumes:" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/data:/app/data" >> $ymlname
+					echo -e "      - $rootdir/docker/$containername/images:/app/images" >> $ymlname
+					# Networks, etc (generic)...
+					echo -e "$ymlftr" >> $ymlname
+
+					sleep 5 && chown "$nonrootuser:$nonrootuser" $ymlname
+
+					docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
+
+					# Wait until the stack is first initialized...
+					while [ -f "$(sudo docker ps | grep $containername)" ];
+						do
+							sleep 5
+					done
+
+					# Prepare the proxy-conf file using syncthing.subdomain.conf.sample as a template
+					destconf=$rootdir/docker/$swagloc/nginx/proxy-confs/$containername.subdomain.conf
+					cp $rootdir/docker/$swagloc/nginx/proxy-confs/syncthing.subdomain.conf.sample $destconf
+
+					sed -i 's/\#include \/config\/nginx\/authelia-server.conf;/include \/config\/nginx\/authelia-server.conf;/g' $destconf
+					sed -i 's/\#include \/config\/nginx\/authelia-location.conf;/include \/config\/nginx\/authelia-location.conf;/g' $destconf
+					sed -i 's/syncthing/'$containername'/g' $destconf
+					sed -i 's/    server_name '$containername'./    server_name '$frsubdomain'./g' $destconf
+					sed -i 's/    set $upstream_port 8384;/    set $upstream_port 3000;/g' $destconf
+					
+					# Restart SWAG to propogate the changes to proxy-confs
+					echo -e "Restarting SWAG..."
+					$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+					$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+
+					# Firewall rules
+					# None needed
+					# #iptables-save
+					
+                    break;;
+                [Nn]* ) break;;
+                * ) echo -e "Please answer yes or no.";;
+            esac
+        done
 
 	##############################################################################################################################
 
@@ -2969,6 +3381,15 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 					# https://github.com/goodtiding5/docker-nitter
 					# https://github.com/zedeus/nitter
 
+					while true; do
+						read -rp $'\n'"Enter your redirector link (if you don't know what this is, enter farside.link): " farsidelink
+						if [[ -z "${farsidelink}" ]]; then
+							echo -e "Enter your redirector link or hit Ctrl+C to exit."
+							continue
+						fi
+						break
+                    done
+
 					# Install some depndencies
 					sudo apt-get -qq update && sudo apt install -y -qq git yarn nodejs
 
@@ -2977,7 +3398,7 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 					redisname=$containername'_redis'
 					ymlname=$rootdir/$containername-compose.yml
 					rndsubfolder=$(openssl rand -hex 15)
-
+					
 					# Remove any existing installation
 					$(docker-compose -f $ymlname -p $stackname down -v)
 					rm -rf $rootdir/docker/$containername;
@@ -3033,13 +3454,13 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 					echo -e "    $ymlenv" >> $ymlname
 					# Additional environmental variables (user specified)
 					echo -e "      - REDIS_HOST=\"$redisname\"" >> $ymlname
-					echo -e "      - NITTER_HOST=farside.link\/nitter" >> $ymlname
+					echo -e "      - NITTER_HOST=$farsidelink\/nitter" >> $ymlname
 					echo -e "      - NITTER_NAME=$containername" >> $ymlname
-					echo -e "      - REPLACE_TWITTER=farside.link\/nitter" >> $ymlname
+					echo -e "      - REPLACE_TWITTER=$farsidelink\/nitter" >> $ymlname
 					#echo -e "      - REPLACE_YOUTUBE=piped.kavin.rocks" >> $ymlname
-					echo -e "      - REPLACE_YOUTUBE=farside.link\/invidious" >> $ymlname
-					echo -e "      - REPLACE_REDDIT=farside.link\/libreddit" >> $ymlname
-					echo -e "      - REPLACE_INSTAGRAM=farside.link\/bibliogram" >> $ymlname
+					echo -e "      - REPLACE_YOUTUBE=$farsidelink\/invidious" >> $ymlname
+					echo -e "      - REPLACE_REDDIT=$farsidelink\/libreddit" >> $ymlname
+					echo -e "      - REPLACE_INSTAGRAM=$farsidelink\/bibliogram" >> $ymlname
 					# Miscellaneous docker container parameters (user specified)
 					echo -e "    depends_on:" >> $ymlname
 					echo -e "      - $redisname" >> $ymlname
@@ -3425,6 +3846,16 @@ v					# Restart SWAG to propogate the changes to proxy-confs
         done
 
 	##################################################################################################################################
+
+
+	##############################################################################################################################
+	# SimolyTranslate - 
+
+		# Increment this regardless of installation or repeat runs of this
+		# script will lead to docker errors due to address already in use
+		ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+	##############################################################################################################################
 
 	##################################################################################################################################
 	# Synapse matrix server - will not run on a subfolder!
@@ -4158,19 +4589,57 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 				case $yn in
 					[Yy]* ) 
 						# https://github.com/hwdsl2/docker-ipsec-vpn-server
+						# Some help for getting it to run with a custom DNS
+						# Note the part about the '...if IKEv2 is already set up in the docker...'
+						# https://github.com/hwdsl2/docker-ipsec-vpn-server/blob/master/docs/advanced-usage.md#use-alternative-dns-servers=
+
+						while true; do
+							read -rp $'\n'"Enter your desired vpn userid (e.g PLzkerop6r2): " ipsecusrid
+							
+							if [[ -z "${ipsecusrid}" ]]; then
+								echo -e "Enter your desired neko user password or hit Ctrl+C to exit."
+								continue
+							fi
+
+							break
+						done
+
+						while true; do
+							read -rp $'\n'"Enter your desired vpn password (e.g. 3oP7mxfgg3LcQqnaFqffkyfGUMY3UePoh65): " ipsecpass
+							
+							if [[ -z "${ipsecpass}" ]]; then
+								echo -e "Enter your desired neko user password or hit Ctrl+C to exit."
+								continue
+							fi
+
+							break
+						done
+
+						while true; do
+							read -rp $'\n'"Enter your desired pre-shared key (PSK) (e.g. XQCuAHRojrUYgfPP4RQJD7K4UDqFSPYkpZ5): " ipsecpsk
+							
+							if [[ -z "${ipsecpsk}" ]]; then
+								echo -e "Enter your desired pre-shared key (PSK) or hit Ctrl+C to exit."
+								continue
+							fi
+
+							break
+						done				
 
 						# Create the docker-compose file
 						containername=vpn-ipsec
 						ymlname=$rootdir/$containername-compose.yml
 						rndsubfolder=$(openssl rand -hex 15)
-						ipsecpsk=$(openssl rand -hex 40)  # Pre-Shared Key (PSK)
-						ipsecusrid=$(openssl rand -hex 40)
-						ipsecpass=$(openssl rand -hex 40)
+						#ipsecpsk=$(openssl rand -hex 40)  # Pre-Shared Key (PSK)
+						#ipsecusrid=$(openssl rand -hex 40)
+						#ipsecpass=$(openssl rand -hex 40)
 						sespw=$(openssl rand -hex 40)  # Server management password
 						sehpw=$(openssl rand -hex 40)  # Hub management password
 						# SoftEther ports - L2TP/IPSec ports
-						ipsecl2tp1port1=500
-						ipsecl2tp1port2=4500
+						ipsecl2tp1port1=500 # Default 500 IPSec/IKEv2
+						ipsecl2tp1port2=4500 # Default 4500 IPSec/IKEv2
+						ipsecl2tp1port3=1701 # Default 1701 L2TP
+
 						# SoftEther ports - SoftEther VPN
 						sevpnport1=5555
 						sevpnport2=992
@@ -4178,7 +4647,7 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 
 						# Save variable to .bashrc for later persistent use
 						export_variable "\n# VPN - IPSec/IKEv2"
-						ipsecpsk=$(manage_variable "ipsecpsk" "$psecpsk  # SoftEther pre-shared key (PSK)")
+						ipsecpsk=$(manage_variable "ipsecpsk" "$ipsecpsk  # SoftEther pre-shared key (PSK)")
 						ipsecusrid=$(manage_variable "ipsecusrid" "$ipsecusrid # IPSec userid")
 						ipsecpass=$(manage_variable "ipsecpass" "$ipsecpass  # IPSec password")
 
@@ -4191,8 +4660,7 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 
 						mkdir -p $rootdir/docker/$containername
 						mkdir -p $rootdir/docker/$containername/ikev2-vpn-data
-						mkdir -p $rootdir/docker/$containername/lib
-						mkdir -p $rootdir/docker/$containername/lib/modules
+						mkdir -p $rootdir/docker/$containername/lib-modules
 
 						rm -f $ymlname && touch $ymlname
 
@@ -4203,15 +4671,22 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						echo -e "    container_name: $containername" >> $ymlname
 						echo -e "    hostname: $containername" >> $ymlname
 						# Docker image (user specified)
-						echo -e "    hwdsl2/ipsec-vpn-server" >> $ymlname
+						echo -e "    image: hwdsl2/ipsec-vpn-server" >> $ymlname
 						# Environmental variables (generic)
 						echo -e "    $ymlenv" >> $ymlname
 						# Additional environmental variables (user specified)
 						echo -e "      - VPN_IPSEC_PSK=$ipsecpsk # Pre-Shared Key (PSK)" >> $ymlname
 						echo -e "      - VPN_USER=$ipsecusrid" >> $ymlname
 						echo -e "      - VPN_PASSWORD=$ipsecpass" >> $ymlname
+						echo -e "      - VPN_DNS_SRV1=$piholeip" >> $ymlname
 						# Miscellaneous docker container parameters (user specified)
 						echo -e "    privileged: true" >> $ymlname
+						echo -e "    dns:" >> $ymlname
+						echo -e "      #- xxx.xxx.xxx.xxx server external to this machine (e.x. 8.8.8.8, 1.1.1.1)" >> $ymlname
+						echo -e "      # If you are running pihole in a docker container, point neko to the pihole" >> $ymlname
+						echo -e "      # docker container ip address.  Probably best to set a static ip address for" >> $ymlname
+						echo -e "      # the pihole in the configuration so that it will never change." >> $ymlname
+						echo -e "      - $piholeip" >> $ymlname
 						# Network specifications (user specified)
 						echo -e "    networks:" >> $ymlname
 						echo -e "      no-internet:" >> $ymlname
@@ -4220,24 +4695,15 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						# Ports specifications (user specified)
 						echo -e "    ports:" >> $ymlname
 						echo -e "      - $ipsecl2tp1port1:500/udp  # for L2TP/IPSec" >> $ymlname
-						echo -e "      - $ipsecl2tp1port2:4500/tcp  # for L2TP/IPSec" >> $ymlname
-						echo -e "      #- $sel2tp1port3:4500/udp  # for L2TP/IPSec" >> $ymlname
-						echo -e "      #- $sevpnport1:5555/tcp  # for SoftEther VPN (recommended by vendor)." >> $ymlname
-						echo -e "      #- $sevpnport2:992/tcp  # is also available as alternative." >> $ymlname
-						echo -e "      #- $sesstpport:443/tcp # for SSTP" >> $ymlname
+						echo -e "      - $ipsecl2tp1port2:4500/udp  # for L2TP/IPSec" >> $ymlname
+						echo -e "      - $ipsecl2tp1port3:1701/udp # for L2TP" >> $ymlname
+
 						# Restart policies (generic)
 						echo -e "    $ymlrestart" >> $ymlname
 						# Volumes (user specified)
 						echo -e "    volumes:" >> $ymlname
 						echo -e "      - $rootdir/docker/$containername/ikev2-vpn-data:/etc/ipsec.d" >> $ymlname
-						echo -e "      - $rootdir/docker/$containername/ikev2-vpn-data/lib/modules:/lib/modules:ro" >> $ymlname
-						echo -e "      # By default SoftEther has a very verbose logging system. For privacy or" >> $ymlname
-						echo -e "      # space constraints, this may not be desirable. The easiest way to solve this" >> $ymlname
-						echo -e "      # create a dummy volume to log to /dev/null. In your docker run you can" >> $ymlname
-						echo -e "      # use the following volume variables to remove logs entirely." >> $ymlname
-						echo -e "      #- /dev/null:/usr/vpnserver/server_log" >> $ymlname
-						echo -e "      #- /dev/null:/usr/vpnserver/packet_log" >> $ymlname
-						echo -e "      #- /dev/null:/usr/vpnserver/security_log" >> $ymlname
+						echo -e "      - $rootdir/docker/$containername/lib-modules:/lib/modules:ro" >> $ymlname
 						# Networks, etc (generic)...
 						echo -e "$ymlftr" >> $ymlname
 
@@ -4245,7 +4711,8 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 
 						docker-compose --log-level ERROR -f $ymlname -p $stackname up -d
 
-						chmod 777 -R $rootdir/docker/$containername/ikev2-vpn-data/vpnclient.*
+						chmod 777 -R $rootdir/docker/$containername/ikev2-vpn-data/ 
+						#vpnclient.*
 
 						# --env-file use for above to hide environmental variables from the portainer gui
 
@@ -4263,14 +4730,14 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 
 						break;;
 					[Nn]* ) break;;
-					* ) echo -e "Please answer yes or no.";;
+					* ) echo -e "Please answer yes or no.";
 				esac
 			done
 
 		##########################################################################################################################
 
 		##########################################################################################################################
-		# VPN - OpenVPN Access Server
+		# VPN - OpenVPN Access Server - will not run on a subfolder
 
 			# Not a docker container!
 
@@ -4286,6 +4753,39 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						# https://openvpn.net/vpn-server-resources/advanced-option-settings-on-the-command-line/
 						# https://askubuntu.com/questions/1133903/where-is-openvpns-sacli - /usr/local/openvpn_as/scripts/sacli
 
+						while true; do
+							read -rp $'\n'"Enter your desired OpenVPN userid (e.g PLzkerop6r2): " ovpnuser
+							
+							if [[ -z "${ovpnuser}" ]]; then
+								echo -e "Enter your desired OpenVPN userid or hit Ctrl+C to exit."
+								continue
+							fi
+
+							break
+						done
+
+						while true; do
+							read -rp $'\n'"Enter your desired OpenVPN password (e.g. 3oP7mxfgg3LcQqnaFqffkyfGUMY3UePoh65): " ovpnpass
+							
+							if [[ -z "${ovpnpass}" ]]; then
+								echo -e "Enter your desired OpenVPN password or hit Ctrl+C to exit."
+								continue
+							fi
+
+							break
+						done
+						
+						while true; do
+							read -rp $'\n'"Enter your desired OpenVPN group id (e.g. XQCuAHRojrUYgfPP4RQJD7K4UDqFSPYkpZ5): " ovpngroup
+							
+							if [[ -z "${ovpngroup}" ]]; then
+								echo -e "Enter your desired OpenVPN group id or hit Ctrl+C to exit."
+								continue
+							fi
+
+							break
+						done
+
 						# Install some dependencies
 						sudo apt update && sudo apt -y install -qq ca-certificates wget net-tools gnupg
 						wget -qO - https://as-repository.openvpn.net/as-repo-public.gpg | sudo apt-key add -
@@ -4300,18 +4800,18 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						sacliloc=/usr/local/openvpn_as/scripts/sacli
 						ovpntcpport=26111
 						ovpnudpport=21894
-						ovpnuser=$(openssl rand -hex 8)
-						ovpnpass=$(openssl rand -hex 32)
-						ovpngroup=$(openssl rand -hex 8)
+						#ovpnuser=$(openssl rand -hex 8)
+						#ovpnpass=$(openssl rand -hex 32)
+						#ovpngroup=$(openssl rand -hex 8)
 
 						# Save variable to .bashrc for later persistent use
 						export_variable "\n# OpenVPN Access Server"
-						sacliloc=$(manage_variable "sacliloc" "$sacliloc")
-						ovpntcpport=$(manage_variable "ovpntcpport" "$ovpntcpport")
-						ovpnudpport=$(manage_variable "ovpnudpport" "$ovpnudpport")
-						ovpnuser=$(manage_variable "ovpnuser" "$ovpnuser")
-						ovpnpass=$(manage_variable "ovpnpass" "$ovpnpass")
-						ovpngroup=$(manage_variable "ovpngroup=" "$ovpngroup")
+						sacliloc=$(manage_variable "sacliloc" "$sacliloc" -r)
+						ovpntcpport=$(manage_variable "ovpntcpport" "$ovpntcpport" -r)
+						ovpnudpport=$(manage_variable "ovpnudpport" "$ovpnudpport" -r)
+						ovpnuser=$(manage_variable "ovpnuser" "$ovpnuser" -r)
+						ovpnpass=$(manage_variable "ovpnpass" "$ovpnpass" -r)
+						ovpngroup=$(manage_variable "ovpngroup=" "$ovpngroup" -r)
 
 						# Commit the .bashrc changes
 						source $rootdir/.bashrc
@@ -4357,7 +4857,12 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 
 						# Restart the server
 						$sacliloc start
-						
+
+						# Restart SWAG to propogate the changes to proxy-confs
+						echo -e "Restarting SWAG..."
+						$(docker-compose -f $swagymlname -p $stackname down) > /dev/null 2>&1 && $(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+						$(docker-compose --log-level ERROR -f $swagymlname -p $stackname up -d) > /dev/null 2>&1
+							
 						# Firewall rules
 						# Block access to port 943 from the outside - traffic must go thhrough SWAG
 						# Blackhole outside connection attempts to port 943 web interface
@@ -4367,6 +4872,7 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						iptables -A INPUT -p udp --dport $ovpnudpport -j ACCEPT
 
 						#iptables-save
+
 						break;;
 					[Nn]* ) break;;
 					* ) echo -e "Please answer yes or no.";;
@@ -4382,9 +4888,11 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 		##########################################################################################################################
 		# VPN - Shadowsocks proxy
 
-						# Increment this regardless of installation or repeat runs of this
-						# script will lead to docker errors due to address already in use
-						ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+			# https://github.com/shadowsocks/shadowsocks-libev/tree/master/docker/alpine
+
+			# Increment this regardless of installation or repeat runs of this
+			# script will lead to docker errors due to address already in use
+			ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
 
 			while true; do
 				read -p $'\n'"Do you want to install/reinstall Shadowsocks proxy (y/n)? " yn
@@ -4400,10 +4908,11 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						done
 
 						# Create the docker-compose file
-						containername=shadowsocks
+						containername=vpn-shadowsocks
 						ymlname=$rootdir/$containername-compose.yml
 						rndsubfolder=$(openssl rand -hex 15)
 						shadowsockssubdirectory=$rndsubfolder
+						ssport=8388 # Default 8388
 
 						# Remove any existing installation
 						$(docker-compose -f $ymlname -p $stackname down -v)
@@ -4435,8 +4944,8 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						echo -e "      - PASSWORD=$sspass" >> $ymlname
 						echo -e "      - DNS_ADDRS=$piholeip # Comma delimited, need to use external to this vps or internal to docker" >> $ymlname
 						# Miscellaneous docker container parameters (user specified)
-						echo -e "    cap-add:" >> $ymlname # this is throwing an error??
-						echo -e "      - NET_ADMIN" >> $ymlname
+						#echo -e "    cap-add:" >> $ymlname # this is throwing an error??
+						#echo -e "      - NET_ADMIN" >> $ymlname
 						# Network specifications (user specified)
 						echo -e "    networks:" >> $ymlname
 						echo -e "      no-internet:" >> $ymlname
@@ -4444,8 +4953,8 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						echo -e "        ipv4_address: $ipaddress" >> $ymlname
 						# Ports specifications (user specified)
 						echo -e "    ports:" >> $ymlname
-						echo -e "      - 58211:8388/tcp" >> $ymlname
-						echo -e "      - 58211:8388/udp" >> $ymlname
+						echo -e "      - $ssport:8388/tcp" >> $ymlname
+						echo -e "      - $ssport:8388/udp2" >> $ymlname
 						# Restart policies (generic)
 						echo -e "    $ymlrestart" >> $ymlname
 						# Volumes (user specified)
@@ -4463,8 +4972,8 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 						done
 						
 						# Firewall rules
-						iptables -A INPUT -p udp --dport 58211 -j ACCEPT
-						iptables -A INPUT -p tcp --dport 58211 -j ACCEPT
+						iptables -A INPUT -p udp --dport $ssport -j ACCEPT
+						iptables -A INPUT -p tcp --dport $ssport -j ACCEPT
 
 						#iptables-save
 
@@ -4624,6 +5133,18 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 			done	
 	
 		##########################################################################################################################
+
+
+		##############################################################################################################################
+		# Tor proxy - 
+
+			# https://hub.docker.com/r/dperson/torproxy
+
+			# Increment this regardless of installation or repeat runs of this
+			# script will lead to docker errors due to address already in use
+			ipend=$(($ipend+$ipincr)) && ipaddress=$subnet.$ipend
+
+		##############################################################################################################################
 
 		##########################################################################################################################
 		# VPN - Wireguard
@@ -5186,6 +5707,8 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 					# sed -i 's/nameserver 9.9.9.9/nameserver '$piholeip'/g' /etc/resolv.conf - not persistent
 					rm -rf /etc/resolvconf/resolv.conf.d/base && touch /etc/resolvconf/resolv.conf.d/base
 					echo "nameserver $piholeip" >> /etc/resolvconf/resolv.conf.d/base
+					#rm -rf /etc/resolvconf/resolv.conf.d/original
+					#rm -rf /etc/resolvconf/update.d
 					resolvconf -u
 
 
@@ -5195,7 +5718,7 @@ v					# Restart SWAG to propogate the changes to proxy-confs
 
 					# Force all docker traffic through the pihole
 					#echo -e "{" >> /etc/docker/daemon.json
-   				 	#echo -e '	dns": ["'$piholeip'"]' >> /etc/docker/daemon.json
+   				 	#echo -e '  dns: ["'$piholeip'"]' >> /etc/docker/daemon.json
 					#echo -e "}" >> /etc/docker/daemon.json
 
 					#service docker restart
