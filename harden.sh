@@ -291,7 +291,8 @@ iptables -A INPUT -p icmp --icmp-type echo-request -j DROP
 # Save your changes
 iptables-save
 
- # Install docker
+ # Install docker (below for x86 Ubuntu 20.04)
+ # Instruction for ARM64 (RaspberryPi) - https://omar2cloud.github.io/rasp/rpidock/
  if ! dockerd --help > /dev/null 2>&1; then
    while true; do
      read -rp "
