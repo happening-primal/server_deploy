@@ -56,7 +56,10 @@ using bleachbit.  Runs once a month."
 #  esac
 #done
 
-(crontab -l 2>/dev/null || true; echo "0 0 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs bleachbit --clean") | crontab -
+if ! [[ $(crontab -l | grep bleachbit) == *"xargs bleachbit"* ]]
+then
+    (crontab -l 2>/dev/null || true; echo "0 0 1 * * bleachbit --list | grep -E \"[a-z0-9_\-]+\.[a-z0-9_\-]+\" | xargs bleachbit --clean") | crontab -
+fi
 
 echo "
 
