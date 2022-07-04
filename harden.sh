@@ -338,6 +338,10 @@ echo "
     -v portainer_data:/data \
     cr.portainer.io/portainer/portainer-ce:2.9.3
 
+# Install docker-compose
+# https://www.jfrog.com/connect/post/install-docker-compose-on-raspberry-pi/
+ #docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data cr.portainer.io/portainer/portainer-ce:2.9.3
+
  echo "
  Docker with portainer is installed.  Please immediatly log on to your portainer instance set up the
  user.  If you don't, someone else will.  You have been warned!
