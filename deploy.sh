@@ -22,7 +22,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 while true; do
-  read -rp "Let's run an update first (hit Enter to continue or ctrl+C t exit...
+  read -rp "Let's run an update first (hit Enter to continue or ctrl+C t exit)...
     (select yes at the two prompts regarding ipv4 and ipv6) " yn
   case $yn in
     "") break ;;
