@@ -125,34 +125,33 @@ while true; do
             sudo rm -f "$chiseldir/$chiselservicescript"
 
             # Create the service script
-echo -e '#!/bin/bash
-
+echo -e "#!/bin/bash
 while :
 do
-	echo "Checking connection..."
+	echo 'Checking connection...'
 
-	echo quit | telnet 127.0.0.1 '$cpt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-	#echo "Test 1 Output: $test_output"
+	echo quit | telnet 127.0.0.1 $cpt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+	#echo \"Test 1 Output: \$test_output\"
 
-	if [[ "$test_output" != 0 ]]; then
-		echo "Not connected, so connecting now..."
-        	sudo '$chiseldir'/chisel client -v --fingerprint '$sfp' '$sip':'$spt' '$cpt':127.0.0.1:'$ept' &
+	if [[ \"\$test_output\" != 0 ]]; then
+		echo 'Not connected, so connecting now...'
+        sudo $chiseldir/chisel client -v --fingerprint '$sfp' $sip:$spt $cpt:127.0.0.1:$ept &
 		sleep 2
 
-		echo quit | telnet 127.0.0.1 '$cpt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-		#echo "Test 2 Output: $test_output"
+		echo quit | telnet 127.0.0.1 $cpt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+		#echo \"Test 2 Output: \$test_output\"
 
-		if [[ "$test_output" == 0 ]]; then
-			echo "Connection successful!"
+		if [[ \"\$test_output\" == 0 ]]; then
+			echo 'Connection successful!'
 		else
-			echo "Retrying in 60 seconds..."
+			echo 'Retrying in 60 seconds...'
 			sleep 60
 		fi
 	else
-		echo "Connected!  Will check again in 60 seconds..."
+		echo 'Connected!  Will check again in 60 seconds...'
 		sleep 60
 	fi
-done' >> "$chiseldir/$chiselservicescript"
+done" >> "$chiseldir/$chiselservicescript"
 
             # Make it executable
             sudo chmod +x "$chiseldir/$chiselservicescript"
@@ -263,34 +262,33 @@ WantedBy=multi-user.target" >> "$servicefolder/$chiselsericename.service"
             sudo rm -f "$chiseldir/$chiselservicescript"
 
             # Create the service script
-echo -e '#!/bin/bash
-
+echo -e "#!/bin/bash
 while :
 do
-	echo "Checking connection..."
+	echo 'Checking connection...'
 
-	echo quit | telnet 127.0.0.1 '$spt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-	#echo "Test 1 Output: $test_output"
+	echo quit | telnet 127.0.0.1 $spt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+	#echo \"Test 1 Output: \$test_output\"
 
-	if [[ "$test_output" != 0 ]]; then
-		echo "Not running, so starting now..."
-		sudo '$chiseldir'/chisel server -v --port '$spt' --key "'$sky'" &
+	if [[ \"\$test_output\" != 0 ]]; then
+		echo 'Not running, so starting now...'
+        sudo $chiseldir/chisel server -v --port $spt --key '$sky' &
 		sleep 2
 
-		echo quit | telnet 127.0.0.1 '$spt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-		#echo "Test 2 Output: $test_output"
+		echo quit | telnet 127.0.0.1 $spt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+		#echo 'Test 2 Output: \$test_output'
 
-		if [[ "$test_output" == 0 ]]; then
-			echo "Startup successful!"
+		if [[ \"\$test_output\" == 0 ]]; then
+			echo 'Startup successful!'
 		else
-			echo "Retrying in 60 seconds..."
+			echo 'Retrying in 60 seconds...'
 			sleep 60
 		fi
 	else
-		echo "Connected!  Will check again in 60 seconds..."
+		echo 'Connected!  Will check again in 60 seconds...'
 		sleep 60
 	fi
-done' >> "$chiseldir/$chiselservicescript"
+done" >> "$chiseldir/$chiselservicescript"
 
             # Make it executable
             sudo chmod +x "$chiseldir/$chiselservicescript"
@@ -321,10 +319,14 @@ WantedBy=multi-user.target" >> "$servicefolder/$chiselsericename.service"
                         # Get the server fingerprint
                         fingerprint=""
                         fingerprint=$(sudo systemctl status $chiselsericename | grep Fingerprint | awk '{print $10}')
+                        fingerprint="${fingerprint#Fingerprint:}"
+                        fingerprint=$(echo $fingerprint | xargs)
                         while [ -z "${fingerprint}" ]; do
                             echo -e "Waiting on the fingerprint..."
                             sleep 5
                             fingerprint=$(sudo systemctl status $chiselsericename | grep Fingerprint | awk '{print $10}')
+                            fingerprint="${fingerprint#Fingerprint:}"
+                            fingerprint=$(echo $fingerprint | xargs)
                         done
 
                         echo -e "Your fingerprint required for client connections is $fingerprint"
@@ -445,34 +447,33 @@ WantedBy=multi-user.target" >> "$servicefolder/$chiselsericename.service"
             sudo rm -f "$chiseldir/$chiselservicescript"
 
             # Create the service script
-echo -e '#!/bin/bash
-
+echo -e "#!/bin/bash
 while :
 do
-	echo "Checking connection..."
+	echo 'Checking connection...'
 
-	echo quit | telnet 127.0.0.1 '$spt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-	#echo "Test 1 Output: $test_output"
+	echo quit | telnet 127.0.0.1 $spt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+	#echo \"Test 1 Output: \$test_output\"
 
-	if [[ "$test_output" != 0 ]]; then
-		echo "Not running, so starting now..."
-		sudo '$chiseldir'/chisel server -v --port '$spt' --key '$sky' &
+	if [[ \"\$test_output\" != 0 ]]; then
+		echo 'Not running, so starting now...'
+        sudo $chiseldir/chisel server -v --port $spt --key '$sky' &
 		sleep 2
 
-		echo quit | telnet 127.0.0.1 '$spt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-		#echo "Test 2 Output: $test_output"
+		echo quit | telnet 127.0.0.1 $spt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+		#echo 'Test 2 Output: \$test_output'
 
-		if [[ "$test_output" == 0 ]]; then
-			echo "Startup successful!"
+		if [[ \"\$test_output\" == 0 ]]; then
+			echo 'Startup successful!'
 		else
-			echo "Retrying in 60 seconds..."
+			echo 'Retrying in 60 seconds...'
 			sleep 60
 		fi
 	else
-		echo "Connected!  Will check again in 60 seconds..."
+		echo 'Connected!  Will check again in 60 seconds...'
 		sleep 60
 	fi
-done' >> "$chiseldir/$chiselservicescript"
+done" >> "$chiseldir/$chiselservicescript"
 
             # Make it executable
             sudo chmod +x "$chiseldir/$chiselservicescript"
@@ -501,46 +502,49 @@ WantedBy=multi-user.target" >> "$servicefolder/$chiselsericename.service"
             # Get the server fingerprint
             fingerprint=""
             fingerprint=$(sudo systemctl status $chiselsericename | grep Fingerprint | awk '{print $10}')
+            fingerprint="${fingerprint#Fingerprint:}"
+            fingerprint=$(echo $fingerprint | xargs)
             while [ -z "${fingerprint}" ]; do
                 echo -e "Waiting on the fingerprint..."
                 sleep 5
                 fingerprint=$(sudo systemctl status $chiselsericename | grep Fingerprint | awk '{print $10}')
+                fingerprint="${fingerprint#Fingerprint:}"
+                fingerprint=$(echo $fingerprint | xargs)
             done
 
             # Remove any existing service script.
             sudo rm -f "$chiseldir/$chiselservicescript"
 
             # Create the service script
-echo -e '#!/bin/bash
-
+echo -e "#!/bin/bash
 while :
 do
-	echo "Checking connection..."
+	echo 'Checking connection...'
 
-	echo quit | telnet 127.0.0.1 '$cpt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-	#echo "Test 1 Output: $test_output"
+	echo quit | telnet 127.0.0.1 $cpt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+	#echo \"Test 1 Output: \$test_output\"
 
-	if [[ "$test_output" != 0 ]]; then
-		echo "Not running, so starting now..."
-		sudo '$chiseldir'/chisel server -v --port '$spt' --key '$sky' &
+	if [[ \"\$test_output\" != 0 ]]; then
+		echo 'Not connected, so connecting now...'
+		sudo $chiseldir/chisel server -v --port $spt --key '$sky' &
 		sleep 2
-        sudo '$chiseldir'/chisel client -v --fingerprint '$sfp' '$sip':'$rpt' '$cpt':127.0.0.1:'$ept' &
+        sudo $chiseldir/chisel client -v --fingerprint '$sfp' $sip:$rpt $cpt:127.0.0.1:$ept &
 		sleep 2
 
-		echo quit | telnet 127.0.0.1 '$cpt' 2>/dev/null | egrep -qi Connected && test_output=$(echo "$?")
-		#echo "Test 2 Output: $test_output"
+        echo quit | telnet 127.0.0.1 $cpt 2>/dev/null | egrep -qi Connected && test_output=$(echo \"\$?\")
+        #echo \"Test 2 Output: \$test_output\"
 
-		if [[ "$test_output" == 0 ]]; then
-			echo "Startup successful!"
+		if [[ \"\$test_output\" != 0 ]]; then
+			echo 'Startup successful!'
 		else
-			echo "Retrying in 60 seconds..."
+			echo 'Retrying in 60 seconds...'
 			sleep 60
 		fi
 	else
-		echo "Connected!  Will check again in 60 seconds..."
+		echo 'Connected!  Will check again in 60 seconds...'
 		sleep 60
 	fi
-done' >> "$chiseldir/$chiselservicescript"
+done" >> "$chiseldir/$chiselservicescript"
 
             # Make it executable
             sudo chmod +x "$chiseldir/$chiselservicescript"
