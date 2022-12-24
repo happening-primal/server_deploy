@@ -13,6 +13,8 @@
     
     # Macbook shadowsocks run as a daemon, now only manual run in CLI
 
+    # Output final configuarion diagram, save to file for future use...
+
 # References:
 # https://www.digitalocean.com/community/tutorials/how-to-set-up-an-ssl-tunnel-using-stunnel-on-ubuntu
 
