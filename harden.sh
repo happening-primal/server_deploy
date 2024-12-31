@@ -308,28 +308,7 @@ Docker is not installed. Would you like to install it? [Y/n]" yn
 echo "
 "
 
-   apt-get remove -qq containerd docker docker-engine docker.io runc
-   apt-get update -qq
-   apt-get install -y -qq \
-     apt-transport-https \
-     ca-certificates \
-     curl \
-     gnupg \
-     lsb-release
-
-   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-
-   echo \
-     "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-   apt-get update -qq
-   apt-get install -y -qq containerd.io docker-ce docker-ce-cli
- fi
-
- curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
- chmod +x /usr/local/bin/docker-compose
+ apt install docker docker-compose
 
  docker volume create portainer_data
 
@@ -337,7 +316,7 @@ echo "
     --restart=always \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v portainer_data:/data \
-    cr.portainer.io/portainer/portainer-ce:2.9.3
+    cr.portainer.io/portainer/portainer-ce:latest
 
 # Install docker-compose
 # https://www.jfrog.com/connect/post/install-docker-compose-on-raspberry-pi/
